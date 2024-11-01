@@ -1,3 +1,5 @@
+#include <debugapi.h>
+
 struct Example
 {
     //Infinite recursion
@@ -15,5 +17,6 @@ struct Example
 int main(void)
 {
     Example example;
+    DebugBreak();
     example.CauseException();
 }

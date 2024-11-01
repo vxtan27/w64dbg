@@ -10,11 +10,10 @@
 #include "exception.c"
 #include "fsize.c"
 #include "memrchr.c"
-#include "optimize.h"
 
 #define MAX_THREAD 64
 #define MAX_DLL 16
-#define GNU 2
+#define MINGW 2
 #define LATENCY 99
 
 #define SymOptions (SYMOPT_IGNORE_CVREC | SYMOPT_IGNORE_IMAGEDIR | SYMOPT_LOAD_ANYTHING | SYMOPT_NO_IMAGE_SEARCH | SYMOPT_DEFERRED_LOADS | SYMOPT_DISABLE_SYMSRV_AUTODETECT | SYMOPT_AUTO_PUBLICS | SYMOPT_INCLUDE_32BIT_MODULES)
@@ -24,21 +23,13 @@
 #define GCXX_RUNTIME_EXCEPTION 541541187
 
 #if defined(__GNUC__) || defined(__clang__)
-#if defined(_DEBUG) && !defined(__OPTIMIZE__)
-__attribute__((no_stack_protector, nothrow))
-#else
 __attribute__((leaf, no_stack_protector, nothrow))
-#endif
 #endif
 
 VOID WINAPI CompletedWriteRoutine(DWORD dwErr, DWORD cbWritten, LPOVERLAPPED lpOverLap) {}
 
 #if defined(__GNUC__) || defined(__clang__)
-#if defined(_DEBUG) && !defined(__OPTIMIZE__)
 __attribute__((access(read_only, 2), no_stack_protector, nothrow))
-#else
-__attribute__((access(read_only, 2), flatten, no_stack_protector, nothrow, simd))
-#endif
 #endif
 
 #ifdef _M_ARM64
@@ -52,8 +43,8 @@ int main(int argc, char *argv[])
     char buffer[65536];
     OVERLAPPED Overlapped = {};
     int temp, i, timeout = 0, debug = FALSE;
-    BOOL breakpoint = FALSE, firstbreak = FALSE,
-    output = FALSE,vexception = TRUE, verbose = FALSE, start = FALSE;
+    BOOL breakpoint = TRUE, firstbreak = FALSE,
+    output = TRUE, vexception = TRUE, verbose = FALSE, start = FALSE;
     Overlapped.Pointer = NULL;
     hStderr = GetStdHandle(STD_ERROR_HANDLE);
     for (i = 1; i < argc; ++i)
@@ -62,13 +53,15 @@ int main(int argc, char *argv[])
             if (argv[i][2] == '\0') switch(argv[i][1])
             {
                 case 'B':
-                    breakpoint = TRUE;
+                    breakpoint = FALSE;
                     continue;
                 case 'D':
                     debug = TRUE;
                     continue;
                 case 'G':
-                    debug = GNU;
+                    debug = MINGW;
+                    // https://learn.microsoft.com/en-us/windows/win32/api/debugapi/nf-debugapi-debugactiveprocess#remarks
+                    --firstbreak;
                     continue;
                 case 'Q':
                     vexception = FALSE;
@@ -84,8 +77,8 @@ int main(int argc, char *argv[])
                     {
                         WriteFileEx(hStderr,
                             "ERROR: Invalid syntax. Value expected for '/T'\n"
-                            "Type \"debug /?\" for usage.\n",
-                            74, &Overlapped,
+                            "Type \"w64dbg /?\" for usage.\n",
+                            75, &Overlapped,
                             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
                         return 1;
                     } else if ((timeout = atol(argv[i])) > 99999 || timeout < -1)
@@ -102,20 +95,19 @@ int main(int argc, char *argv[])
                     continue;
                 case '?':
                     WriteFileEx(hStderr,
-                        "Usage: debug [...] executable [...]\n\n"
+                        "Usage: w64dbg [...] executable [...]\n\n"
                         "Description:\n"
-                        "This tool is used to debug an executable on 64-bit Windows OS.\n\n"
+                        "This tool is used to debug an executable on x64 Windows.\n\n"
                         "Parameter List:\n"
-                        "/B Do not ignore breakpoints.\n"
-                        "/D Load executable debug symbols.\n"
-                        "/G Load executable debug symbols using GDB backend.\n"
+                        "/B Ignore breakpoints.\n"
+                        "/D Load the executable's PDB debug symbols.\n"
+                        "/G Load the executable's DWARF debug symbols.\n"
                         "/Q Do not display verbose exception information.\n"
-                        "/O Display OutputDebugString string.\n"
-                        "/S Start executable with a new console.\n"
-                        "/T Specify to wait for the specified time period (in seconds)\n"
-                        "                                 or until any key is pressed.\n"
-                        "/V Display verbose debug information. \n"
-                        , 535, &Overlapped,
+                        "/O Do not display OutputDebugString string.\n"
+                        "/S Start the executable in a new console.\n"
+                        "/T Wait for the specified period (in seconds).\n"
+                        "/V Display verbose debug information.\n"
+                        , 458, &Overlapped,
                         (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
                     return 0;
             }
@@ -132,8 +124,8 @@ int main(int argc, char *argv[])
                 memcpy(buffer + 34, argv[i], temp);
             }
             memcpy(buffer + 34 + temp, "'.\n"
-                "Type \"debug /?\" for usage.\n", 30);
-            WriteFileEx(hStderr, buffer, 34 + temp + 30, &Overlapped,
+                "Type \"w64dbg /?\" for usage.\n", 31);
+            WriteFileEx(hStderr, buffer, 34 + temp + 31, &Overlapped,
             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
             return 1;
         }
@@ -142,8 +134,8 @@ int main(int argc, char *argv[])
     {
         WriteFileEx(hStderr,
             "ERROR: Invalid syntax.\n"
-            "Type \"debug /?\" for usage.\n"
-            , 50, &Overlapped,
+            "Type \"w64dbg /?\" for usage.\n"
+            , 51, &Overlapped,
             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
         return 1;
     }
@@ -178,6 +170,7 @@ int main(int argc, char *argv[])
         ++i;
     }
     char *p;
+    BOOL bWow64;
     PROCESS_INFORMATION processInfo;
     STARTUPINFO startupInfo = {sizeof(startupInfo)};
     DEBUG_EVENT DebugEvent;
@@ -185,7 +178,7 @@ int main(int argc, char *argv[])
     HANDLE hThread[MAX_THREAD], hFile[MAX_DLL];
     DWORD dwThreadId[MAX_THREAD] = {}, DLLInit[MAX_DLL] = {};
     buffer[j] = '\0';
-    if (debug == GNU)
+    if (debug == MINGW)
     {
         if (start) CreateProcessA(_buffer, buffer, NULL, NULL, FALSE,
             CREATE_NEW_CONSOLE,
@@ -225,6 +218,25 @@ int main(int argc, char *argv[])
     lpBaseOfDll[0] = DebugEvent.u.CreateProcessInfo.lpBaseOfImage;
     if (debug == TRUE) hFile[0] = DebugEvent.u.CreateProcessInfo.hFile;
     else CloseHandle(DebugEvent.u.CreateProcessInfo.hFile);
+#ifndef _M_ARM64
+    IsWow64Process(processInfo.hProcess, &bWow64);
+    if (bWow64 && debug != MINGW) --firstbreak;
+#else
+    USHORT processArch, nativeArch;
+    IsWow64Process2(processInfo.hProcess, &processArch, &nativeArch);
+    if (processArch == IMAGE_FILE_MACHINE_UNKNOWN)
+    {
+        PROCESS_MACHINE_INFORMATION processMachineInfo;
+        HMODULE hKernelModule = GetModuleHandleA("kernel32");
+        PFN_GETPROCESSINFORMATION pfnGetProcessInformation =
+        (PFN_GETPROCESSINFORMATION)GetProcAddress(hKernelModule, "GetProcessInformation");
+        if (pfnGetProcessInformation(processInfo.hProcess, ProcessMachineTypeInfo, &processMachineInfo, sizeof(processMachineInfo)))
+        {
+            processArch = processMachineInfo.ProcessMachine;
+        } else processArch = nativeArch;
+    }
+    if (processArch == IMAGE_FILE_MACHINE_I386 && debug != MINGW) --firstbreak;
+#endif
     while (TRUE)
     {
         WaitForDebugEvent(&DebugEvent, INFINITE);
@@ -404,13 +416,11 @@ int main(int argc, char *argv[])
                 break;
             case EXCEPTION_DEBUG_EVENT:
                 //ignore first-chance breakpoints && thread naming exception
-                if (DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 541541187) //GCXX_RUNTIME_EXCEPTION
-                    break;
-                if ((breakpoint == FALSE && (
-                DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x80000003 || //EXCEPTION_BREAKPOINT
-                DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x4000001F || //STATUS_WX86_BREAKPOINT
-                DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x406D1388)) || //MS_VC_EXCEPTION
-                (breakpoint == TRUE && ++firstbreak == TRUE))
+                if (DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 541541187 || //GCXX_RUNTIME_EXCEPTION
+                    ((DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x80000003 || //EXCEPTION_BREAKPOINT
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x4000001F || //STATUS_WX86_BREAKPOINT
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x406D1388) && //MS_VC_EXCEPTION
+                    ((breakpoint == FALSE) || (breakpoint == TRUE && ++firstbreak <= 1))))
                     break;
                 for (i = 0; i < MAX_THREAD; ++i) if (DebugEvent.dwThreadId == dwThreadId[i])
                     break;
@@ -423,7 +433,6 @@ int main(int argc, char *argv[])
                     continue;
                 }
                 char *name;
-                BOOL bWow64;
                 BOOL Console;
                 CONTEXT Context;
                 DWORD MachineType;
@@ -469,9 +478,6 @@ int main(int argc, char *argv[])
                 p = buffer + 8 + strlen(buffer + 8);
                 memcpy(p, " caused ", 8);
                 p += 8;
-#ifndef _M_ARM64
-                IsWow64Process(hProcess, &bWow64);
-#endif
                 p = FormatDebugException(&DebugEvent, p, _buffer, bWow64);
                 *p = '\n';
                 ++p;
@@ -491,7 +497,7 @@ int main(int argc, char *argv[])
                         *p = 'm';
                         ++p;
                     }
-                    p = FormatVerboseDebugException(p, 
+                    p = FormatVerboseDebugException(p,
                         DebugEvent.u.Exception.ExceptionRecord.ExceptionCode);
                     *p = '\n';
                     ++p;
@@ -507,19 +513,6 @@ int main(int argc, char *argv[])
                 }
                 //memset(&StackFrame, 0, sizeof(StackFrame));
 #ifdef _M_ARM64
-                USHORT processArch, nativeArch;
-                IsWow64Process2(processInfo.hProcess, &processArch, &nativeArch);
-                if (processArch == IMAGE_FILE_MACHINE_UNKNOWN)
-                {
-                    PROCESS_MACHINE_INFORMATION processMachineInfo = {};
-                    HMODULE hKernelModule = GetModuleHandleA("kernel32");
-                    PFN_GETPROCESSINFORMATION pfnGetProcessInformation =
-                    (PFN_GETPROCESSINFORMATION)GetProcAddress(hKernelModule, "GetProcessInformation");
-                    if (pfnGetProcessInformation(processInfo.hProcess, ProcessMachineTypeInfo, &processMachineInfo, sizeof processMachineInfo))
-                    {
-                        processArch = processMachineInfo.ProcessMachine;
-                    } else processArch = nativeArch;
-                }
                 if (processArch == IMAGE_FILE_MACHINE_ARM64 ||
                     processArch == IMAGE_FILE_MACHINE_AMD64)
                 {
@@ -825,7 +818,7 @@ int main(int argc, char *argv[])
                         ++count;
                     }
                 }
-                if (debug == GNU)
+                if (debug == MINGW)
                 {
                     if (SearchPathA(NULL, "gdb.exe", NULL, sizeof(_buffer), _buffer, NULL))
                     {
@@ -834,7 +827,8 @@ int main(int argc, char *argv[])
                         DWORD dwRead;
                         PROCESS_INFORMATION GDBInfo;
                         char *str, *next, *ptr, *_ptr;
-                        HANDLE hStdoutReadPipe, hStdoutWritePipe;
+                        JOBOBJECT_EXTENDED_LIMIT_INFORMATION jobLimit;
+                        HANDLE hStdoutReadPipe, hStdoutWritePipe, hJob;
                         SECURITY_ATTRIBUTES saAttr = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
                         SuspendThread(hThread[i]);
                         ContinueDebugEvent(DebugEvent.dwProcessId,
@@ -855,9 +849,17 @@ int main(int argc, char *argv[])
                         CreatePipe(&hStdoutReadPipe, &hStdoutWritePipe, &saAttr, 0);
                         startupInfo.hStdOutput = hStdoutWritePipe;
                         startupInfo.dwFlags = STARTF_USESTDHANDLES;
+                        jobLimit.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+                        hJob = CreateJobObjectA(NULL, NULL);
+                        SetInformationJobObject(hJob, JobObjectExtendedLimitInformation,
+                        &jobLimit, sizeof(jobLimit));
                         CreateProcessA(_buffer, p, NULL, NULL, TRUE,
-                            CREATE_NO_WINDOW,
+                            CREATE_SUSPENDED | CREATE_NO_WINDOW,
                             NULL, NULL, &startupInfo, &GDBInfo);
+                        // Make sure GDB is killed together
+                        // to avoid resource leaks
+                        AssignProcessToJobObject(hJob, GDBInfo.hProcess);
+                        ResumeThread(GDBInfo.hThread);
                         CloseHandle(hStdoutWritePipe);
                         CloseHandle(GDBInfo.hThread);
                         while (TRUE)
@@ -888,7 +890,7 @@ int main(int argc, char *argv[])
                                 while (TRUE)
                                 {
                                     next = (char *) memchr(str, '\n', _buffer + dwRead - str) + 1;
-                                    if (memcmp(str, "(gdb)", 5) == 0) break;    
+                                    if (memcmp(str, "(gdb)", 5) == 0) break;   
                                     if (iter >= count)
                                     {
                                         if (next > (char *) 1) temp = next - str;
@@ -960,7 +962,7 @@ int main(int argc, char *argv[])
                                         *p = '(';
                                         ++p;
                                         j = (char *) memrchr(str + 5 + k + i + 1, ')', temp - 5 - k - i - 1) - str - 5 - k - i;
-                                        if (j > 1)
+                                        if (j > 1 && (ptr = (char *) memchr(str + 5 + k + i + 1, '=', temp - 5 - k - i - 1)))
                                         {
                                             *p = '\x1b';
                                             ++p;
@@ -971,8 +973,7 @@ int main(int argc, char *argv[])
                                             *p = '6';
                                             ++p;
                                             *p = 'm';
-                                            ++p;
-                                            ptr = (char *) memchr(str + 5 + k + i + 1, '=', temp - 5 - k - i - 1);
+                                            ++p;\
                                             memcpy(p, str + 5 + k + i + 1, ptr - str - 5 - k - i - 1);
                                             p += ptr - str - 5 - k - i - 1;
                                             *p = '\x1b';
@@ -1135,7 +1136,7 @@ int main(int argc, char *argv[])
                                 while (TRUE)
                                 {
                                     next = (char *) memchr(str, '\n', _buffer + dwRead - str) + 1;
-                                    if (memcmp(str, "(gdb)", 5) == 0) break;    
+                                    if (memcmp(str, "(gdb)", 5) == 0) break;   
                                     if (iter >= count)
                                     {
                                         temp = next - str;
@@ -1185,8 +1186,6 @@ int main(int argc, char *argv[])
                             CloseHandle(hThread[i]);
                             break;
                         }
-                        TerminateProcess(GDBInfo.hProcess, 0);
-                        CloseHandle(GDBInfo.hProcess);
                         if (timeout)
                         {
                             /* ---------------- DECLARATION ---------------- */
@@ -1203,8 +1202,9 @@ int main(int argc, char *argv[])
                                 {
                                     ReadConsoleInputA(hStdin, &InputRecord, 1, &count);
                                     if (InputRecord.EventType == KEY_EVENT &&
-                                        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_CONTROL &&
-                                        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_MENU)
+                                        InputRecord.Event.KeyEvent.bKeyDown &&
+                                        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_MENU &&
+                                        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_CONTROL)
                                         break;
                                 }
                             else
@@ -1219,12 +1219,15 @@ int main(int argc, char *argv[])
                                         break;
                                     ReadConsoleInputA(hStdin, &InputRecord, 1, &count);
                                     if (InputRecord.EventType == KEY_EVENT &&
-                                        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_CONTROL &&
-                                        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_MENU)
+                                        InputRecord.Event.KeyEvent.bKeyDown &&
+                                        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_MENU &&
+                                        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_CONTROL)
                                         break;
                                 }
                             }
                         }
+                        CloseHandle(hJob);
+                        CloseHandle(GDBInfo.hProcess);
                         return 0;
                     }
                     else if (verbose)

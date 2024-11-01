@@ -305,4 +305,61 @@ memrchr (const void *s, int c_in, size_t n)
     return NULL;
 }
 
+#else
+
+#include <ctype.h>
+
+#ifdef __i386__
+#define unaligned(X) ((unsigned long)(X) & (sizeof(long) - 1))
+#else
+#define unaligned(X) ((unsigned long long)(X) & (sizeof(long) - 1))
+#endif
+
+#define LBLOCKSIZE (sizeof(long))
+#define DETECTNULL(X) (((X) - 0x01010101) & ~(X) & 0x80808080)
+#define DETECTCHAR(X, MASK) (DETECTNULL(X ^ MASK))
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((access(read_only, 1), no_stack_protector, nothrow))
+#endif
+
+static inline void *memrchr(const void *src_void, const int c, size_t length)
+{
+    if (!length) return 0;
+    const unsigned char *src = (const unsigned char *) src_void + length - 1;
+    while (unaligned(src))
+    {
+        if (!length)
+            return 0;
+        if (*src == c)
+            return (void *) src;
+        --length;
+        --src;
+    }
+    unsigned long mask;
+    unsigned long *asrc;
+    if (length >= LBLOCKSIZE)
+    {
+        mask = c << 8 | c;
+        mask = mask << 16 | mask;
+        asrc = (unsigned long *) (src - LBLOCKSIZE + 1);
+        while (length >= LBLOCKSIZE)
+        {
+            if (DETECTCHAR(*asrc, mask))
+                break;
+            length -= LBLOCKSIZE;
+            --asrc;
+        }
+        src = (unsigned char *) asrc + LBLOCKSIZE - 1;
+    }
+    while (length)
+    {
+        if (*src == c)
+            return (void *) src;
+        --length;
+        --src;
+    }
+    return 0;
+}
+
 #endif

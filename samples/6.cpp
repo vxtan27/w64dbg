@@ -1,4 +1,4 @@
-#include <windows.h>
+#include <debugapi.h>
 
 struct Example
 {
