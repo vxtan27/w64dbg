@@ -1,24 +1,30 @@
 #pragma once
+
+#include <ctype.h>
 #include <stdint.h>
+
+#ifdef __i386__
+#define unaligned(X) ((unsigned long)(X) & (sizeof(long) - 1))
+#else
+#define unaligned(X) ((unsigned long long)(X) & (sizeof(long) - 1))
+#endif
+
+#define LBLOCKSIZE (sizeof(long))
+#define DETECTNULL(X) (((X) - 0x01010101) & ~(X) & 0x80808080)
+#define DETECTCHAR(X, MASK) (DETECTNULL(X ^ MASK))
 
 #if !defined(_DEBUG) || defined(__OPTIMIZE__)
 
 #if defined(__GNUC__) || defined(__clang__)
+
 #ifndef likely
 #define likely(x)      __builtin_expect(!!(x), 1)
 #endif
 #ifndef unlikely
 #define unlikely(x)    __builtin_expect(!!(x), 0)
 #endif
-#else
-#ifndef likely
-#define likely(x)      (x)
-#endif
-#ifndef unlikely
-#define unlikely(x)    (x)
-#endif
-#define __attribute__(...)
-#endif
+
+#include <stdbool.h>
 
 #ifdef __powerpc__
 typedef enum {
@@ -44,19 +50,16 @@ typedef unsigned long long int __attribute__ ((__may_alias__)) op_t;
 # define __BYTE_ORDER __LITTLE_ENDIAN
 #endif
 #ifdef __powerpc__
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) op_t
-find_eq_all (op_t x1, op_t x2)
+static inline op_t find_eq_all (op_t x1, op_t x2)
 {
     return __builtin_cmpb (x1, x2);
 }
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) op_t
-find_zero_all (op_t x)
+static inline op_t find_zero_all (op_t x)
 {
     return find_eq_all (x, 0);
 }
 #elif defined(__riscv_zbb) || defined(__riscv_xtheadbb)
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) op_t
-find_zero_all (op_t x)
+static inline op_t find_zero_all (op_t x)
 {
     find_t r;
 #ifdef __riscv_xtheadbb
@@ -67,21 +70,18 @@ find_zero_all (op_t x)
     return ~r;
 #endif
 }
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) op_t
-find_eq_all (op_t x1, op_t x2)
+static inline op_t find_eq_all (op_t x1, op_t x2)
 {
     return find_zero_all (x1 ^ x2);
 }
 #else
 #if defined(__alpha)
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) op_t
-find_zero_all (op_t x)
+static inline op_t find_zero_all (op_t x)
 {
     return __builtin_alpha_cmpbge (0, x);
 }
 #elif defined(__ARM__)
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) op_t
-find_zero_all (op_t x)
+static inline op_t find_zero_all (op_t x)
 {
     op_t ret;
     op_t ones = ((op_t)-1 / 0xff) * 0x01;
@@ -89,22 +89,19 @@ find_zero_all (op_t x)
     return ret;
 }
 #else
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) op_t
-find_zero_all (op_t x)
+static inline op_t find_zero_all (op_t x)
 {
     op_t m = ((op_t)-1 / 0xff) * 0x7f;
     return ~(((x & m) + m) | x | m);
 }
 #endif
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) op_t
-find_eq_all (op_t x1, op_t x2)
+static inline op_t find_eq_all (op_t x1, op_t x2)
 {
     return find_zero_all (x1 ^ x2);
 }
 #endif
 #ifdef __alpha
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) op_t
-shift_find_last (op_t word, uintptr_t s)
+static inline op_t shift_find_last (op_t word, uintptr_t s)
 {
     s = s % sizeof (op_t);
     if (s == 0)
@@ -112,8 +109,7 @@ shift_find_last (op_t word, uintptr_t s)
     return word & ~((op_t)-1 << s);
 }
 #else
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) op_t
-shift_find_last (op_t word, uintptr_t s)
+static inline op_t shift_find_last (op_t word, uintptr_t s)
 {
     s = s % sizeof (op_t);
     if (s == 0)
@@ -124,9 +120,11 @@ shift_find_last (op_t word, uintptr_t s)
         return word & ~(((op_t)-1) >> (s * 8));
 }
 #endif
+
+#include "simd.h"
+
 #ifdef __alpha
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) unsigned int
-index_last (op_t x)
+static inline unsigned int index_last (op_t x)
 {
 #ifdef __alpha_cix__
     return __builtin_clzl (x) ^ 63;
@@ -142,8 +140,7 @@ index_last (op_t x)
 #endif
 }
 #elif defined(__hppa__)
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) unsigned int
-index_last (find_t c)
+static inline unsigned int index_last (find_t c)
 {
     unsigned int ret;
     asm ("extrw,u,= %1,15,8,%%r0\n\t"
@@ -156,8 +153,7 @@ index_last (find_t c)
     return ret;
 }
 #elif defined(__riscv)
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) unsigned int
-index_last (find_t c)
+static inline unsigned int index_last (find_t c)
 {
     if (sizeof (op_t) == 8)
     {
@@ -179,9 +175,7 @@ index_last (find_t c)
     return 0;
 }
 #else
-#include "simd.h"
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) unsigned int
-index_last (op_t c)
+static inline unsigned int index_last (op_t c)
 {
     int r;
     if (__BYTE_ORDER == __LITTLE_ENDIAN)
@@ -192,8 +186,7 @@ index_last (op_t c)
 }
 #endif
 #ifdef __hppa__
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) unsigned int
-index_last_zero (op_t x)
+static inline unsigned int index_last_zero (op_t x)
 {
     unsigned int ret;
     asm ("extrw,u,<> %1,15,8,%%r0\n\t"
@@ -206,15 +199,13 @@ index_last_zero (op_t x)
     return ret;
 }
 #else
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) op_t
-find_zero_low (op_t x)
+static inline op_t find_zero_low (op_t x)
 {
     op_t lsb = ((op_t)-1 / 0xff) * 0x01;
     op_t msb = ((op_t)-1 / 0xff) * 0x80;
     return (x - lsb) & ~x & msb;
 }
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) unsigned int
-index_last_zero (op_t x)
+static inline unsigned int index_last_zero (op_t x)
 {
     if (__BYTE_ORDER == __LITTLE_ENDIAN)
         x = find_zero_all (x);
@@ -224,18 +215,18 @@ index_last_zero (op_t x)
 }
 #endif
 #ifdef __alpha
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) _Bool
+static inline bool
 has_zero (op_t x)
 {
     return __builtin_alpha_cmpbge (0, x) != 0;
 }
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) _Bool
+static inline bool
 has_eq (op_t x1, op_t x2)
 {
     return has_zero (x1 ^ x2);
 }
 #elif defined(__hppa__)
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) _Bool
+static inline bool
 has_eq (op_t x1, op_t x2)
 {
     asm goto ("uxor,sbz %0,%1,%%r0\n\t"
@@ -245,7 +236,7 @@ has_eq (op_t x1, op_t x2)
     return 0;
 }
 #elif defined(__sh__)
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) _Bool
+static inline bool
 has_eq (op_t x1, op_t x2)
 {
     int ret;
@@ -255,32 +246,32 @@ has_eq (op_t x1, op_t x2)
     return ret;
 }
 #else
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) _Bool
+static inline bool
 has_zero (op_t x)
 {
     return find_zero_low (x) != 0;
 }
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) _Bool
+static inline bool
 has_eq (op_t x1, op_t x2)
 {
     return find_eq_all (x1, x2) != 0;
 }
 #endif
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) unsigned int
-index_last_eq (op_t x1, op_t x2)
+static inline unsigned int index_last_eq (op_t x1, op_t x2)
 {
     return index_last_zero (x1 ^ x2);
 }
-static inline __attribute__((always_inline, no_stack_protector, nothrow)) void *
+
+__declspec(restrict) static inline void *
 memrchr (const void *s, int c_in, size_t n)
 {
     if (unlikely (n == 0))
         return NULL;
-    const op_t *word_ptr = (const op_t *) PTR_ALIGN_UP (s + n, sizeof (op_t));
+    const op_t *word_ptr = (const op_t *) PTR_ALIGN_UP ((char *)s + n, sizeof (op_t));
     uintptr_t s_int = (uintptr_t) s + n;
     op_t word = *--word_ptr;
     op_t repeated_c = ((op_t)-1 / 0xff) * c_in;
-    const op_t *sword = (const op_t *) PTR_ALIGN_DOWN (s, sizeof (op_t));
+    const op_t *sword = (const op_t *) PTR_ALIGN_DOWN ((char *)s, sizeof (op_t));
     op_t mask = shift_find_last (find_eq_all (word, repeated_c), s_int);
     if (mask != 0)
     {
@@ -305,23 +296,113 @@ memrchr (const void *s, int c_in, size_t n)
     return NULL;
 }
 
+static inline void *_memrchr(const void *src_void, const int c, size_t length)
+{
+    if (unlikely(!length)) return 0;
+#ifdef _MSC_VER
+    const unsigned char * __restrict src = (const unsigned char * __restrict)
 #else
-
-#include <ctype.h>
-
-#ifdef __i386__
-#define unaligned(X) ((unsigned long)(X) & (sizeof(long) - 1))
+    const unsigned char * __restrict__ src = (const unsigned char * __restrict__)
+#endif
+        src_void + length - 1;
+#ifdef _MSC_VER
+#pragma loop(no_vector)
 #else
-#define unaligned(X) ((unsigned long long)(X) & (sizeof(long) - 1))
+#pragma GCC novector
+#endif
+    while (unaligned(src))
+    {
+        if (!length)
+            return 0;
+        if (*src == c)
+            return (void *) src;
+        --length;
+        --src;
+    }
+    unsigned long mask;
+    unsigned long *asrc;
+    if (length >= LBLOCKSIZE)
+    {
+        mask = c << 8 | c;
+        mask = mask << 16 | mask;
+        asrc = (unsigned long *) (src - LBLOCKSIZE + 1);
+        while (length >= LBLOCKSIZE)
+        {
+            if (DETECTCHAR(*asrc, mask))
+                break;
+            length -= LBLOCKSIZE;
+            --asrc;
+        }
+        src = (unsigned char *) asrc + LBLOCKSIZE - 1;
+    }
+    likely(length < LBLOCKSIZE);
+#ifdef _MSC_VER
+#pragma loop(no_vector)
+#else
+#pragma GCC novector
+#endif
+    while (length)
+    {
+        if (*src == c)
+            return (void *) src;
+        --length;
+        --src;
+    }
+    return 0;
+}
+
+#define memrchr(_S, _C, _N) ((__builtin_constant_p(_S) && __builtin_constant_p(_C) && __builtin_constant_p(_N)) ? _memrchr(_S, _C, _N) : memrchr(_S, _C, _N))
+
+#define MEMRCHR_DEFINED
+
 #endif
 
-#define LBLOCKSIZE (sizeof(long))
-#define DETECTNULL(X) (((X) - 0x01010101) & ~(X) & 0x80808080)
-#define DETECTCHAR(X, MASK) (DETECTNULL(X ^ MASK))
-
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((access(read_only, 1), no_stack_protector, nothrow))
 #endif
+
+#if defined(_WIN32) && !defined(MEMRCHR_DEFINED)
+
+#ifndef likely
+#define likely(x)      (x)
+#endif
+#ifndef unlikely
+#define unlikely(x)    (x)
+#endif
+
+static inline void *_memrchr(const void *src_void, const int c, size_t length)
+{
+    if (!length) return 0;
+    const unsigned char *src = (const unsigned char *) src_void + length - 1;
+    while (unaligned(src))
+    {
+        if (!length)
+            return 0;
+        if (*src == c)
+            return (void *) src;
+        --length;
+        --src;
+    }
+    unsigned long mask;
+    unsigned long *asrc;
+    mask = c << 8 | c;
+    mask = mask << 16 | mask;
+    asrc = (unsigned long *) (src - LBLOCKSIZE + 1);
+    while (length >= LBLOCKSIZE)
+    {
+        if (DETECTCHAR(*asrc, mask))
+            break;
+        length -= LBLOCKSIZE;
+        --asrc;
+    }
+    src = (unsigned char *) asrc + LBLOCKSIZE - 1;
+    while (length)
+    {
+        if (*src == c)
+            return (void *) src;
+        --length;
+        --src;
+    }
+    return 0;
+}
 
 static inline void *memrchr(const void *src_void, const int c, size_t length)
 {

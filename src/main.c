@@ -1,15 +1,16 @@
 #define ANSI
 #define _ANSI
 #undef UNICODE
-#include <stdlib.h>
-#include <string.h>
-#include <windows.h>
-#include <psapi.h>
-#include <dbghelp.h>
-#include "addr.c"
-#include "exception.c"
-#include "fsize.c"
+
+#include "util.c"
 #include "memrchr.c"
+#include "exception.c"
+#include <psapi.h>
+#include <time.h>
+
+#ifdef _MSC_VER
+#pragma comment(lib, "dbghelp.lib")
+#endif
 
 #define MAX_THREAD 64
 #define MAX_DLL 16
@@ -22,31 +23,23 @@
 
 #define GCXX_RUNTIME_EXCEPTION 541541187
 
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((leaf, no_stack_protector, nothrow))
-#endif
-
-VOID WINAPI CompletedWriteRoutine(DWORD dwErr, DWORD cbWritten, LPOVERLAPPED lpOverLap) {}
-
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((access(read_only, 2), no_stack_protector, nothrow))
-#endif
-
 #ifdef _M_ARM64
 WINBASEAPI WINBOOL WINAPI IsWow64Process2 (HANDLE hProcess, USHORT *pProcessMachine, USHORT *pNativeMachine);
 typedef BOOL (WINAPI * PFN_GETPROCESSINFORMATION)(HANDLE, PROCESS_INFORMATION_CLASS, LPVOID, DWORD);
 #endif
 
+VOID WINAPI CompletedWriteRoutine(DWORD dwErr, DWORD cbWritten, LPOVERLAPPED lpOverLap) {}
+
 int main(int argc, char *argv[])
 {
-    HANDLE hStderr;
+    HANDLE hStdout;
     char buffer[65536];
     OVERLAPPED Overlapped = {};
     int temp, i, timeout = 0, debug = FALSE;
     BOOL breakpoint = TRUE, firstbreak = FALSE,
     output = TRUE, vexception = TRUE, verbose = FALSE, start = FALSE;
     Overlapped.Pointer = NULL;
-    hStderr = GetStdHandle(STD_ERROR_HANDLE);
+    hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
     for (i = 1; i < argc; ++i)
         if (argv[i][0] == '/')
         {
@@ -56,12 +49,13 @@ int main(int argc, char *argv[])
                     breakpoint = FALSE;
                     continue;
                 case 'D':
+                    if (debug == MINGW) ++firstbreak;
                     debug = TRUE;
                     continue;
                 case 'G':
+                    if (debug != MINGW) --firstbreak;
                     debug = MINGW;
                     // https://learn.microsoft.com/en-us/windows/win32/api/debugapi/nf-debugapi-debugactiveprocess#remarks
-                    --firstbreak;
                     continue;
                 case 'Q':
                     vexception = FALSE;
@@ -75,7 +69,7 @@ int main(int argc, char *argv[])
                 case 'T':
                     if (++i >= argc)
                     {
-                        WriteFileEx(hStderr,
+                        WriteFileEx(hStdout,
                             "ERROR: Invalid syntax. Value expected for '/T'\n"
                             "Type \"w64dbg /?\" for usage.\n",
                             75, &Overlapped,
@@ -83,7 +77,7 @@ int main(int argc, char *argv[])
                         return 1;
                     } else if ((timeout = atol(argv[i])) > 99999 || timeout < -1)
                     {
-                        WriteFileEx(hStderr,
+                        WriteFileEx(hStdout,
                             "ERROR: Invalid value for timeout (/T) specified. Valid range is -1 to 99999.\n",
                             76, &Overlapped,
                             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
@@ -94,7 +88,7 @@ int main(int argc, char *argv[])
                     verbose = TRUE;
                     continue;
                 case '?':
-                    WriteFileEx(hStderr,
+                    WriteFileEx(hStdout,
                         "Usage: w64dbg [...] executable [...]\n\n"
                         "Description:\n"
                         "This tool is used to debug an executable on x64 Windows.\n\n"
@@ -125,14 +119,14 @@ int main(int argc, char *argv[])
             }
             memcpy(buffer + 34 + temp, "'.\n"
                 "Type \"w64dbg /?\" for usage.\n", 31);
-            WriteFileEx(hStderr, buffer, 34 + temp + 31, &Overlapped,
+            WriteFileEx(hStdout, buffer, 34 + temp + 31, &Overlapped,
             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
             return 1;
         }
         else break;
     if (argc < 2 || i == argc)
     {
-        WriteFileEx(hStderr,
+        WriteFileEx(hStdout,
             "ERROR: Invalid syntax.\n"
             "Type \"w64dbg /?\" for usage.\n"
             , 51, &Overlapped,
@@ -144,7 +138,7 @@ int main(int argc, char *argv[])
     j = SearchPathA(NULL, argv[i], ".exe", sizeof(_buffer), _buffer, NULL);
     if (j == 0)
     {
-        WriteFileEx(hStderr,
+        WriteFileEx(hStdout,
             "ERROR: No such file or directory.\n"
             , 34, &Overlapped,
             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
@@ -152,7 +146,7 @@ int main(int argc, char *argv[])
     }
     if (GetBinaryTypeA(_buffer, &count) == 0)
     {
-        WriteFileEx(hStderr,
+        WriteFileEx(hStdout,
             "ERROR: Exec format error.\n"
             , 26, &Overlapped,
             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
@@ -187,6 +181,8 @@ int main(int argc, char *argv[])
             CREATE_PRESERVE_CODE_AUTHZ_LEVEL,
             NULL, NULL, &startupInfo, &processInfo);
         DebugActiveProcess(processInfo.dwProcessId);
+        // The system closes the handles to the process and thread
+        // when the debugger calls the DebugActiveProcessStop function
     }
     else
     {
@@ -196,6 +192,8 @@ int main(int argc, char *argv[])
         else CreateProcessA(_buffer, buffer, NULL, NULL, FALSE,
             DEBUG_ONLY_THIS_PROCESS,
             NULL, NULL, &startupInfo, &processInfo);
+        // The system closes the handles to the process and thread
+        // when the debugger calls the ContinueDebugEvent function
     }
     WaitForDebugEvent(&DebugEvent, INFINITE);
     CloseHandle(DebugEvent.u.CreateProcessInfo.hProcess);
@@ -210,7 +208,7 @@ int main(int argc, char *argv[])
         _ultoa(DebugEvent.dwThreadId, buffer + 15 + temp, 10);
         temp += strlen(buffer + 15 + temp);
         buffer[15 + temp] = '\n';
-        WriteFileEx(hStderr, buffer, 16 + temp, &Overlapped,
+        WriteFileEx(hStdout, buffer, 16 + temp, &Overlapped,
             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
     }
     hThread[0] = processInfo.hThread;
@@ -252,7 +250,7 @@ int main(int argc, char *argv[])
                         temp = GetFinalPathNameByHandleA(DebugEvent.u.LoadDll.hFile,
                             buffer + 8, sizeof(buffer), FILE_NAME_OPENED);
                         buffer[temp + 8] = '\n';
-                        WriteFileEx(hStderr, buffer, temp + 9, &Overlapped,
+                        WriteFileEx(hStdout, buffer, temp + 9, &Overlapped,
                             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
                     }
                     DLLInit[i] = 1;
@@ -272,12 +270,13 @@ int main(int argc, char *argv[])
                         temp = GetFinalPathNameByHandleA(hFile[i],
                             buffer + 10, sizeof(buffer), FILE_NAME_OPENED);
                         buffer[temp + 10] = '\n';
-                        WriteFileEx(hStderr, buffer, temp + 11, &Overlapped,
+                        WriteFileEx(hStdout, buffer, temp + 11, &Overlapped,
                             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
                     }
-                    CloseHandle(hFile[i]);
                     if (DLLInit[i] == 2) SymUnloadModule64(processInfo.hProcess,
                         (DWORD64) DebugEvent.u.UnloadDll.lpBaseOfDll);
+                    CloseHandle(hFile[i]);
+                    lpBaseOfDll[i] = 0;
                     DLLInit[i] = 0;
                     break;
                 }
@@ -295,7 +294,7 @@ int main(int argc, char *argv[])
                         _ultoa(DebugEvent.dwThreadId, buffer + 14 + temp, 10);
                         temp += strlen(buffer + 14 + temp);
                         buffer[14 + temp] = '\n';
-                        WriteFileEx(hStderr, buffer, 15 + temp, &Overlapped,
+                        WriteFileEx(hStdout, buffer, 15 + temp, &Overlapped,
                             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
                     }
                     hThread[i] = DebugEvent.u.CreateThread.hThread;
@@ -317,7 +316,7 @@ int main(int argc, char *argv[])
                         _ultoa(DebugEvent.dwThreadId, buffer + 12 + temp, 10);
                         temp += strlen(buffer + 12 + temp);
                         buffer[12 + temp] = '\n';
-                        WriteFileEx(hStderr, buffer, 13 + temp, &Overlapped,
+                        WriteFileEx(hStdout, buffer, 13 + temp, &Overlapped,
                             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
                     }
                     dwThreadId[i] = 0;
@@ -334,14 +333,22 @@ int main(int argc, char *argv[])
                     _ultoa(DebugEvent.dwThreadId, buffer + 13 + temp, 10);
                     temp += strlen(buffer + 13 + temp);
                     buffer[13 + temp] = '\n';
-                    WriteFileEx(hStderr, buffer, 13 + temp, &Overlapped,
+                    WriteFileEx(hStdout, buffer, 13 + temp, &Overlapped,
                         (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
                 }
                 for (i = 1; i < MAX_DLL; ++i) if (DLLInit[i] != 0)
                 {
-                    CloseHandle(hFile[i]); //May fail for first time
                     if (DLLInit[i] == 2) SymUnloadModule64(processInfo.hProcess,
                         (DWORD64) lpBaseOfDll[i]);
+                }
+                for (i = 0; i < MAX_THREAD; ++i) if (DebugEvent.dwThreadId == dwThreadId[i])
+                {
+                    CloseHandle(hThread[i]);
+                    break;
+                }
+                for (i = 1; i < MAX_DLL; ++i) if (DLLInit[i] != 0)
+                {
+                    CloseHandle(hFile[i]);
                 }
                 if (debug == TRUE)
                 {
@@ -355,18 +362,14 @@ int main(int argc, char *argv[])
                 }
                 else if (DLLInit[0]) SymCleanup(processInfo.hProcess);
                 CloseHandle(processInfo.hProcess);
-                for (i = 0; i < MAX_THREAD; ++i) if (DebugEvent.dwThreadId == dwThreadId[i])
-                {
-                    CloseHandle(hThread[i]);
-                    break;
-                }
+                ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
                 if (timeout)
                 {
                     /* ---------------- DECLARATION ---------------- */
                     HANDLE hStdin;
                     INPUT_RECORD InputRecord;
                     /* --------------------------------------------- */
-                    WriteFileEx(hStderr,
+                    WriteFileEx(hStdout,
                         "\nPress any key to continue ...",
                         30, &Overlapped,
                         (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
@@ -386,7 +389,7 @@ int main(int argc, char *argv[])
                         /* ---------------- DECLARATION ---------------- */
                         DWORD ctime;
                         /* --------------------------------------------- */
-                        ctime = GetTickCount() + (timeout << 10);
+                        ctime = GetTickCount() + (timeout * CLOCKS_PER_SEC);
                         while (TRUE)
                         {
                             if (WaitForSingleObjectEx(hStdin, ctime - GetTickCount(), FALSE) == WAIT_TIMEOUT)
@@ -409,7 +412,7 @@ int main(int argc, char *argv[])
                         DebugEvent.u.DebugString.lpDebugStringData,
                         buffer, DebugEvent.u.DebugString.nDebugStringLength,
                         &NumberOfBytesRead);
-                    WriteFileEx(hStderr,
+                    WriteFileEx(hStdout,
                         buffer, NumberOfBytesRead, &Overlapped,
                         (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
                 }
@@ -481,7 +484,7 @@ int main(int argc, char *argv[])
                 p = FormatDebugException(&DebugEvent, p, _buffer, bWow64);
                 *p = '\n';
                 ++p;
-                Console = GetFileType(hStderr) == FILE_TYPE_CHAR;
+                Console = GetFileType(hStdout) == FILE_TYPE_CHAR;
                 if (vexception)
                 {
                     if (Console)
@@ -719,7 +722,7 @@ int main(int argc, char *argv[])
                         }
                         ++count;
                     }
-                    SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+                    SetConsoleMode(hStdout, ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
                 }
                 else
                 {
@@ -832,19 +835,19 @@ int main(int argc, char *argv[])
                         SECURITY_ATTRIBUTES saAttr = {sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
                         SuspendThread(hThread[i]);
                         ContinueDebugEvent(DebugEvent.dwProcessId,
-                            DebugEvent.dwThreadId,
-                            DBG_EXCEPTION_NOT_HANDLED);
+                            DebugEvent.dwThreadId, DBG_EXCEPTION_NOT_HANDLED);
                         DebugActiveProcessStop(DebugEvent.dwProcessId);
                         memcpy(p, "gdb.exe -q -x=", 14);
                         temp = GetTempPathA(4096, p + 14);
                         memcpy(p + 14 + temp, "gdbinit", 7);
                         if (GetFileAttributesA(p + 14) == INVALID_FILE_ATTRIBUTES)
                         {
-                            FILE *fp = fopen(p + 14, "w");
-                            fwrite("set print thread-events off\nset pagination off\nset style enabled on\nset backtrace limit 100\nset print frame-arguments all\nset print entry-values no\nset print object on\nset print pretty off\nset width 0\ncont\nbt", 208, 1, fp);
-                            fclose(fp);
+                            HANDLE hFile = CreateFileA(p + 14, GENERIC_WRITE, 0, NULL,
+                                CREATE_ALWAYS, FILE_ATTRIBUTE_HIDDEN | FILE_FLAG_WRITE_THROUGH, NULL);
+                            WriteFileEx(hFile, "set print thread-events off\nset pagination off\nset style enabled on\nset backtrace limit 100\nset print frame-arguments all\nset print entry-values no\nset print object on\nset print pretty off\nset width 0\ncont\nbt", 208, &Overlapped, (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
+                            CloseHandle(hFile);
                         }
-                        memcpy(p + 14 + temp + 7, " -p ", 4);
+                        *(unsigned long *)(p + 14 + temp + 7) = 544222496;
                         _ultoa(DebugEvent.dwProcessId, p + 14 + temp + 7 + 4, 10);
                         CreatePipe(&hStdoutReadPipe, &hStdoutWritePipe, &saAttr, 0);
                         startupInfo.hStdOutput = hStdoutWritePipe;
@@ -852,13 +855,15 @@ int main(int argc, char *argv[])
                         jobLimit.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
                         hJob = CreateJobObjectA(NULL, NULL);
                         SetInformationJobObject(hJob, JobObjectExtendedLimitInformation,
-                        &jobLimit, sizeof(jobLimit));
+                            &jobLimit, sizeof(jobLimit));
+                        // https://learn.microsoft.com/en-us/windows/win32/api/jobapi2/nf-jobapi2-assignprocesstojobobject
                         CreateProcessA(_buffer, p, NULL, NULL, TRUE,
-                            CREATE_SUSPENDED | CREATE_NO_WINDOW,
+                            CREATE_SUSPENDED | CREATE_PRESERVE_CODE_AUTHZ_LEVEL | CREATE_NO_WINDOW,
                             NULL, NULL, &startupInfo, &GDBInfo);
                         // Make sure GDB is killed together
                         // to avoid resource leaks
                         AssignProcessToJobObject(hJob, GDBInfo.hProcess);
+                        CloseHandle(GDBInfo.hProcess);
                         ResumeThread(GDBInfo.hThread);
                         CloseHandle(hStdoutWritePipe);
                         CloseHandle(GDBInfo.hThread);
@@ -870,6 +875,11 @@ int main(int argc, char *argv[])
                             if (isDebugged) break;
                         }
                         ResumeThread(hThread[i]);
+                        for (i = 1; i < MAX_DLL; ++i) if (lpBaseOfDll[i])
+                            SymUnloadModule64(processInfo.hProcess,
+                                (DWORD64) lpBaseOfDll[i]);
+                        SymCleanup(processInfo.hProcess);
+                        CloseHandle(processInfo.hProcess);
                         iter = 0;
                         if (Console)
                         {
@@ -1170,31 +1180,20 @@ int main(int argc, char *argv[])
                             *p = '\n';
                             ++p;
                         }
-                        WriteFileEx(hStderr,
+                        if (Console) WriteConsole(hStdout, buffer, p - buffer, NULL, NULL);
+                        else WriteFileEx(hStdout,
                             buffer, p - buffer, &Overlapped,
                             (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
-                        for (i = 1; i < MAX_DLL; ++i) if (DLLInit[i] != 0)
-                        {
-                            CloseHandle(hFile[i]); //May fail for first time
-                            if (DLLInit[i] == 2) SymUnloadModule64(processInfo.hProcess,
-                                (DWORD64) lpBaseOfDll[i]);
-                        }
-                        SymCleanup(processInfo.hProcess);
-                        CloseHandle(processInfo.hProcess);
-                        for (i = 0; i < MAX_THREAD; ++i) if (DebugEvent.dwThreadId == dwThreadId[i])
-                        {
-                            CloseHandle(hThread[i]);
-                            break;
-                        }
+                        CloseHandle(hStdoutReadPipe);
                         if (timeout)
                         {
                             /* ---------------- DECLARATION ---------------- */
                             HANDLE hStdin;
                             INPUT_RECORD InputRecord;
                             /* --------------------------------------------- */
-                            WriteFileEx(hStderr,
-                                "\nPress any key to continue ...",
-                                30, &Overlapped,
+                            if (Console) WriteConsole(hStdout, "\nPress any key to continue ...", 30, NULL, NULL);
+                            else WriteFileEx(hStdout,
+                                "\nPress any key to continue ...", 30, &Overlapped,
                                 (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
                             hStdin = GetStdHandle(STD_INPUT_HANDLE);
                             if (timeout == -1)
@@ -1212,7 +1211,7 @@ int main(int argc, char *argv[])
                                 /* ---------------- DECLARATION ---------------- */
                                 DWORD ctime;
                                 /* --------------------------------------------- */
-                                ctime = GetTickCount() + (timeout << 10);
+                                ctime = GetTickCount() + (timeout * CLOCKS_PER_SEC);
                                 while (TRUE)
                                 {
                                     if (WaitForSingleObjectEx(hStdin, ctime - GetTickCount(), FALSE) == WAIT_TIMEOUT)
@@ -1227,7 +1226,6 @@ int main(int argc, char *argv[])
                             }
                         }
                         CloseHandle(hJob);
-                        CloseHandle(GDBInfo.hProcess);
                         return 0;
                     }
                     else if (verbose)
@@ -1236,9 +1234,17 @@ int main(int argc, char *argv[])
                         p += 36;
                     }
                 }
-                WriteFileEx(hStderr,
+                if (Console) WriteConsole(hStdout, buffer, p - buffer, NULL, NULL);
+                else WriteFileEx(hStdout,
                     buffer, p - buffer, &Overlapped,
                     (LPOVERLAPPED_COMPLETION_ROUTINE) CompletedWriteRoutine);
+                if (debug == TRUE)
+                    SymUnloadModule64(processInfo.hProcess,
+                        (DWORD64) lpBaseOfDll[0]);
+                for (i = 1; i < MAX_DLL; ++i) if (lpBaseOfDll[i])
+                    SymUnloadModule64(processInfo.hProcess,
+                        (DWORD64) lpBaseOfDll[i]);
+                SymCleanup(processInfo.hProcess);
                 ContinueDebugEvent(DebugEvent.dwProcessId,
                     DebugEvent.dwThreadId, DBG_EXCEPTION_NOT_HANDLED);
                 continue;

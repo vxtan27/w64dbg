@@ -21,9 +21,11 @@ if "%VERSION%" == "10.0" (
         rem Windows XP
     ) else if "%MINOR%"=="0" (
         echo [ERROR] Your Windows version is not supported.
+        timeout -1
     )
 ) else if %MAJOR% LSS 5 (
     echo [ERROR] Your Windows version is not supported.
+    timeout -1
 )
 
 if "%PROCESSOR_ARCHITECTURE%"=="x86" (
@@ -42,21 +44,21 @@ rem get administrator privilege
 rem clean setup
 del /f /q /ah %temp%\gdbinit >nul 2>&1
 
-setx _NO_DEBUG_HEAP 1 /M
+setx /M _NO_DEBUG_HEAP 1
 
 where gdb.exe >nul 2>&1
 if %ERRORLEVEL% NEQ 0 echo [WARNING] gdb.exe not found, cannot use /G options.
 
-where ntdll.dll >nul 2>&1
-if %ERRORLEVEL% NEQ 0 echo [ERROR] ntdll.dll missing. Install it here with your corresponding Windows version: https://fix4dll.com/ntdll.dll
-
-where kernel32.dll >nul 2>&1
-if %ERRORLEVEL% NEQ 0 echo [ERROR] kernel32.dll missing. Install it here with your corresponding Windows version: https://fix4dll.com/kernel32.dll
+where msvcrt.dll >nul 2>&1
+if %ERRORLEVEL% NEQ 0 echo [ERROR] msvcrt.dll missing. Install it here with your corresponding Windows version: https://www.dll-files.com/msvcrt.dll.html
 
 where ucrtbase.dll >nul 2>&1
-if %ERRORLEVEL% NEQ 0 echo [ERROR] ucrtbase.dll missing. Install it here with your corresponding Windows version: https://fix4dll.com/ucrtbase.dll
+if %ERRORLEVEL% NEQ 0 echo [ERROR] ucrtbase.dll missing. Install it here with your corresponding Windows version: https://www.dll-files.com/ucrtbase.dll.html
+
+where vcruntime140.dll >nul 2>&1
+if %ERRORLEVEL% NEQ 0 echo [ERROR] vcruntime140.dll missing. Install it here with your corresponding Windows version: https://www.dll-files.com/vcruntime140.dll.html
 
 where dbghelp.dll >nul 2>&1
-if %ERRORLEVEL% NEQ 0 echo [ERROR] dbghelp.dll missing. Install it here with your corresponding Windows version: https://fix4dll.com/dbghelp.dll
+if %ERRORLEVEL% NEQ 0 echo [ERROR] dbghelp.dll missing. Install it here with your corresponding Windows version: https://www.dll-files.com/dbghelp.dll.html
 
 timeout -1

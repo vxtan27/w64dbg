@@ -340,30 +340,33 @@ System type: **64-bit operating system, x64-based processor**
 
 ### __Windows specifications__
 
-Minium Windows version (ARM): **Windows 10**
+Minimum Windows version (ARM): **Windows 10**
 
-Minium Windows version (x86-64): **Windows XP**
+Minimum Windows version (x86-64): **Windows XP with SP2** (**Windows 10** if cross debug x86 executable)
 
 ### __Dynamic link libraries__
 
-|      DLL      |       Location       |           Package           | Minimum Windows version | Minimum DLL version |
-| ------------- | -------------------- | --------------------------- | ----------------------- | ------------------- |
-| ntdll.dll     | C:\Windows\System32  | Windows NT Kernel           | Windows XP              | 5.1                 |
-| kernel32.dll  | C:\Windows\System32  | Windows Core API            | Windows XP              | 5.1                 |
-| ucrtbase.dll  | C:\Windows\System32  | Universal C Runtime         | Windows XP              | 10.0                |
-| dbghelp.dll   | C:\Windows\System32  | Debugging Tools For Windows | Windows XP              | 6.0                 |
+|       DLL        |       Location       |               Package                |
+| ---------------- | -------------------- | ------------------------------------ |
+| kernel32.dll     | C:\Windows\System32  | Windows Core API                     |
+| msvcrt.dll       | C:\Windows\System32  | Microsoft Visual C++ Runtime         |
+| ucrtbase.dll     | C:\Windows\System32  | Universal C Runtime                  |
+| vcruntime140.dll | C:\Windows\System32  | Microsoft Visual C++ Redistributable |
+| dbghelp.dll      | C:\Windows\System32  | Debugging Tools For Windows          |
 
-**NOTE**: If your Windows version is missing one of these DLL files or does not meet its version requirements, download it [__here__](https://fix4dll.com) with your corresponding Windows version.
+**NOTE**: If your Windows version is missing one of these DLL files or does not meet its version requirements, download it [__here__](https://www.dll-files.com) with your corresponding Windows version.
+
+Read more: [__Deployment on Microsoft Windows XP__](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment#deployment-on-microsoft-windows-xp)
 
 ## __Limitations__
 
-w64dbg cannot handle more than **`MAX_THREAD`** and **`MAX_DLL`** (64 and 16 defined [__here__](src/main.c#L14)) as it is abnormal for a process to overcome these limits. If you want to adjust them, change the definition in the source files and then rebuild your own. By the way, w64dbg will not print out more than 100 thread context frames as the only way to reach that unbelievable number is infinite recursive.
+w64dbg cannot handle more than **`MAX_THREAD`** and **`MAX_DLL`** (64 and 16 defined [__here__](src/main.c#L15)) as it is abnormal for a process to overcome these limits. If you want to adjust them, change the definition in the source files and then rebuild your own. By the way, w64dbg will not print out more than 100 thread context frames as the only way to reach that unbelievable number is infinite recursive.
 
 ## __Frequently Asked Questions__
 
 <details><summary><b>How can I get the errno value of a specific thread?</b></summary>
 
-Currently, there is no way to get **`errno`** value as it's not a variable. It's definition is:
+Currently, there is no way to get **`errno`** value as it's not a variable. Its definition is:
 
     
     _CRTIMP extern int *__cdecl _errno(void);
@@ -415,7 +418,7 @@ See [__this__](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html#index-fo
 
 <details><summary><b>Where should I put the *.pdb files?</b></summary>
 
-**w64dbg** has default behavior as same as **DbgHelp** library. This mean you can put `*.pdb` files in the same directory of debugged executable or you can [__set system environment variables__](https://www3.ntu.edu.sg/home/ehchua/programming/howto/Environment_Variables.html) **`_NT_ALT_SYMBOL_PATH`** and **`_NT_SYMBOL_PATH`**
+**w64dbg** has default behavior as same as **DbgHelp** library. This means you can put `*.pdb` files in the same directory as debugged executable or you can [__set system environment variables__](https://www3.ntu.edu.sg/home/ehchua/programming/howto/Environment_Variables.html) **`_NT_ALT_SYMBOL_PATH`** and **`_NT_SYMBOL_PATH`**
 
 Read more:
 
@@ -427,7 +430,7 @@ Read more:
 
 <details><summary><b>What are breakpoints and how do I use them effectively?</b></summary>
 
-Breakpoints are one of the most important debugging techniques in your developer's toolbox. You set breakpoints wherever you want to pause debugger execution. On Windows you can call **`DebugBreak()`**. Don't forget to add **`/B`** options to **w64dbg**.
+Breakpoints are one of the most important debugging techniques in your developer's toolbox. You set breakpoints wherever you want to pause debugger execution. On Windows, you can call **`DebugBreak()`**. Don't forget to add **`/B`** options to **w64dbg**.
 
 See [__this__](https://learn.microsoft.com/en-us/visualstudio/debugger/using-breakpoints) for more details.
 

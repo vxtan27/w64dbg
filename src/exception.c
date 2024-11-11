@@ -1,18 +1,8 @@
 #pragma once
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <windows.h>
-#include <dbghelp.h>
-#include "addr.c"
 
-#if defined(__GNUC__) || defined(__clang__)
-#if defined(_DEBUG) && !defined(__OPTIMIZE__)
-__attribute__((no_stack_protector, nothrow))
-#else
-__attribute__((always_inline, flatten, no_stack_protector, nothrow))
-#endif
-#endif
+#include "util.c"
+#include <stdio.h>
+#include <dbghelp.h>
 
 static inline const char *GetExceptionMessage(DWORD ExceptionCode)
 {
@@ -98,14 +88,6 @@ static inline const char *GetExceptionMessage(DWORD ExceptionCode)
     }
 }
 
-#if defined(__GNUC__) || defined(__clang__)
-#if defined(_DEBUG) && !defined(__OPTIMIZE__)
-__attribute__((no_stack_protector, nothrow))
-#else
-__attribute__((always_inline, flatten, no_stack_protector, nothrow))
-#endif
-#endif
-
 static inline char *FormatDebugException(DEBUG_EVENT *DebugEvent, char *buffer, char *p, BOOL bWow64)
 {
     int temp;
@@ -142,169 +124,161 @@ static inline char *FormatDebugException(DEBUG_EVENT *DebugEvent, char *buffer, 
     return buffer;
 }
 
-#define FormatVerboseDebugException(p, ExceptionCode) \
-({ \
-    switch (ExceptionCode) \
-    { \
-        case 0xC0000005: \
-            memcpy(p, "The thread tried to read from or write to a virtual address for which it does not have the appropriate access", 109); \
-            p += 109; \
-            break; \
-        case 0xC0000006: \
-            memcpy(p, "The thread tried to access a page that was not present, and the system was unable to load the page", 98); \
-            p += 98; \
-            break; \
-        case 0xC0000008: \
-            memcpy(p, "The thread used a handle to a kernel object that was invalid", 60); \
-            p += 60; \
-            break; \
-        case 0xC000001D: \
-            memcpy(p, "The thread tried to execute an invalid instruction", 50); \
-            p += 50; \
-            break; \
-        case 0xC0000025: \
-            memcpy(p, "The thread tried to continue execution after a noncontinuable exception occurred", 80); \
-            p += 80; \
-            break; \
-        case 0xC0000026: \
-            memcpy(p, "An exception handler returned an invalid disposition to the exception dispatcher", 80); \
-            p += 80; \
-            break; \
-        case 0xC000008C: \
-            memcpy(p, "The thread tried to access an array element that is out of bounds and the underlying hardware supports bounds checking", 118); \
-            p += 118; \
-            break; \
-        case 0xC000008D: \
-            memcpy(p, "One of the operands in a floating-point operation is denormal. A denormal value is one that is too small to represent as a standard floating-point value", 152); \
-            p += 152; \
-            break; \
-        case 0xC000008E: \
-            memcpy(p, "The thread tried to divide a floating-point value by a floating-point divisor of zero", 85); \
-            p += 85; \
-            break; \
-        case 0xC000008F: \
-            memcpy(p, "The result of a floating-point operation cannot be represented exactly as a decimal fraction", 92); \
-            p += 92; \
-            break; \
-        case 0xC0000090: \
-            memcpy(p, "This exception represents any floating-point exception not included", 67); \
-            p += 67; \
-            break; \
-        case 0xC0000091: \
-            memcpy(p, "The exponent of a floating-point operation is greater than the magnitude allowed by the corresponding type", 106); \
-            p += 106; \
-            break; \
-        case 0xC0000092: \
-            memcpy(p, "The stack overflowed or underflowed as the result of a floating-point operation", 79); \
-            p += 79; \
-            break; \
-        case 0xC0000093: \
-            memcpy(p, "The exponent of a floating-point operation is less than the magnitude allowed by the corresponding type", 103); \
-            p += 103; \
-            break; \
-        case 0xC0000094: \
-            memcpy(p, "The thread tried to divide an integer value by an integer divisor of zero", 73); \
-            p += 73; \
-            break; \
-        case 0xC0000095: \
-            memcpy(p, "The result of an integer operation caused a carry out of the most significant bit of the result", 95); \
-            p += 95; \
-            break; \
-        case 0xC0000096: \
-            memcpy(p, "The thread tried to execute an instruction whose operation is not allowed in the current machine mode", 101); \
-            p += 101; \
-            break; \
-        case 0xC00000FD: \
-            memcpy(p, "The thread used up its stack", 28); \
-            p += 28; \
-            break; \
-        case 0xC0000194: \
-            memcpy(p, "The wait operation on the critical section times out", 52); \
-            p += 52; \
-            break; \
-        case 0xC0000409: \
-            memcpy(p, "The system detected an overrun of a stack-based buffer in this application", 74); \
-            p += 74; \
-            break; \
-        case 0xC000041D: \
-            memcpy(p, "An unhandled exception was encountered during a user callback", 61); \
-            p += 61; \
-            break; \
-        case 0xC0000420: \
-            memcpy(p, "An assertion failure has occurred", 33); \
-            p += 33; \
-            break; \
-        case 0xE0434f4D: \
-            memcpy(p, "A managed code exception was encountered within .NET Common Language Runtime", 76); \
-            p += 76; \
-            break; \
-        case 0xE06D7363: \
-            memcpy(p, "A C++ exception has been thrown and is being handled or caught", 62); \
-            p += 62; \
-            break; \
-        case 0x80000001: \
-            memcpy(p, "The thread accessed memory allocated with the PAGE_GUARD modifier", 65); \
-            p += 65; \
-            break; \
-        case 0x80000002: \
-            memcpy(p, "The thread tried to read or write data that is misaligned on hardware that does not provide alignment", 101); \
-            p += 101; \
-            break; \
-        case 0x80000003: \
-            memcpy(p, "A breakpoint was encountered", 28); \
-            p += 28; \
-            break; \
-        case 0x80000004: \
-            memcpy(p, "A trace trap or other single-instruction mechanism signaled that one instruction has been executed", 98); \
-            p += 98; \
-            break; \
-        case 0x4000001F: \
-            memcpy(p, "A Win32 x86 breakpoint was encountered", 38); \
-            p += 38; \
-            break; \
-        case 0x40000015: \
-            memcpy(p, "The application caused an unhandled runtime exception during shutdown", 69); \
-            p += 69; \
-            break; \
-        case 0x40010003: \
-            memcpy(p, "The debugger terminated thread", 30); \
-            p += 30; \
-            break; \
-        case 0x40010004: \
-            memcpy(p, "The debugger terminated process", 31); \
-            p += 31; \
-            break; \
-        case 0x40010005: \
-            memcpy(p, "The debugger got control C", 26); \
-            p += 26; \
-            break; \
-        case 0x40010008: \
-            memcpy(p, "The debugger received control break", 35); \
-            p += 35; \
-            break; \
-        case 0x406D1388: \
-            memcpy(p, "The thread set its own name by raising exception", 48); \
-            p += 48; \
-            break; \
-        case 1717: \
-            memcpy(p, "The interface is unknown", 24); \
-            p += 24; \
-            break; \
-        case 1722: \
-            memcpy(p, "The RPC server is unavailable", 29); \
-            p += 29; \
-            break; \
-    } \
-    p; \
-})
+// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-exception_record
 
-#if defined(__GNUC__) || defined(__clang__)
-#if defined(_DEBUG) && !defined(__OPTIMIZE__)
-__attribute__((no_stack_protector, nothrow))
-#else
-__attribute__((always_inline, flatten, no_stack_protector, nothrow))
-#endif
-#endif
+char* FormatVerboseDebugException(char* p, unsigned int ExceptionCode) {
+    switch (ExceptionCode) {
+        case 0xC0000005:
+            memcpy(p, "The thread tried to read from or write to a virtual address for which it does not have the appropriate access", 109);
+            p += 109;
+            break;
+        case 0xC0000006:
+            memcpy(p, "The thread tried to access a page that was not present, and the system was unable to load the page", 98);
+            p += 98;
+            break;
+        case 0xC0000008:
+            memcpy(p, "The thread used a handle to a kernel object that was invalid", 60);
+            p += 60;
+            break;
+        case 0xC000001D:
+            memcpy(p, "The thread tried to execute an invalid instruction", 50);
+            p += 50;
+            break;
+        case 0xC0000025:
+            memcpy(p, "The thread tried to continue execution after a noncontinuable exception occurred", 80);
+            p += 80;
+            break;
+        case 0xC0000026:
+            memcpy(p, "An exception handler returned an invalid disposition to the exception dispatcher", 80);
+            p += 80;
+            break;
+        case 0xC000008C:
+            memcpy(p, "The thread tried to access an array element that is out of bounds and the underlying hardware supports bounds checking", 118);
+            p += 118;
+            break;
+        case 0xC000008D:
+            memcpy(p, "One of the operands in a floating-point operation is denormal. A denormal value is one that is too small to represent as a standard floating-point value", 152);
+            p += 152;
+            break;
+        case 0xC000008E:
+            memcpy(p, "The thread tried to divide a floating-point value by a floating-point divisor of zero", 85);
+            p += 85;
+            break;
+        case 0xC000008F:
+            memcpy(p, "The result of a floating-point operation cannot be represented exactly as a decimal fraction", 92);
+            p += 92;
+            break;
+        case 0xC0000090:
+            memcpy(p, "This exception represents any floating-point exception not included", 67);
+            p += 67;
+            break;
+        case 0xC0000091:
+            memcpy(p, "The exponent of a floating-point operation is greater than the magnitude allowed by the corresponding type", 106);
+            p += 106;
+            break;
+        case 0xC0000092:
+            memcpy(p, "The stack overflowed or underflowed as the result of a floating-point operation", 79);
+            p += 79;
+            break;
+        case 0xC0000093:
+            memcpy(p, "The exponent of a floating-point operation is less than the magnitude allowed by the corresponding type", 103);
+            p += 103;
+            break;
+        case 0xC0000094:
+            memcpy(p, "The thread tried to divide an integer value by an integer divisor of zero", 73);
+            p += 73;
+            break;
+        case 0xC0000095:
+            memcpy(p, "The result of an integer operation caused a carry out of the most significant bit of the result", 95);
+            p += 95;
+            break;
+        case 0xC0000096:
+            memcpy(p, "The thread tried to execute an instruction whose operation is not allowed in the current machine mode", 101);
+            p += 101;
+            break;
+        case 0xC00000FD:
+            memcpy(p, "The thread used up its stack", 28);
+            p += 28;
+            break;
+        case 0xC0000194:
+            memcpy(p, "The wait operation on the critical section times out", 52);
+            p += 52;
+            break;
+        case 0xC0000409:
+            memcpy(p, "The system detected an overrun of a stack-based buffer in this application", 74);
+            p += 74;
+            break;
+        case 0xC000041D:
+            memcpy(p, "An unhandled exception was encountered during a user callback", 61);
+            p += 61;
+            break;
+        case 0xC0000420:
+            memcpy(p, "An assertion failure has occurred", 33);
+            p += 33;
+            break;
+        case 0xE0434f4D:
+            memcpy(p, "A managed code exception was encountered within .NET Common Language Runtime", 76);
+            p += 76;
+            break;
+        case 0xE06D7363:
+            memcpy(p, "A C++ exception has been thrown and is being handled or caught", 62);
+            p += 62;
+            break;
+        case 0x80000001:
+            memcpy(p, "The thread accessed memory allocated with the PAGE_GUARD modifier", 65);
+            p += 65;
+            break;
+        case 0x80000002:
+            memcpy(p, "The thread tried to read or write data that is misaligned on hardware that does not provide alignment", 101);
+            p += 101;
+            break;
+        case 0x80000003:
+            memcpy(p, "A breakpoint was encountered", 28);
+            p += 28;
+            break;
+        case 0x80000004:
+            memcpy(p, "A trace trap or other single-instruction mechanism signaled that one instruction has been executed", 98);
+            p += 98;
+            break;
+        case 0x4000001F:
+            memcpy(p, "A Win32 x86 breakpoint was encountered", 38);
+            p += 38;
+            break;
+        case 0x40000015:
+            memcpy(p, "The application caused an unhandled runtime exception during shutdown", 69);
+            p += 69;
+            break;
+        case 0x40010003:
+            memcpy(p, "The debugger terminated thread", 30);
+            p += 30;
+            break;
+        case 0x40010004:
+            memcpy(p, "The debugger terminated process", 31);
+            p += 31;
+            break;
+        case 0x40010005:
+            memcpy(p, "The debugger got control C", 26);
+            p += 26;
+            break;
+        case 0x40010008:
+            memcpy(p, "The debugger received control break", 35);
+            p += 35;
+            break;
+        case 0x406D1388:
+            memcpy(p, "The thread set its own name by raising exception", 48);
+            p += 48;
+            break;
+        case 1717:
+            memcpy(p, "The interface is unknown", 24);
+            p += 24;
+            break;
+        case 1722:
+            memcpy(p, "The RPC server is unavailable", 29);
+            p += 29;
+            break;
+    }
+    return p;
+}
 
 static inline char *FormatSourceCode(char *fname, int line, char *p, BOOL verbose)
 {
@@ -330,14 +304,6 @@ static inline char *FormatSourceCode(char *fname, int line, char *p, BOOL verbos
     fclose(fp);
     return p;
 }
-
-#if defined(__GNUC__) || defined(__clang__)
-#if defined(_DEBUG) && !defined(__OPTIMIZE__)
-__attribute__((no_stack_protector, nothrow))
-#else
-__attribute__((always_inline, flatten, no_stack_protector, nothrow))
-#endif
-#endif
 
 static inline char *FormatFileLine(IMAGEHLP_LINE64 *lpLine, char *p, BOOL Console, BOOL verbose)
 {
