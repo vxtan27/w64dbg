@@ -20,6 +20,6 @@ Minimum Windows version (x86-64): **Windows XP with SP2** (**Windows 10** if cro
 | vcruntime140.dll | C:\Windows\System32  | Microsoft Visual C++ Redistributable |
 | dbghelp.dll      | C:\Windows\System32  | Debugging Tools For Windows          |
 
-**NOTE**: If your Windows version is missing one of these DLL files or does not meet its version requirements, download it [__here__](https://www.dll-files.com) with your corresponding Windows version.
+**NOTE**: If your Windows is missing one of these DLL files, download it [__here__](https://www.dll-files.com).
 
 Read more: [__Deployment on Microsoft Windows XP__](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment#deployment-on-microsoft-windows-xp)

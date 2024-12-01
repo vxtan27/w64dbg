@@ -1,23 +1,24 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <iostream>
 
 class Example
 {
 public:
+    // Start the recursion
     void CauseException(void)
     {
-        RootException();
+        InfiniteRecursive();
     }
 private:
-    static inline void RootException(void)
+    void InfiniteRecursive(void)
     {
-        // Cause breakpoint
-        DebugBreak();
+        // Cause stack overflow
+        InfiniteRecursive();
     }
 };
 
-int main(void) {
+int main(void)
+{
     Example example;
     example.CauseException();
 }

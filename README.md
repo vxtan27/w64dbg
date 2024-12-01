@@ -25,27 +25,26 @@ w64dbg is a small and efficient open-source binary tool for debugging live user-
 
 3. [__Set system environment variables__](https://www3.ntu.edu.sg/home/ehchua/programming/howto/Environment_Variables.html).
 
-### __Uninstall__
-
-Run **`cleanup.bat`**.
-
 ## __Usage__
 
     
-    Usage: w64dbg [...] executable [...]
+    W64DBG [ option... ] <executable> [ exec arg... ]
     
     Description:
-    This tool is used to debug an executable on x64 Windows.
-    
-    Parameter List:
-    /B Ignore breakpoints.
-    /D Load the executable's PDB debug symbols.
-    /G Load the executable's DWARF debug symbols.
-    /Q Do not display verbose exception information.
-    /O Do not display OutputDebugString string.
-    /S Start the executable in a new console.
-    /T Wait for the specified period (in seconds).
-    /V Display verbose debug information.
+        This tool is used to debug an executable on x64 Windows.
+        
+    Entries:
+        option    one or more W64DBG options.
+        exec arg  one or more executable arguments.
+        
+    Option List:
+        /B        Ignore breakpoints.
+        /D        Load the executable's PDB debug symbols.
+        /G[-]     Load the executable's DWARF debug symbols.
+        /O        Do not display OutputDebugString string.
+        /S        Start the executable in a new console.
+        /T        Wait for the specified period (in seconds).
+        /V<n>     Display verbose debug information.
     
 
 ## __Samples__
@@ -54,61 +53,49 @@ Run **`cleanup.bat`**.
 
     
     **********************************************************************
-    ** Visual Studio 2022 Developer Command Prompt v17.11.5
+    ** Visual Studio 2022 Developer Command Prompt v17.12.1
     ** Copyright (c) 2022 Microsoft Corporation
     **********************************************************************
     [vcvarsall.bat] Environment initialized for: 'x64'
     
-    C:\w64dbg>cl /Zi sample.cpp
-    Microsoft (R) C/C++ Optimizing Compiler Version 19.41.34123 for x64
+    C:\w64dbg\samples>cl /EHsc /Z7 4.cpp
+    Microsoft (R) C/C++ Optimizing Compiler Version 19.42.34433 for x64
     Copyright (C) Microsoft Corporation.  All rights reserved.
     
-    sample.cpp
-    Microsoft (R) Incremental Linker Version 14.41.34123.0
+    4.cpp
+    4.cpp(14): warning C4312: 'reinterpret_cast': conversion from 'int' to 'int *' of greater size
+    Microsoft (R) Incremental Linker Version 14.42.34433.0
     Copyright (C) Microsoft Corporation.  All rights reserved.
     
-    /out:sample.exe
+    /out:4.exe
     /debug
-    sample.obj
+    4.obj
     
-    C:\w64dbg>w64dbg /D /V sample.exe
-    CreateProcess 9572x6656
-    LoadDll \\?\C:\Windows\System32\ntdll.dll
-    LoadDll \\?\C:\Windows\System32\kernel32.dll
-    LoadDll \\?\C:\Windows\System32\KernelBase.dll
-    Thread #01 caused access violation writing to location 0x0000000000000001
+    C:\w64dbg\samples>w64dbg /D /V2 4.exe
+    Accessing invalid memory...
+    Thread #01 caused access violation writing to location 0x0000000000000004
     The thread tried to read from or write to a virtual address for which it does not have the appropriate access
-    #0  0x00007ff6109d21a1 in sample!__crt_stdio_input::input_processor<char,__crt_stdio_input::string_input_adapter<char> >::write_integer () at minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h:1573
-    minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h: No such file or directory.
-    #1  0x00007ff6109cf0f5 in sample!__crt_stdio_input::input_processor<char,__crt_stdio_input::string_input_adapter<char> >::process_integer_specifier () at minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h:1523
-    minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h: No such file or directory.
-    #2  0x00007ff6109cea37 in sample!__crt_stdio_input::input_processor<char,__crt_stdio_input::string_input_adapter<char> >::process_conversion_specifier () at minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h:1226
-    minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h: No such file or directory.
-    #3  0x00007ff6109cf68f in sample!__crt_stdio_input::input_processor<char,__crt_stdio_input::string_input_adapter<char> >::process_state () at minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h:1144
-    minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h: No such file or directory.
-    #4  0x00007ff6109ce47d in sample!__crt_stdio_input::input_processor<char,__crt_stdio_input::string_input_adapter<char> >::process () at minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h:1100
-    minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h: No such file or directory.
-    #5  0x00007ff6109d25da in sample!__stdio_common_vsscanf () at minkernel\crts\ucrt\src\appcrt\stdio\input.cpp:122
-    minkernel\crts\ucrt\src\appcrt\stdio\input.cpp: No such file or directory.
-    #6  0x00007ff6109a850a in sample!_vsscanf_l () at C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\ucrt\stdio.h:2156
-     2156  |    }
-    #7  0x00007ff6109a8569 in sample!sscanf () at C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\ucrt\stdio.h:2251
-     2251  |        _Result = _vsscanf_l(_Buffer, _Format, NULL, _ArgList);
-    #8  0x00007ff6109a83fc in sample!Exception () at C:\w64dbg\sample.cpp:6
-       6   |    sscanf("12345", "%d", (int *) 1);
-    #9  0x00007ff6109a849b in sample!Example::RootException () at C:\w64dbg\sample.cpp:13
-      13   |        Exception(i * 2, j, "Hello");
-    #10 0x00007ff6109a845b in sample!Example::CauseException () at C:\w64dbg\sample.cpp:18
-      18   |        RootException(4, 5.6f);
-    #11 0x00007ff6109a841e in sample!main () at C:\w64dbg\sample.cpp:25
-      25   |    example.CauseException();
-    #12 0x00007ff6109a87d0 in sample!__scrt_common_main_seh () at D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
-    D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl: No such file or directory.
-    #13 0x00007ffa5b5fdbe7 in sample!BaseThreadInitThunk () from C:\w64dbg\sample.exe
-    #14 0x00007ffa5cd1fbec in sample!RtlUserThreadStart () from C:\w64dbg\sample.exe
-    ExitProcess 9572x6656
+    #0  0x00007ff72f24bef9 in __crt_stdio_input::input_processor<char,__crt_stdio_input::string_input_adapter<char> >::write_integer (value=5434512) at minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h:1573
+    #1  0x00007ff72f248e85 in __crt_stdio_input::input_processor<char,__crt_stdio_input::string_input_adapter<char> >::process_integer_specifier (base=1375552, is_signed=64) at minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h:1523
+    #2  0x00007ff72f2487c7 in __crt_stdio_input::input_processor<char,__crt_stdio_input::string_input_adapter<char> >::process_conversion_specifier () at minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h:1226
+    #3  0x00007ff72f24941f in __crt_stdio_input::input_processor<char,__crt_stdio_input::string_input_adapter<char> >::process_state () at minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h:1144
+    #4  0x00007ff72f24820d in __crt_stdio_input::input_processor<char,__crt_stdio_input::string_input_adapter<char> >::process () at minkernel\crts\ucrt\inc\corecrt_internal_stdio_input.h:1100
+    #5  0x00007ff72f24c316 in __stdio_common_vsscanf (options=5, buffer=0x5, buffer_count=5, format=0x5, locale=0x0, arglist=0x14fe90) at minkernel\crts\ucrt\src\appcrt\stdio\input.cpp:122
+    #6  0x00007ff72f1c44ea in _vsscanf_l (_Buffer=0x7ff72f2c73d0, _Format=0x7ff72f2c73cc, _Locale=0x0, _ArgList=0x14fe90) at C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\ucrt\stdio.h:2156
+      2156  |    }
+    #7  0x00007ff72f1c4549 in sscanf (_Buffer=0x7ff72f2c73d0, _Format=0x7ff72f2c73cc) at C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\ucrt\stdio.h:2251
+      2251  |        _Result = _vsscanf_l(_Buffer, _Format, NULL, _ArgList);
+    #8  0x00007ff72f1c2dc9 in Example::RootException (i=4, j=5.600000) at 4.cpp:14
+       14   |        std::sscanf("12345", "%d", reinterpret_cast<int *>(i));
+    #9  0x00007ff72f1c2d8b in Example::CauseException () at 4.cpp:8
+        8   |        RootException(4, 5.6f);
+    #10 0x00007ff72f1c0c21 in main () at 4.cpp:21
+       21   |    example.CauseException();
+    #11 0x00007ff72f2216d0 in __scrt_common_main_seh () at D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #12 0x00007ffc2770e8d7 in BaseThreadInitThunk () from C:\WINDOWS\System32\KERNEL32.DLL
+    #13 0x00007ffc28c5fbcc in RtlUserThreadStart () from C:\WINDOWS\SYSTEM32\ntdll.dll
     
-    C:\w64dbg>
+    C:\w64dbg\samples>
     
 
 </details>
@@ -116,216 +103,116 @@ Run **`cleanup.bat`**.
 <details><summary><b>MinGW Compiler</b></summary>
 
     
-    Microsoft Windows [Version 10.0.26100.2161]
+    Microsoft Windows [Version 10.0.26100.2454]
     (c) Microsoft Corporation. All rights reserved.
     
-    C:\w64dbg>g++ -g sample.cpp -o sample.exe
+    C:\w64dbg\samples>g++ -g 8.cpp -o 8.exe
     
-    C:\w64dbg>w64dbg /B /G sample.exe
+    C:\w64dbg\samples>w64dbg /G 8.exe
     Thread #01 caused stack overflow
     The thread used up its stack
-    #0  0x00007ff60a7429b3 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #1  0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #2  0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #3  0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #4  0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #5  0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #6  0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #7  0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #8  0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #9  0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #10 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #11 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #12 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #13 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #14 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #15 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #16 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #17 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #18 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #19 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #20 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #21 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #22 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #23 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #24 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #25 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #26 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #27 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #28 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #29 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #30 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #31 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #32 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #33 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #34 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #35 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #36 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #37 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #38 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #39 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #40 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #41 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #42 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #43 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #44 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #45 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #46 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #47 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #48 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #49 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #50 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #51 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #52 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #53 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #54 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #55 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #56 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #57 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #58 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #59 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #60 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #61 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #62 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #63 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #64 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #65 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #66 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #67 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #68 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #69 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #70 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #71 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #72 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #73 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #74 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #75 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #76 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #77 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #78 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #79 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #80 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #81 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #82 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #83 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #84 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #85 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #86 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #87 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #88 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #89 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #90 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #91 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #92 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #93 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #94 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #95 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #96 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #97 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-    #98 0x00007ff60a7429b8 in Example::RootException (this=0x5ffecf) at sample.cpp:8
-       8   |        CauseException();
-    #99 0x00007ff60a7429d8 in Example::CauseException (this=0x5ffecf) at sample.cpp:13
-      13   |        RootException();
-      
-    C:\w64dbg>
+    #0  0x00007ff7cb7d29c3 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #1  0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #2  0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #3  0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #4  0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #5  0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #6  0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #7  0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #8  0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #9  0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #10 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #11 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #12 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #13 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #14 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #15 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #16 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #17 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #18 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #19 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #20 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #21 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #22 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #23 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #24 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #25 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #26 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #27 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #28 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #29 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #30 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #31 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #32 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #33 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #34 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #35 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #36 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #37 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #38 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #39 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #40 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #41 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #42 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #43 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #44 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #45 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #46 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #47 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #48 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #49 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #50 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #51 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #52 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #53 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #54 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #55 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #56 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #57 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #58 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #59 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #60 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #61 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #62 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #63 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #64 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #65 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #66 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #67 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #68 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #69 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #70 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #71 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #72 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #73 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #74 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #75 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #76 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #77 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #78 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #79 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #80 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #81 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #82 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #83 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #84 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #85 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #86 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #87 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #88 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #89 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #90 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #91 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #92 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #93 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #94 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #95 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #96 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #97 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #98 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    #99 0x00007ff7cb7d29c8 in Example::InfiniteRecursive (this=0x5ffecf) at 8.cpp:16
+    
+    C:\w64dbg\samples>
     
 
 </details>
@@ -354,13 +241,13 @@ Minimum Windows version (x86-64): **Windows XP with SP2** (**Windows 10** if cro
 | vcruntime140.dll | C:\Windows\System32  | Microsoft Visual C++ Redistributable |
 | dbghelp.dll      | C:\Windows\System32  | Debugging Tools For Windows          |
 
-**NOTE**: If your Windows version is missing one of these DLL files or does not meet its version requirements, download it [__here__](https://www.dll-files.com) with your corresponding Windows version.
+**NOTE**: If your Windows is missing one of these DLL files, download it [__here__](https://www.dll-files.com).
 
 Read more: [__Deployment on Microsoft Windows XP__](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment#deployment-on-microsoft-windows-xp)
 
 ## __Limitations__
 
-w64dbg cannot handle more than **`MAX_THREAD`** and **`MAX_DLL`** (64 and 16 defined [__here__](src/main.c#L15)) as it is abnormal for a process to overcome these limits. If you want to adjust them, change the definition in the source files and then rebuild your own. By the way, w64dbg will not print out more than 100 thread context frames as the only way to reach that unbelievable number is infinite recursive.
+w64dbg cannot handle more than **`MAX_THREAD`** and **`MAX_DLL`** (64 and 16 defined [__here__](src/main.rc#L18)) as it is abnormal for a process to overcome these limits. If you want to adjust them, change the definition in the source files and then rebuild your own. By the way, w64dbg will not print out more than 100 thread context frames as the only way to reach that unbelievable number is infinite recursive.
 
 ## __Frequently Asked Questions__
 
@@ -369,7 +256,7 @@ w64dbg cannot handle more than **`MAX_THREAD`** and **`MAX_DLL`** (64 and 16 def
 Currently, there is no way to get **`errno`** value as it's not a variable. Its definition is:
 
     
-    _CRTIMP extern int *__cdecl _errno(void);
+    _ACRTIMP int* __cdecl _errno(void);
     #define errno (*_errno())
     
 
@@ -430,7 +317,7 @@ Read more:
 
 <details><summary><b>What are breakpoints and how do I use them effectively?</b></summary>
 
-Breakpoints are one of the most important debugging techniques in your developer's toolbox. You set breakpoints wherever you want to pause debugger execution. On Windows, you can call **`DebugBreak()`**. Don't forget to add **`/B`** options to **w64dbg**.
+Breakpoints are one of the most important debugging techniques in your developer's toolbox. You set breakpoints wherever you want to pause debugger execution. On Windows, you can call **`DebugBreak()`**.
 
 See [__this__](https://learn.microsoft.com/en-us/visualstudio/debugger/using-breakpoints) for more details.
 
