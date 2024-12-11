@@ -1,5 +1,14 @@
+#include <stdio.h>
+#include <stdlib.h>
+
 int main(void)
 {
-    //Generate an illegal CPU instruction
-    __asm__("ud2");  //'ud2' is an undefined instruction
+    int numerator = 100;
+    int denominator = 0;
+    
+    // Use div function  
+    div_t res = div(numerator, denominator);
+    
+    printf("Quotient of 100/0 = %d\n", res.quot);
+    printf("Remainder of 100/0 = %d\n", res.rem);
 }

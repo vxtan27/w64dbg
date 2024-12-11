@@ -1,22 +1,22 @@
-#include <debugapi.h>
+#include <iostream>
 
-struct Example
+class Example
 {
-    //Infinite recursion
-    void RootException(void)
-    {
-        CauseException();
-    }
-    //Start the recursion
+public:
     void CauseException(void)
     {
-        RootException();
+        RootException(4, 5.6f);
+    }
+private:
+    static inline void RootException(int i, double j)
+    {
+        // Cause access violation
+        std::sscanf("12345", "%d", reinterpret_cast<int *>(i));
     }
 };
 
-int main(void)
-{
+int main(void) {
     Example example;
-    DebugBreak();
+    std::cout << "Accessing invalid memory...\n";
     example.CauseException();
 }

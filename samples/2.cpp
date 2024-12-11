@@ -1,26 +1,26 @@
-#include <stdio.h>
+#include <iostream>
 
-static inline void Exception(int i, double j, const char * str)
+class Example
 {
-    //Cause access violation
-    sscanf("12345", "%d", (int *) 1);
-}
-
-struct Example
-{
-    static void RootException(int i, float j)
-    {
-        Exception(i * 2, j, "Hello");
-    }
-
+public:
     void CauseException(void)
     {
-        RootException(4, 5.6f);
+        RootException();
+    }
+private:
+    static inline void RootException(void)
+    {
+        // Cause C++ exception handling exception
+        try {
+            throw std::runtime_error("C++ EH Exception triggered");
+        } catch (const std::exception &e) {
+            std::cerr << "Caught exception: " << e.what() << std::endl;
+        }
     }
 };
 
-int main(void)
-{
+int main(void) {
     Example example;
+    std::cout << "Throwing a C++ exception...\n";
     example.CauseException();
 }
