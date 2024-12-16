@@ -1,0 +1,1 @@
+This folder contains sample C/C++ code snippets and preview screenshots demonstrating compiling and debugging with MSVC or MinGW.
