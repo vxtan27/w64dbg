@@ -1,7 +1,9 @@
 /* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
 
-#include "symbol.h"
-#include "ntdll.h"
+#include "resrc.h" // Resource
+#include "symd.h" // Symbol definitions
+#include "ntdll.h" // Native
+#include <dbghelp.h>
 #include <stdio.h>
 
 // https://github.com/microsoft/microsoft-pdb/blob/master/include/cvconst.h

@@ -1,7 +1,7 @@
 /* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
 
-#include "utils.c"
-#include "ntdll.h"
+#include "strutil.c" // String utilities
+#include "ntdll.h" // Native
 #include <wchar.h>
 
 static inline char *FormatDebugException(

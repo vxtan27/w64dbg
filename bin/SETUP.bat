@@ -15,7 +15,7 @@ if "%PROCESSOR_ARCHITECTURE%"=="x86" if not defined PROCESSOR_ARCHITEW6432 (
 )
 
 :: Check DLLs
-for %%f in (msvcrt.dll ucrtbase.dll vcruntime140.dll dbghelp.dll) do (
+for %%f in (ucrtbase.dll vcruntime140.dll dbghelp.dll) do (
     where %%f || (
         echo [ERROR] %%f missing.
         timeout -1 & exit /B

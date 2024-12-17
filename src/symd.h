@@ -1,8 +1,5 @@
 /* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
 
-#include "resource.h"
-#include <dbghelp.h>
-
 enum SymTagEnum {
     SymTagNull,
     SymTagExe,

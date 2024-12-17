@@ -1,6 +1,6 @@
 # __w64dbg__
 
-A high-performance debugging utility for x64 Windows executables with PDB and DWARF debug formats support.
+A high-performance debugging utility for x64 Windows executables with support in PDB and DWARF debug formats.
 
 ## __Download__
 
@@ -75,7 +75,6 @@ System type: **64-bit operating system, x64-based processor**
 | ---------------- | -------------------- | ------------------------------------ |
 | ntdll.dll        | C:\Windows\System32  | Windows Native API                   |
 | kernel32.dll     | C:\Windows\System32  | Windows Core API                     |
-| msvcrt.dll       | C:\Windows\System32  | Microsoft Visual C++ Runtime         |
 | ucrtbase.dll     | C:\Windows\System32  | Universal C Runtime                  |
 | vcruntime140.dll | C:\Windows\System32  | Microsoft Visual C++ Redistributable |
 | dbghelp.dll      | C:\Windows\System32  | Debugging Tools For Windows          |
@@ -159,7 +158,7 @@ See [__this__](https://learn.microsoft.com/windows-hardware/drivers/debugger/gen
         </b>
     </summary>
 
-Breakpoints are a critical debugging technique, allowing you to pause execution at specific points in your code. On Windows, use the `DebugBreak()` API to trigger breakpoints.
+Breakpoints are a critical debugging technique that allows you to pause execution at specific points in your code. To trigger breakpoints on Windows, use the `DebugBreak()` API.
 
 See [__this__](https://learn.microsoft.com/visualstudio/debugger/using-breakpoints) for more information.
 
@@ -172,7 +171,7 @@ See [__this__](https://learn.microsoft.com/visualstudio/debugger/using-breakpoin
         </b>
     </summary>
 
-`errno` is a thread-local variable, its pointer is retrieved through the `_errno()` function, defined as:
+`errno` is a thread-local variable, and its pointer is returned by the `_errno()` function, defined as:
 
     
     _ACRTIMP int* __cdecl _errno(void);

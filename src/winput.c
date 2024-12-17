@@ -1,6 +1,6 @@
 /* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
 
-#include "ntdll.h"
+#include "ntdll.h" // Native
 
 #define SecToUnits(lSeconds) (lSeconds * 10000000)
 

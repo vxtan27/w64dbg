@@ -1,6 +1,6 @@
 /* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
 
-#include "resource.h"
+#include "resrc.h" // Resource
 
 static __FORCEINLINE char *__builtin_hextoa(
     _In_ unsigned int value,
@@ -53,8 +53,10 @@ static __FORCEINLINE int __builtin_wcstol(
     {
         if (*(p + 1) == '1' && *(p + 2) == '\0')
             return -1;
-        else return 100000;
+        return 100000;
     }
+
+    if (*p == '+') ++p;
 
     char c;
     int value = 0;
@@ -80,32 +82,6 @@ static __FORCEINLINE int __builtin_wmemcmp(
             return *_S1 < *_S2 ? -1 : 1;
 
     return 0;
-}
-
-static __FORCEINLINE char *line_ultoa(
-    _In_ unsigned int value,
-    _Out_writes_(9) char *p
-    )
-{ // Undefine behavior for more than 99 999 999 lines
-    memset(p, ' ', 8);
-    p += 8;
-    *p = '|';
-
-    unsigned char i = 1;
-    unsigned int num = value;
-
-    // Pre-compute number length
-    do ++i; while ((num /= 10));
-
-    char *ptr = p - ((8 - --i) >> 1);
-
-    do
-    {
-        *(--ptr) = (value % 10) + '0';
-        value /= 10;
-    } while (value);
-
-    return p + 1;
 }
 
 static __FORCEINLINE char *debug_ultoa(
@@ -134,29 +110,6 @@ static __FORCEINLINE char *debug_ultoa(
     }
 
     return p;
-}
-
-static __FORCEINLINE void space_ultoa(
-    _In_ unsigned int value,
-    _Out_writes_(6) char *p
-    )
-{
-    memset(p, ' ', 3);
-    p += 5;
-
-    *p = '\0';
-    *(--p) = (value % 10) + '0';
-    value /= 10;
-    *(--p) = (value % 10) + '0';
-    value /= 10;
-    *(--p) = (value % 10) + '0';
-
-    if (value >= 10)
-    {
-        value /= 10;
-        *(--p) = (value % 10) + '0';
-        if (value >= 10) *(--p) = value / 10 + '0';
-    }
 }
 
 static __FORCEINLINE char *ulltoaddr(
@@ -188,4 +141,53 @@ static __FORCEINLINE char *ulltoaddr(
     } while (value);
 
     return p;
+}
+
+static __FORCEINLINE void space_ultoa(
+    _In_ unsigned int value,
+    _Out_writes_(6) char *p
+    )
+{
+    memset(p, ' ', 3);
+    p += 5;
+
+    *p = '\0';
+    *(--p) = (value % 10) + '0';
+    value /= 10;
+    *(--p) = (value % 10) + '0';
+    value /= 10;
+    *(--p) = (value % 10) + '0';
+
+    if (value >= 10)
+    {
+        value /= 10;
+        *(--p) = (value % 10) + '0';
+        if (value >= 10) *(--p) = value / 10 + '0';
+    }
+}
+
+static __FORCEINLINE char *line_ultoa(
+    _In_ unsigned int value,
+    _Out_writes_(9) char *p
+    )
+{ // Undefined behavior for more than 99 999 999 lines
+    memset(p, ' ', 8);
+    p += 8;
+    *p = '|';
+
+    unsigned char i = 1;
+    unsigned int num = value;
+
+    // Pre-compute number length
+    do ++i; while ((num /= 10));
+
+    char *ptr = p - ((8 - --i) >> 1);
+
+    do
+    {
+        *(--ptr) = (value % 10) + '0';
+        value /= 10;
+    } while (value);
+
+    return p + 1;
 }

@@ -2,9 +2,9 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
-#include "wait.c"
-#include "format.c"
-#include "callback.c"
+#include "winput.c" // Waiting for input
+#include "strfmt.c" // String formatting
+#include "symen.c" // Symbols enumeration
 
 #include <psapi.h>
 
@@ -128,7 +128,9 @@ int __cdecl wmain(int argc, wchar_t *argv[])
             {
                 debug = MINGW + 1;
                 continue;
-            } else if (argv[k][1] == 'V' && iswdigit(argv[k][2]))
+            }
+
+            if (argv[k][1] == 'V' && iswdigit(argv[k][2]))
             {
                 verbose = argv[k][2] - '0';
                 continue;
