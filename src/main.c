@@ -73,66 +73,98 @@
 #define W64DBG_DEFAULT_LEN 125
 #define W64DBG_DEFAULT_OFFSET W64DBG_DEFAULT_LEN
 
-int __cdecl wmain(int argc, wchar_t *argv[])
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
     char buffer[BUFLEN];
     ULONG UTF8StringActualByteCount;
 
     char *p = buffer;
     int k, timeout = 0;
+    PWSTR pNext = pCmdLine;
+    size_t temp, len = wcslen(pCmdLine);
     char debug = FALSE, breakpoint = TRUE, firstbreak = FALSE,
     output = TRUE, verbose = FALSE, start = FALSE, help = TRUE;
 
+    // Modified for processing arguments
+    *(pCmdLine + len) = ' ';
 
-    for (k = 1; k < argc; ++k)
-    { // Handle arguments
-        if (argv[k][0] != '/') break;
-        if (argv[k][2] == '\0') switch(argv[k][1])
+    while (pCmdLine + len > pNext)
+    {
+        if (*pNext != '/') break;
+        if (*(pNext + 2) == ' ') switch (*(pNext + 1))
         {
             case 'B':
                 breakpoint = FALSE;
+                pNext += 3;
                 continue;
+
             case 'D':
                 debug = TRUE;
+                pNext += 3;
                 continue;
+
             case 'G':
                 debug = MINGW;
+                pNext += 3;
                 continue;
+
             case 'O':
                 output = FALSE;
+                pNext += 3;
                 continue;
+
             case 'S':
                 start = TRUE;
+                pNext += 3;
                 continue;
+
             case 'T':
-                if (++k >= argc)
+
+                pNext += 3;
+                temp = pCmdLine + len - pNext;
+
+                if (!temp)
                 {
                     memcpy(p, "ERROR: Value expected for '/T'\n", 31);
                     p += 31;
-                } else if ((timeout = __builtin_wcstol(argv[k])) > 99999)
+                } else
                 {
-                    memcpy(p, W64DBG_ERROR_INVALID_TIMEOUT,
-                        strlen(W64DBG_ERROR_INVALID_TIMEOUT));
-                    p += strlen(W64DBG_ERROR_INVALID_TIMEOUT);
+                    if ((timeout = __builtin_wcstol(pNext)) > 99999)
+                    {
+                        memcpy(p, W64DBG_ERROR_INVALID_TIMEOUT,
+                            strlen(W64DBG_ERROR_INVALID_TIMEOUT));
+                        p += strlen(W64DBG_ERROR_INVALID_TIMEOUT);
+                    }
+
+                    temp = wmemchr(pNext, L' ', temp + 1) - pNext;
+                    pNext += temp + 1;
                 }
+
                 continue;
+
             case 'V':
                 verbose = 3;
+                pNext += 3;
                 continue;
+
             case '?':
                 help = FALSE;
+                pNext += 3;
                 continue;
-        } else if (argv[k][3] == '\0')
+        }
+        else if (*(pNext + 3) == ' ')
         {
-            if (argv[k][1] == 'G' && argv[k][2] == '+')
+            if (*(pNext + 1) == 'G' && *(pNext + 2) == '+')
             {
                 debug = MINGW + 1;
+                pNext += 4;
                 continue;
             }
 
-            if (argv[k][1] == 'V' && iswdigit(argv[k][2]))
+            if (*(pNext + 1) == 'V' && iswdigit(*(pNext + 2)))
             {
-                verbose = argv[k][2] - '0';
+                verbose = *(pNext + 2) - '0';
+                pNext += 4;
                 continue;
             }
         }
@@ -140,9 +172,13 @@ int __cdecl wmain(int argc, wchar_t *argv[])
         memcpy(p, "ERROR: Invalid argument/option - '", 34);
         p += 34;
 
+        temp = pCmdLine + len - pNext;
+        temp = wmemchr(pNext, L' ', temp + 1) - pNext;
+
         RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-            &UTF8StringActualByteCount, argv[k], wcslen(argv[k]) << 1);
+            &UTF8StringActualByteCount, pNext, temp << 1);
         p += UTF8StringActualByteCount;
+        pNext += temp + 1;
 
         memcpy(p, "'.\n", 3);
         p += 3;
@@ -152,7 +188,7 @@ int __cdecl wmain(int argc, wchar_t *argv[])
     {
         memcpy(p, W64DBG_HELP, strlen(W64DBG_HELP));
         p += strlen(W64DBG_HELP);
-    } else if (k >= argc)
+    } else if (*pNext == ' ')
     { // No executable specified
         memcpy(p, W64DBG_INVALID_USAGE,
             strlen(W64DBG_INVALID_USAGE));
@@ -164,7 +200,21 @@ int __cdecl wmain(int argc, wchar_t *argv[])
     IO_STATUS_BLOCK IoStatusBlock;
 
     hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-    Console = GetFileType(hStdout) == FILE_TYPE_CHAR;
+
+    // Get hStdout
+    if (!hStdout)
+    {
+        if (AttachConsole(ATTACH_PARENT_PROCESS))
+        { // Check if redirected output
+            hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+            Console = GetFileType(hStdout) == FILE_TYPE_CHAR;
+        } else
+        { // Always console handle
+            AllocConsole();
+            hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+            Console = 1;
+        }
+    } else Console = GetFileType(hStdout) == FILE_TYPE_CHAR;
 
     if (Console) SetConsoleOutputCP(65001);
 
@@ -190,8 +240,12 @@ int __cdecl wmain(int argc, wchar_t *argv[])
     Value.Buffer = PATH + (cDirLen) + 1;
     RtlQueryEnvironmentVariable_U(NULL, &Variable, &Value);
 
+    temp = pCmdLine + len - pNext;
+    temp = wmemchr(pNext, L' ', temp + 1) - pNext;
+    *(pNext + temp) = '\0';
+
     // Check if executable exists
-    if (!(PathLen = RtlDosSearchPath_U(PATH, argv[k], L".exe",
+    if (!(PathLen = RtlDosSearchPath_U(PATH, pNext, L".exe",
         sizeof(ApplicationName), ApplicationName, NULL)))
     {
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
@@ -199,8 +253,8 @@ int __cdecl wmain(int argc, wchar_t *argv[])
         ExitProcess(1);
     }
 
-    // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefileex#syntax
     DWORD type;
+
     if (!GetBinaryTypeW(ApplicationName, &type) ||
         (type != SCS_32BIT_BINARY && type != SCS_64BIT_BINARY))
     { // Check if executable format (x86-64)
@@ -217,19 +271,6 @@ int __cdecl wmain(int argc, wchar_t *argv[])
         ExitProcess(1);
     }
 
-    // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefileex#syntax
-    size_t temp;
-    wchar_t *lpCommandLine = (wchar_t *) buffer;
-
-    // Copy arguments to pass to executable
-    do
-    {
-        temp = wcslen(argv[k]);
-        memcpy(lpCommandLine, argv[k], temp << 1);
-        lpCommandLine += temp;
-        *lpCommandLine++ = ' ';
-    } while (++k < argc);
-
     HANDLE hProcess;
     HANDLE hFile[MAX_DLL];
     DEBUG_EVENT DebugEvent;
@@ -238,13 +279,14 @@ int __cdecl wmain(int argc, wchar_t *argv[])
     LPVOID BaseOfDll[MAX_DLL] = {};
     STARTUPINFOW startupInfo = {sizeof(startupInfo)};
 
-    *(p - 1) = '\0';
+    *(pNext + temp) = ' ';
+    *(pCmdLine + len) = '\0';
 
     if (debug < MINGW)
     {
         // The system closes the handles to the process and thread
         // when the debugger calls the ContinueDebugEvent function
-        CreateProcessW(ApplicationName, (LPWSTR) buffer, NULL, NULL, FALSE,
+        CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
             start ? CreationFlags | CREATE_NEW_CONSOLE |
             DEBUG_ONLY_THIS_PROCESS : CreationFlags | DEBUG_ONLY_THIS_PROCESS,
             NULL, NULL, &startupInfo, &processInfo);
@@ -263,7 +305,7 @@ int __cdecl wmain(int argc, wchar_t *argv[])
     {
         // The system closes the handles to the process and thread
         // when the debugger calls the DebugActiveProcessStop function
-        CreateProcessW(ApplicationName, (LPWSTR) buffer, NULL, NULL, FALSE,
+        CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
             start ? CreationFlags | CREATE_NEW_CONSOLE : CreationFlags,
             NULL, NULL, &startupInfo, &processInfo);
 
@@ -336,6 +378,7 @@ int __cdecl wmain(int argc, wchar_t *argv[])
                     BaseOfDll[i] = DebugEvent.u.LoadDll.lpBaseOfDll;
                     break;
                 }
+
                 break;
 
             case UNLOAD_DLL_DEBUG_EVENT:
@@ -365,6 +408,7 @@ int __cdecl wmain(int argc, wchar_t *argv[])
                     BaseOfDll[i] = 0;
                     break;
                 }
+
                 break;
 
             case CREATE_THREAD_DEBUG_EVENT:
@@ -386,6 +430,7 @@ int __cdecl wmain(int argc, wchar_t *argv[])
                     dwThreadId[i] = DebugEvent.dwThreadId;
                     break;
                 }
+
                 break;
 
             case EXIT_THREAD_DEBUG_EVENT:
@@ -406,6 +451,7 @@ int __cdecl wmain(int argc, wchar_t *argv[])
                     dwThreadId[i] = 0;
                     break;
                 }
+
                 break;
 
             case EXIT_PROCESS_DEBUG_EVENT:
@@ -427,8 +473,8 @@ int __cdecl wmain(int argc, wchar_t *argv[])
                     NtClose(hThread[0]);
                 }
 
-                for (i = 0; i < MAX_DLL; ++i) if (BaseOfDll[i])
-                    NtClose(hFile[i]);
+                for (i = 0; i < MAX_DLL; ++i)
+                    if (BaseOfDll[i]) NtClose(hFile[i]);
 
                 if (timeout)
                 {
@@ -461,6 +507,7 @@ int __cdecl wmain(int argc, wchar_t *argv[])
                     NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, buffer,
                         DebugEvent.u.DebugString.nDebugStringLength, NULL, NULL);
                 }
+
                 break;
 
             case EXCEPTION_DEBUG_EVENT:

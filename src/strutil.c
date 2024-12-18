@@ -45,13 +45,14 @@ static __FORCEINLINE char *__builtin_ulltoa(
     return p;
 }
 
+// Modified for processing arguments
 static __FORCEINLINE int __builtin_wcstol(
     _In_z_ wchar_t *p
     )
 {
     if (*p == '-')
     {
-        if (*(p + 1) == '1' && *(p + 2) == '\0')
+        if (*(p + 1) == '1' && *(p + 2) == ' ')
             return -1;
         return 100000;
     }
@@ -65,7 +66,7 @@ static __FORCEINLINE int __builtin_wcstol(
     {
         if ((c = *p - '0') > 9) return 100000;
         value = value * 10 + c;
-        if (!*++p) break;
+        if (*++p == ' ') break;
     }
 
     return value;
