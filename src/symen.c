@@ -6,12 +6,31 @@
 #include <dbghelp.h>
 #include <stdio.h>
 
+_Success_(return >= 0)
+_Check_return_opt_
+static int __builtin_snprintf(
+    _Out_writes_opt_(_BufferCount) _Always_(_Post_z_) char*       const _Buffer,
+    _In_                                              size_t      const _BufferCount,
+    _In_z_ _Printf_format_string_                     char const* const _Format,
+    ...)
+{
+    int _Result;
+    va_list _ArgList;
+
+    __crt_va_start(_ArgList, _Format);
+    _Result = __stdio_common_vsprintf(0,
+        _Buffer, _BufferCount, _Format, NULL, _ArgList);
+    __crt_va_end(_ArgList);
+
+    return _Result;
+}
+
 // https://github.com/microsoft/microsoft-pdb/blob/master/include/cvconst.h
 // https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code
 // https://gist.github.com/HoShiMin/779d1c5e96e50a653ca43511b7bcb69a
 // https://accu.org/journals/overload/29/165/orr
 
-BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, PVOID UserContext)
+static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, PVOID UserContext)
 {
     (void) SymbolSize;
 
@@ -169,7 +188,7 @@ BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, PVOID Us
                         p = "%u";
                         break;
                     case btFloat:
-                        p = "%f";
+                        p = "%g";
                         break;
                     case btLong:
                     case btCurrency:
@@ -197,7 +216,7 @@ BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, PVOID Us
 
         }
 
-        User->p += sprintf(User->p, p, Len);
+        User->p += __builtin_snprintf(User->p, PAGESIZE, p, Len);
 
         if (User->DataIsLocal) *User->p++ = '\n';
     }

@@ -1,17 +1,19 @@
 /* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
 
-#define _CRT_SECURE_NO_WARNINGS
-
 #include "winput.c" // Waiting for input
 #include "strfmt.c" // String formatting
 #include "symen.c" // Symbols enumeration
-
 #include <psapi.h>
 
-#define MAX_THREAD 32
-#define MAX_DLL 16
 #define MINGW 2
-#define LATENCY 25
+#define W64DBG_DEFAULT_TIMEOUT 0
+#define W64DBG_DEFAULT_DEBUG FALSE
+#define W64DBG_DEFAULT_BREAKPOINT TRUE
+#define W64DBG_DEFAULT_FIRSTBREAK FALSE
+#define W64DBG_DEFAULT_OUTPUT TRUE
+#define W64DBG_DEFAULT_VERBOSE FALSE
+#define W64DBG_DEFAULT_START FALSE
+#define W64DBG_DEFAULT_HELP FALSE
 
 #define W64DBG_USAGE \
     "Usage: W64DBG [options] <executable> [exec-args]\n"
@@ -41,9 +43,13 @@
     "    /T            Wait for a specified period (in seconds).\n" \
     "    /V<n>         Display verbose debug information.\n"
 
+#define W64DBG_VALUE_EXPECTED "ERROR: Value expected for '/T'\n"
 #define W64DBG_ERROR_INVALID_TIMEOUT "ERROR: Invalid value for timeout (/T) specified. Valid range is -1 to 99999.\n"
 #define W64DBG_BAD_EXE_FORMAT " is not a valid Win32 application.\n"
 #define W64DBG_ERROR_INVALID W64DBG_ERROR_INVALID_TIMEOUT
+
+#define MAX_THREAD 32
+#define MAX_DLL 16
 
 #define CreationFlags \
     CREATE_BREAKAWAY_FROM_JOB | \
@@ -70,28 +76,34 @@
     SYMOPT_LOAD_LINES | \
     SYMOPT_NO_PUBLICS
 
+#define LATENCY 25
 #define W64DBG_DEFAULT_LEN 125
 #define W64DBG_DEFAULT_OFFSET W64DBG_DEFAULT_LEN
 
-int __cdecl wmain(void)
+__declspec(noreturn)
+void __cdecl wmain(void)
 {
-    int k;
     PWSTR pNext;
     size_t temp, len;
     char buffer[BUFLEN];
     ULONG UTF8StringActualByteCount;
 
-    int timeout = 0;
     char *p = buffer;
+    int timeout = W64DBG_DEFAULT_TIMEOUT;
     PWSTR pCmdLine = wcschr(GetCommandLineW(), ' ');
-    char debug = FALSE, breakpoint = TRUE, firstbreak = FALSE,
-    output = TRUE, verbose = FALSE, start = FALSE, help = TRUE;
+    wchar_t verbose = W64DBG_DEFAULT_VERBOSE;
+    char debug = W64DBG_DEFAULT_DEBUG,
+    breakpoint = W64DBG_DEFAULT_BREAKPOINT,
+    firstbreak = W64DBG_DEFAULT_FIRSTBREAK,
+    output = W64DBG_DEFAULT_OUTPUT,
+    start = W64DBG_DEFAULT_START,
+    help = W64DBG_DEFAULT_HELP;
 
     if (pCmdLine)
     {
         pNext = pCmdLine;
         len = wcslen(pCmdLine);
-        // Modified for processing arguments
+        // Modified for processing command-line arguments
         *(pCmdLine + len) = ' ';
 
         while (TRUE)
@@ -156,8 +168,9 @@ int __cdecl wmain(void)
 
                     if (temp <= 0)
                     {
-                        memcpy(p, "ERROR: Value expected for '/T'\n", 31);
-                        p += 31;
+                        memcpy(p, W64DBG_VALUE_EXPECTED,
+                            strlen(W64DBG_VALUE_EXPECTED));
+                        p += strlen(W64DBG_VALUE_EXPECTED);
                     } else
                     {
                         if ((timeout = __builtin_wcstol(pNext)) > 99999)
@@ -167,7 +180,7 @@ int __cdecl wmain(void)
                             p += strlen(W64DBG_ERROR_INVALID_TIMEOUT);
                         }
 
-                        pNext = wmemchr(pNext, ' ', temp) + 1;
+                        pNext = (wchar_t *) __builtin_wmemchr(pNext, ' ', temp) + 1;
                     }
 
                     continue;
@@ -177,18 +190,18 @@ int __cdecl wmain(void)
                     {
                         verbose = 3;
                         pNext += 3;
-                        continue;
                     } else if (iswdigit(*(pNext + 2)) && *(pNext + 3) == ' ')
                     {
                         verbose = *(pNext + 2) - '0';
                         pNext += 4;
-                        continue;
-                    }
+                    } else break;
+
+                    continue;
 
                 case '?':
                     if (*(pNext + 2) == ' ')
                     {
-                        help = FALSE;
+                        help = TRUE;
                         pNext += 3;
                         continue;
                     }
@@ -197,7 +210,7 @@ int __cdecl wmain(void)
             memcpy(p, "ERROR: Invalid argument/option - '", 34);
             p += 34;
 
-            temp = wmemchr(pNext, ' ',
+            temp = __builtin_wmemchr(pNext, ' ',
                 pCmdLine + len + 1 - pNext) - pNext;
 
             RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
@@ -210,7 +223,7 @@ int __cdecl wmain(void)
         }
     }
 
-    if (!help)
+    if (help)
     {
         memcpy(p, W64DBG_HELP, strlen(W64DBG_HELP));
         p += strlen(W64DBG_HELP);
@@ -226,21 +239,7 @@ int __cdecl wmain(void)
     IO_STATUS_BLOCK IoStatusBlock;
 
     hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-
-    // Get hStdout
-    if (!hStdout)
-    {
-        if (AttachConsole(ATTACH_PARENT_PROCESS))
-        { // Check if redirected output
-            hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-            Console = GetFileType(hStdout) == FILE_TYPE_CHAR;
-        } else
-        { // Always console handle
-            AllocConsole();
-            hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-            Console = 1;
-        }
-    } else Console = GetFileType(hStdout) == FILE_TYPE_CHAR;
+    Console = GetFileType(hStdout) == FILE_TYPE_CHAR;
 
     if (Console) SetConsoleOutputCP(65001);
 
@@ -266,7 +265,7 @@ int __cdecl wmain(void)
     Value.Buffer = PATH + (cDirLen) + 1;
     RtlQueryEnvironmentVariable_U(NULL, &Variable, &Value);
 
-    temp = wmemchr(pNext, ' ',
+    temp = __builtin_wmemchr(pNext, ' ',
         pCmdLine + len + 1 - pNext) - pNext;
     *(pNext + temp) = '\0';
 
@@ -753,7 +752,7 @@ int __cdecl wmain(void)
                                 InputRecord[1].Event.KeyEvent.wRepeatCount = 1;
                                 InputRecord[1].Event.KeyEvent.uChar.AsciiChar = '\n';
 
-                                WriteConsoleInputA(hStdin,
+                                WriteConsoleInputW(hStdin,
                                     InputRecord, 2, &dwWriten);
                             } else NtWriteFile(hStdout, NULL, NULL, NULL,
                                 &IoStatusBlock, "q\n", 2, NULL, NULL);

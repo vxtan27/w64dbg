@@ -1,15 +1,20 @@
 /* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
 
+#include "resrc.h" // Resource
 #include "ntdll.h" // Native
 
-#define SecToUnits(lSeconds) (lSeconds * 10000000)
+#define W64DBG_KEY_MESSAGE "\nPress any key to continue ..."
 
-#define IsInputValidate(InputRecord) (InputRecord.EventType == KEY_EVENT && \
+#define SecToUnits(lSeconds) (lSeconds * 10000000LL)
+
+#define IsInputValidate(InputRecord) ( \
+    InputRecord.EventType == KEY_EVENT && \
     InputRecord.Event.KeyEvent.bKeyDown && \
     InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_MENU && \
-    InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_CONTROL)
+    InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_CONTROL \
+    )
 
-static inline VOID WaitForInputOrTimeout(
+static VOID WaitForInputOrTimeout(
     _In_ HANDLE hStdin,
     _In_ HANDLE hStdout,
     _In_ char StdinConsole,
@@ -19,7 +24,7 @@ static inline VOID WaitForInputOrTimeout(
     IO_STATUS_BLOCK IoStatusBlock;
 
     NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-        "\nPress any key to continue ...", 30, NULL, NULL);
+        W64DBG_KEY_MESSAGE, strlen(W64DBG_KEY_MESSAGE), NULL, NULL);
 
     if (StdinConsole)
     {
@@ -28,7 +33,7 @@ static inline VOID WaitForInputOrTimeout(
 
         if (timeout == -1) while (TRUE)
         {
-            ReadConsoleInputA(hStdin, &InputRecord, 1, &dwRead);
+            ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
             if (IsInputValidate(InputRecord)) break;
         } else
         {
@@ -43,7 +48,7 @@ static inline VOID WaitForInputOrTimeout(
             {
                 if (NtWaitForSingleObject(hStdin, FALSE,
                     &DelayInterval) == STATUS_TIMEOUT) break;
-                ReadConsoleInputA(hStdin, &InputRecord, 1, &dwRead);
+                ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
                 if (IsInputValidate(InputRecord)) break;
             }
         }
@@ -58,6 +63,6 @@ static inline VOID WaitForInputOrTimeout(
     }
 
     // Simulate pause / timeout -1 behavior
-    NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-        "\nPress any key to continue ...", 1, NULL, NULL);
+    NtWriteFile(hStdout, NULL, NULL, NULL,
+        &IoStatusBlock, W64DBG_KEY_MESSAGE, 1, NULL, NULL);
 }
