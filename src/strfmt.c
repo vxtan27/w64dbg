@@ -1,4 +1,7 @@
-/* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
+/*
+    Copyright (c) 2024, vxtan27, all rights reserved.
+    Licensed under the BSD-3-Clause.
+*/
 
 #include "strutil.c" // String utilities
 #include "ntdll.h" // Native
@@ -309,7 +312,7 @@ static inline char *FormatVerboseDebugException(
     return p;
 }
 
-static __FORCEINLINE char *FormatFileLine(
+static __forceinline char *FormatFileLine(
     _In_reads_or_z_(len) wchar_t *fname,
     _In_ unsigned int lnum,
     _In_ ULONG len,
@@ -336,7 +339,7 @@ static __FORCEINLINE char *FormatFileLine(
     return p + 1;
 }
 
-static __FORCEINLINE char *FormatSourceCode(
+static __forceinline char *FormatSourceCode(
     _Inout_updates_bytes_all_(4) wchar_t *fname,
     _In_ unsigned int lnum,
     _Out_ char *p,

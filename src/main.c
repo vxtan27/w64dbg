@@ -1,5 +1,10 @@
-/* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
+/*
+    Copyright (c) 2024, vxtan27, all rights reserved.
+    Licensed under the BSD-3-Clause.
+*/
 
+#include "copyright.c"
+#include "license.c"
 #include "winput.c" // Waiting for input
 #include "strfmt.c" // String formatting
 #include "symen.c" // Symbols enumeration
@@ -80,8 +85,10 @@
 #define W64DBG_DEFAULT_LEN 125
 #define W64DBG_DEFAULT_OFFSET W64DBG_DEFAULT_LEN
 
+// https://hero.handmade.network/forums/code-discussion/t/94-guide_-_how_to_avoid_c_c++_runtime_on_windows
+
 __declspec(noreturn)
-void __cdecl wmain(void)
+void __stdcall main(void)
 {
     PWSTR pNext;
     size_t temp, len;
@@ -91,11 +98,11 @@ void __cdecl wmain(void)
     char *p = buffer;
     int timeout = W64DBG_DEFAULT_TIMEOUT;
     PWSTR pCmdLine = wcschr(GetCommandLineW(), ' ');
-    wchar_t verbose = W64DBG_DEFAULT_VERBOSE;
-    char debug = W64DBG_DEFAULT_DEBUG,
-    breakpoint = W64DBG_DEFAULT_BREAKPOINT,
+    char breakpoint = W64DBG_DEFAULT_BREAKPOINT,
     firstbreak = W64DBG_DEFAULT_FIRSTBREAK,
+    verbose = W64DBG_DEFAULT_VERBOSE,
     output = W64DBG_DEFAULT_OUTPUT,
+    debug = W64DBG_DEFAULT_DEBUG,
     start = W64DBG_DEFAULT_START,
     help = W64DBG_DEFAULT_HELP;
 
@@ -1043,6 +1050,8 @@ void __cdecl wmain(void)
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
                 }
+
+                break;
         }
         ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
     }

@@ -1,8 +1,11 @@
-/* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
+/*
+    Copyright (c) 2024, vxtan27, all rights reserved.
+    Licensed under the BSD-3-Clause.
+*/
 
 #include "resrc.h" // Resource
 
-static __FORCEINLINE char *__builtin_hextoa(
+static __forceinline char *__builtin_hextoa(
     _In_ unsigned int value,
     _Out_writes_(8) char *p
     )
@@ -24,7 +27,7 @@ static __FORCEINLINE char *__builtin_hextoa(
     return p;
 }
 
-static __FORCEINLINE char *__builtin_ulltoa(
+static __forceinline char *__builtin_ulltoa(
     _In_ unsigned int value,
     _Out_writes_(10) char *p
     )
@@ -47,7 +50,7 @@ static __FORCEINLINE char *__builtin_ulltoa(
 
 // Modified for processing command-line arguments
 
-static __FORCEINLINE int __builtin_wcstol(
+static __forceinline int __builtin_wcstol(
     _In_z_ wchar_t *p
     )
 {
@@ -73,7 +76,7 @@ static __FORCEINLINE int __builtin_wcstol(
     return value;
 }
 
-static __FORCEINLINE wchar_t const* __builtin_wmemchr(
+static __forceinline wchar_t const* __builtin_wmemchr(
     _In_reads_(_N) wchar_t const* _S,
     _In_           wchar_t        _C,
     _In_           size_t         _N
@@ -81,12 +84,12 @@ static __FORCEINLINE wchar_t const* __builtin_wmemchr(
 {
     for (; 0 < _N; ++_S, --_N)
         if (*_S == _C)
-            return (wchar_t _CONST_RETURN*)_S;
+            return (wchar_t const *)_S;
 
     return 0;
 }
 
-static __FORCEINLINE int __builtin_wmemcmp(
+static __forceinline int __builtin_wmemcmp(
     _In_reads_(_N) wchar_t const* _S1,
     _In_reads_(_N) wchar_t const* _S2,
     _In_           size_t         _N
@@ -99,7 +102,7 @@ static __FORCEINLINE int __builtin_wmemcmp(
     return 0;
 }
 
-static __FORCEINLINE char *debug_ultoa(
+static __forceinline char *debug_ultoa(
     _In_ unsigned int value,
     _Out_writes_(5) char *p
     )
@@ -127,7 +130,7 @@ static __FORCEINLINE char *debug_ultoa(
     return p;
 }
 
-static __FORCEINLINE char *ulltoaddr(
+static __forceinline char *ulltoaddr(
     _In_ unsigned long long value,
     _Out_writes_(16) char *p,
     _In_ char bWow64
@@ -158,7 +161,7 @@ static __FORCEINLINE char *ulltoaddr(
     return p;
 }
 
-static __FORCEINLINE void space_ultoa(
+static __forceinline void space_ultoa(
     _In_ unsigned int value,
     _Out_writes_(6) char *p
     )
@@ -181,7 +184,7 @@ static __FORCEINLINE void space_ultoa(
     }
 }
 
-static __FORCEINLINE char *line_ultoa(
+static __forceinline char *line_ultoa(
     _In_ unsigned int value,
     _Out_writes_(9) char *p
     )

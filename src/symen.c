@@ -1,4 +1,7 @@
-/* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
+/*
+    Copyright (c) 2024, vxtan27, all rights reserved.
+    Licensed under the BSD-3-Clause.
+*/
 
 #include "resrc.h" // Resource
 #include "symd.h" // Symbol definitions
@@ -7,7 +10,6 @@
 #include <stdio.h>
 
 _Success_(return >= 0)
-_Check_return_opt_
 static int __builtin_snprintf(
     _Out_writes_opt_(_BufferCount) _Always_(_Post_z_) char*       const _Buffer,
     _In_                                              size_t      const _BufferCount,
@@ -26,9 +28,9 @@ static int __builtin_snprintf(
 }
 
 // https://github.com/microsoft/microsoft-pdb/blob/master/include/cvconst.h
-// https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code
-// https://gist.github.com/HoShiMin/779d1c5e96e50a653ca43511b7bcb69a
+// https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code#showing-variables-using-the-windows-debugging-api
 // https://accu.org/journals/overload/29/165/orr
+// https://github.com/rogerorr/NtTrace/blob/main/src/SymbolEngine.cpp#L1185
 
 static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, PVOID UserContext)
 {
@@ -154,9 +156,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
             *User->p++ = '0';
             *User->p++ = 'x';
             Len = pSymbol->Address + Offset;
-
-            if (!User->bWow64) p = "%I64x";
-            else p = "%I32x";
+            p = "%Ix";
         } else
         {
             SymGetTypeInfo(User->hProcess, pSymbol->ModBase, pSymbol->TypeIndex, TI_GET_LENGTH, &Len);
@@ -166,8 +166,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
             {
                 *User->p++ = '0';
                 *User->p++ = 'x';
-                if (!User->bWow64) p = "%I64x";
-                else p = "%I32x";
+                p = "%Ix";
             } else
             {
                 DWORD BaseType;
@@ -175,42 +174,42 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
                 switch (BaseType)
                 {
                     case btChar:
-                    case btWChar: // Do not native support
-                    case btBit: // Do not native support
                         p = "'%c'";
                         break;
+                    case btWChar:
+                        p = "'%lc'";
+                        break;
                     case btInt:
-                    case btBool:
-                    case btHresult:
-                        p = "%d";
+                    case btLong:
+                        p = "%lld";
                         break;
                     case btUInt:
-                        p = "%u";
+                    case btULong:
+                        p = "%llu";
                         break;
                     case btFloat:
-                        p = "%g";
+                        p = "%Lg";
                         break;
-                    case btLong:
-                    case btCurrency:
-                        p = "%ld";
+                    case btBool:
+                        if (Len) p = "TRUE";
+                        else p = "FALSE";
                         break;
-                    case btULong:
-                        p = "%lu";
-                        break;
-                    case btDate:
-                        p = "%Lf";
+                    case btHresult:
+                        p = "%IX";
                         break;
                     /*
+                    case btNoType:
+                    case btVoid:
                     case btBCD:
+                    case btCurrency:
+                    case btDate:
                     case btVariant:
                     case btComplex:
+                    case btBit:
                     case btBSTR:
                     */
                     default:
-                        *User->p++ = '0';
-                        *User->p++ = 'x';
-                        if (User->bWow64) p = "%I64x";
-                        else p = "%I32x";
+                        p = "%Ix";
                 }
             }
 

@@ -1,4 +1,7 @@
-/* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
+/*
+    Copyright (c) 2024, vxtan27, all rights reserved.
+    Licensed under the BSD-3-Clause.
+*/
 
 #pragma once
 
@@ -7,7 +10,6 @@
 #include <windows.h>
 #include <winternl.h>
 
-#ifdef _MSC_VER
 typedef struct _FILE_STANDARD_INFORMATION
 {
     LARGE_INTEGER AllocationSize;
@@ -16,7 +18,6 @@ typedef struct _FILE_STANDARD_INFORMATION
     BOOLEAN DeletePending;
     BOOLEAN Directory;
 } FILE_STANDARD_INFORMATION, *PFILE_STANDARD_INFORMATION;
-#endif
 
 NTSYSAPI
 NTSTATUS

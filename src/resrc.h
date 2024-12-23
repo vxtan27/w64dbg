@@ -1,16 +1,13 @@
-/* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
+/*
+    Copyright (c) 2024, vxtan27, all rights reserved.
+    Licensed under the BSD-3-Clause.
+*/
 
 #pragma once
 
 #define WIN32_LEAN_AND_MEAN
 #define _CRT_SECURE_NO_WARNINGS
 #include <windows.h>
-
-#ifdef _MSC_VER
-#define __FORCEINLINE __forceinline
-#else
-#define __FORCEINLINE inline __attribute__((always_inline))
-#endif
 
 #define W64DBG_FILE_NOT_FOUND "ERROR: The system cannot find the file specified.\n"
 

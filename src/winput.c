@@ -1,4 +1,7 @@
-/* Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License. */
+/*
+    Copyright (c) 2024, vxtan27, all rights reserved.
+    Licensed under the BSD-3-Clause.
+*/
 
 #include "resrc.h" // Resource
 #include "ntdll.h" // Native
@@ -14,7 +17,7 @@
     InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_CONTROL \
     )
 
-static VOID WaitForInputOrTimeout(
+static __forceinline VOID WaitForInputOrTimeout(
     _In_ HANDLE hStdin,
     _In_ HANDLE hStdout,
     _In_ char StdinConsole,

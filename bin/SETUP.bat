@@ -1,4 +1,7 @@
-:: Copyright (c) 2024, vxtan27. Licensed under the BSD-3-Clause License.
+::
+::  Copyright (c) 2024, vxtan27, all rights reserved.
+::  Licensed under the BSD-3-Clause.
+::
 
 @echo off
 
