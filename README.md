@@ -10,7 +10,7 @@ A high-performance debugging utility for x64 Windows executables with support in
 ## __Installation__
 
 1. Download and extract the archive.
-2. Run the included `setup.bat` script.
+2. Run the included `bin\SETUP.bat` script.
 
 ## __Usage__
 
@@ -190,8 +190,12 @@ Thus, you cannot directly access the errno value for a specific thread.
 * [__Showing Variables Using the Windows Debugging API__](https://accu.org/journals/overload/29/165/orr)
 * [__Other Debugging Tools for Windows__](https://learn.microsoft.com/windows-hardware/drivers/debugger/debugger-download-tools)
 
+## __Copyright__
+
+Copyright (c) 2024, vxtan27, all rights reserved.
+
 ## __License__
 
-w64dbg is licensed under the BSD-3-Clause license.
+w64dbg is licensed under the BSD-3-Clause.
 
 See [__LICENSE__](LICENSE) for more details.
