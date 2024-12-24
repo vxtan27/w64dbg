@@ -32,24 +32,24 @@
     W64DBG_USAGE \
     "\n" \
     "Description:\n" \
-    "    A debugging utility for x64 Windows executables.\n" \
+    "    A native debugging utility for x64 Windows.\n" \
     "\n" \
     "Entries:\n" \
-    "    options       Options control debugging behavior.\n" \
-    "    executable    Target executable file to debug.\n" \
-    "    exec-args     Arguments passed to the executable.\n" \
+    "    options       Options control behavior.\n" \
+    "    executable    Target executable file.\n" \
+    "    exec-args     Target executable arguments.\n" \
     "\n" \
     "Options:\n" \
     "    /B            Ignore breakpoints.\n" \
     "    /D            Load PDB debug symbols.\n" \
     "    /G[+]         Load DWARF debug symbols.\n" \
-    "    /O            Suppress OutputDebugString messages.\n" \
-    "    /S            Launch the executable in a new console.\n" \
-    "    /T            Wait for a specified period (in seconds).\n" \
-    "    /V<n>         Display verbose debug information.\n"
+    "    /O            Suppress OutputDebugString.\n" \
+    "    /S            Open in a new console window.\n" \
+    "    /T            Wait for input (seconds).\n" \
+    "    /V<n>         Set output verbosity.\n"
 
-#define W64DBG_VALUE_EXPECTED "ERROR: Value expected for '/T'\n"
-#define W64DBG_ERROR_INVALID_TIMEOUT "ERROR: Invalid value for timeout (/T) specified. Valid range is -1 to 99999.\n"
+#define W64DBG_VALUE_EXPECTED "ERROR: Value expected for '"
+#define W64DBG_ERROR_INVALID_TIMEOUT "ERROR: Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n"
 #define W64DBG_BAD_EXE_FORMAT " is not a valid Win32 application.\n"
 #define W64DBG_ERROR_INVALID W64DBG_ERROR_INVALID_TIMEOUT
 
@@ -117,11 +117,13 @@ void __stdcall main(void)
         {
             while (*pNext == ' ') ++pNext; // Skip spaces
 
-            if (*pNext != '/' || pCmdLine + len < pNext) break;
+            if ((*pNext != '/' && *pNext != '-') ||
+                pCmdLine + len < pNext) break;
 
             switch (*(pNext + 1))
             {
                 case 'B':
+                case 'b':
                     if (*(pNext + 2) == ' ')
                     {
                         breakpoint = FALSE;
@@ -130,6 +132,7 @@ void __stdcall main(void)
                     }
 
                 case 'D':
+                case 'd':
                     if (*(pNext + 2) == ' ')
                     {
                         debug = TRUE;
@@ -138,6 +141,7 @@ void __stdcall main(void)
                     }
 
                 case 'G':
+                case 'g':
                     if (*(pNext + 2) == ' ')
                     {
                         debug = MINGW;
@@ -151,6 +155,7 @@ void __stdcall main(void)
                     }
 
                 case 'O':
+                case 'o':
                     if (*(pNext + 2) == ' ')
                     {
                         output = FALSE;
@@ -159,6 +164,7 @@ void __stdcall main(void)
                     }
 
                 case 'S':
+                case 's':
                     if (*(pNext + 2) == ' ')
                     {
                         start = TRUE;
@@ -167,6 +173,8 @@ void __stdcall main(void)
                     }
 
                 case 'T':
+                case 't':
+                    wchar_t *cmd = pNext;
                     pNext += 2;
 
                     while (*pNext == ' ') ++pNext; // Skip spaces
@@ -178,13 +186,18 @@ void __stdcall main(void)
                         memcpy(p, W64DBG_VALUE_EXPECTED,
                             strlen(W64DBG_VALUE_EXPECTED));
                         p += strlen(W64DBG_VALUE_EXPECTED);
+                        *p++ = *cmd;
+                        *p++ = *(cmd + 1);
+                        *p++ = '\'';
+                        *p++ = '\n';
                     } else
                     {
                         if ((timeout = __builtin_wcstol(pNext)) > 99999)
                         {
-                            memcpy(p, W64DBG_ERROR_INVALID_TIMEOUT,
-                                strlen(W64DBG_ERROR_INVALID_TIMEOUT));
+                            memcpy(p, W64DBG_ERROR_INVALID_TIMEOUT, strlen(W64DBG_ERROR_INVALID_TIMEOUT));
                             p += strlen(W64DBG_ERROR_INVALID_TIMEOUT);
+                            *(p - 43) = *cmd;
+                            *(p - 42) = *(cmd + 1);
                         }
 
                         pNext = (wchar_t *) __builtin_wmemchr(pNext, ' ', temp) + 1;
@@ -193,6 +206,7 @@ void __stdcall main(void)
                     continue;
 
                 case 'V':
+                case 'v':
                     if (*(pNext + 2) == ' ')
                     {
                         verbose = 3;
