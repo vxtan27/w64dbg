@@ -10,7 +10,7 @@ A native debugging utility for x64 Windows with PDB and DWARF format support.
 ## __Installation__
 
 1. Download and extract the archive.
-2. Run the included `bin\SETUP.bat`.
+2. Run the included `bin\PREREQUISITES.bat` script.
 
 ## __Usage__
 
@@ -63,9 +63,9 @@ See [__here__](samples) for more samples.
 
 ### __System Requirements__
 
-System type: **64-bit operating system, x64-based processor**
+System type: **64-bit**
 
-Windows version: **Windows 7+** / **Windows 10+** (x86 debugging)
+Windows version: **7+** / **10+** (x86 debugging)
 
 ### __Dynamic link libraries__
 
@@ -157,7 +157,7 @@ See [__this__](https://learn.microsoft.com/windows-hardware/drivers/debugger/gen
         </b>
     </summary>
 
-Use the `__debugbreak()` or `DebugBreak()` API to pause execution at specific points.
+You can use the `__debugbreak()` or `DebugBreak()` API to pause execution at specific points.
 
 See [__this__](https://learn.microsoft.com/visualstudio/debugger/using-breakpoints) for more information.
 
