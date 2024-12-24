@@ -1,16 +1,16 @@
 # __w64dbg__
 
-A high-performance debugging utility for x64 Windows executables with support in PDB and DWARF debug formats.
+A native debugging utility for x64 Windows with PDB and DWARF format support.
 
 ## __Download__
 
 * [__Latest release__](https://github.com/vxtan27/w64dbg/releases/latest)
-* [__Git Repository__](./)
+* [__Source code__](./)
 
 ## __Installation__
 
 1. Download and extract the archive.
-2. Run the included `bin\SETUP.bat` script.
+2. Run the included `bin\SETUP.bat`.
 
 ## __Usage__
 
@@ -18,21 +18,21 @@ A high-performance debugging utility for x64 Windows executables with support in
     W64DBG [options] <executable> [exec-args]
     
     Description:
-        A debugging utility for x64 Windows executables.
+        A native debugging utility for x64 Windows.
         
     Entries:
-        options       Options control debugging behavior.
-        executable    Target executable file to debug.
-        exec-args     Arguments passed to the executable.
+        options       Options control behavior.
+        executable    Target executable file.
+        exec-args     Target executable arguments.
         
     Options:
         /B            Ignore breakpoints.
         /D            Load PDB debug symbols.
         /G[+]         Load DWARF debug symbols.
         /O            Suppress OutputDebugString.
-        /S            Run the executable in a new console.
-        /T            Wait for a specified time (seconds).
-        /V<n>         Set verbosity level for debug output.
+        /S            Open in a new console window.
+        /T            Wait for input (seconds).
+        /V<n>         Set output verbosity.
     
 
 ## __Examples__
@@ -63,11 +63,9 @@ See [__here__](samples) for more samples.
 
 ### __System Requirements__
 
-Windows version: **Windows 7+**
-
 System type: **64-bit operating system, x64-based processor**
 
-**NOTE**: Debugging x86 executables is supported on Windows 10+
+Windows version: **Windows 7+** / **Windows 10+** (x86 debugging)
 
 ### __Dynamic link libraries__
 
@@ -79,11 +77,11 @@ System type: **64-bit operating system, x64-based processor**
 | vcruntime140.dll | C:\Windows\System32  | Microsoft Visual C++ Redistributable |
 | dbghelp.dll      | C:\Windows\System32  | Debugging Tools For Windows          |
 
-**NOTE**: Missing DLLs can be downloaded from trusted sources.
+Missing DLLs can be downloaded from trusted sources.
 
 ## __Limitations__
 
-w64dbg supports up to 32 threads and 16 DLLs. These limits align with typical debugging use cases.
+Supports up to 32 threads and 16 DLLs, meeting typical debugging needs.
 
 ## __Frequently Asked Questions__
 
@@ -94,7 +92,7 @@ w64dbg supports up to 32 threads and 16 DLLs. These limits align with typical de
         </b>
     </summary>
 
-Use the following options to debug with MSVC:
+Use these options with MSVC:
 
 |     Option      | MSVC-Optimized |   Debug info level   |
 | --------------- | -------------- | -------------------- |
@@ -121,7 +119,7 @@ For more information:
         </b>
     </summary>
 
-Use the following options to debug with MinGW:
+Use these options with MinGW:
 
 | Option | Macro info | GDB-Optimized | Debug info level |
 | ------ | ---------- | ------------- | ---------------- |
@@ -130,11 +128,12 @@ Use the following options to debug with MinGW:
 | -ggdb  | No         | Yes           | Basic            |
 | -ggdb3 | Yes        | Yes           | Maximum          |
 
-See [__this__](https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html#index-g) for more information.
+Add `-fno-omit-frame-pointer` to retain frame pointers.
 
-`-fno-omit-frame-pointer`: Retain the frame pointers.
+For more information:
 
-See [__this__](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html#index-fomit-frame-pointer) for more information.
+* [__Debugging Options__](https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html)
+* [__Optimize Options__](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html#index-fomit-frame-pointer)
 
 </details>
 
@@ -158,7 +157,7 @@ See [__this__](https://learn.microsoft.com/windows-hardware/drivers/debugger/gen
         </b>
     </summary>
 
-Breakpoints are a critical debugging technique that allows you to pause execution at specific points in your code. To trigger breakpoints on Windows, use the `DebugBreak()` API.
+Use the `__debugbreak()` or `DebugBreak()` API to pause execution at specific points.
 
 See [__this__](https://learn.microsoft.com/visualstudio/debugger/using-breakpoints) for more information.
 
@@ -171,24 +170,24 @@ See [__this__](https://learn.microsoft.com/visualstudio/debugger/using-breakpoin
         </b>
     </summary>
 
-`errno` is a thread-local variable, and its pointer is returned by the `_errno()` function, defined as:
+`errno` is thread-local and accessed via `_errno()`, defined as:
 
     
     _ACRTIMP int* __cdecl _errno(void);
     #define errno (*_errno())
     
 
-Thus, you cannot directly access the errno value for a specific thread.
+Direct access to another thread's errno is not possible.
 
 </details>
 
 ## __Other links__
 
-* [__Microsoft PDB format__](https://github.com/Microsoft/microsoft-pdb/blob/master/docs/ExternalResources.md)
-* [__Microsoft DbgHelp library__](https://learn.microsoft.com/windows/win32/debug/debug-help-library)
-* [__Experimental use of DbgHelp__](https://debuginfo.com/articles.html)
-* [__Showing Variables Using the Windows Debugging API__](https://accu.org/journals/overload/29/165/orr)
-* [__Other Debugging Tools for Windows__](https://learn.microsoft.com/windows-hardware/drivers/debugger/debugger-download-tools)
+* [__PDB format__](https://github.com/Microsoft/microsoft-pdb/blob/master/docs/ExternalResources.md)
+* [__Debug Help Library__](https://learn.microsoft.com/windows/win32/debug/debug-help-library)
+* [__DbgHelp experimentation__](https://debuginfo.com/articles.html)
+* [__Variable Display with Windows Debug API__](https://accu.org/journals/overload/29/165/orr)
+* [__Debugging Tools for Windows__](https://learn.microsoft.com/windows-hardware/drivers/debugger/debugger-download-tools)
 
 ## __Copyright__
 
