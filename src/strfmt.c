@@ -10,7 +10,7 @@
 static inline char *FormatDebugException(
     _In_ const EXCEPTION_RECORD *ExceptionRecord,
     _Out_writes_(48) char *p,
-    _In_ char bWow64
+    _In_ DWORD bx64win
     )
 {
     switch (ExceptionRecord->ExceptionCode)
@@ -44,7 +44,7 @@ static inline char *FormatDebugException(
             }
 
             memcpy(p, " location ", 10);
-            p = ulltoaddr(ExceptionRecord->ExceptionInformation[1], p + 10, bWow64);
+            p = ulltoaddr(ExceptionRecord->ExceptionInformation[1], p + 10, bx64win);
             break;
         case 0xC0000008: // EXCEPTION_INVALID_HANDLE
             memcpy(p, "invalid handle", 14);

@@ -133,13 +133,13 @@ static __forceinline char *debug_ultoa(
 static __forceinline char *ulltoaddr(
     _In_ unsigned long long value,
     _Out_writes_(16) char *p,
-    _In_ char bWow64
+    _In_ DWORD bx64win
     )
 {
     *p++ = '0';
     *p++ = 'x';
 
-    if (!bWow64)
+    if (bx64win)
     { // FFFFFFFFFFFFFFFF
         memset(p, '0', 16);
         p += 16;

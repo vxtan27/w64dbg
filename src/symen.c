@@ -43,7 +43,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
     {
         DWORD64 Offset;
 
-        if (!User->bWow64) switch (pSymbol->Register)
+        if (User->bx64win) switch (pSymbol->Register)
         { // 64-bit regular registers
             case 328: // CV_AMD64_RAX
                 Offset = ((PCONTEXT) User->pContext)->Rax;

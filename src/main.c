@@ -40,7 +40,7 @@
     "    exec-args     Target executable arguments.\n" \
     "\n" \
     "Options:\n" \
-    "    /B            Ignore breakpoints.\n" \
+    "    /B<n>         Set breakpoints ignorance.\n" \
     "    /D            Load PDB debug symbols.\n" \
     "    /G[+]         Load DWARF debug symbols.\n" \
     "    /O            Suppress OutputDebugString.\n" \
@@ -128,8 +128,13 @@ void __stdcall main(void)
                     {
                         breakpoint = FALSE;
                         pNext += 3;
-                        continue;
-                    }
+                    } else if (iswdigit(*(pNext + 2)) && *(pNext + 3) == ' ')
+                    {
+                        breakpoint -= *(pNext + 2) - '0';
+                        pNext += 4;
+                    } else break;
+
+                    continue;
 
                 case 'D':
                 case 'd':
@@ -146,13 +151,13 @@ void __stdcall main(void)
                     {
                         debug = MINGW;
                         pNext += 3;
-                        continue;
                     } else if (*(pNext + 3) == '-' && *(pNext + 3) == ' ')
                     {
                         debug = MINGW + 1;
                         pNext += 4;
-                        continue;
-                    }
+                    } else break;
+
+                    continue;
 
                 case 'O':
                 case 'o':
@@ -271,6 +276,7 @@ void __stdcall main(void)
         ExitProcess(1);
     }
 
+    wchar_t *ptr;
     DWORD cDirLen;
     ULONG PathLen;
     wchar_t PATH[WBUFLEN];
@@ -286,9 +292,9 @@ void __stdcall main(void)
     Value.Buffer = PATH + (cDirLen) + 1;
     RtlQueryEnvironmentVariable_U(NULL, &Variable, &Value);
 
-    temp = __builtin_wmemchr(pNext, ' ',
-        pCmdLine + len + 1 - pNext) - pNext;
-    *(pNext + temp) = '\0';
+    ptr = __builtin_wmemchr(pNext, ' ',
+        pCmdLine + len + 1 - pNext);
+    *ptr = '\0';
 
     *(pCmdLine + len) = '\0';
 
@@ -301,10 +307,10 @@ void __stdcall main(void)
         ExitProcess(1);
     }
 
-    DWORD type;
+    DWORD bx64win; // Is 64-bit application
 
-    if (!GetBinaryTypeW(ApplicationName, &type) ||
-        (type != SCS_32BIT_BINARY && type != SCS_64BIT_BINARY))
+    if (!GetBinaryTypeW(ApplicationName, &bx64win) ||
+        (bx64win != SCS_32BIT_BINARY && bx64win != SCS_64BIT_BINARY))
     { // Check if executable format (x86-64)
         memcpy(buffer, W64DBG_ERROR_INVALID, 7);
 
@@ -327,7 +333,7 @@ void __stdcall main(void)
     LPVOID BaseOfDll[MAX_DLL] = {};
     STARTUPINFOW startupInfo = {sizeof(startupInfo)};
 
-    *(pNext + temp) = ' ';
+    if (pCmdLine + len != ptr) *ptr = ' ';
 
     if (debug < MINGW)
     {
@@ -378,16 +384,12 @@ void __stdcall main(void)
     // https://learn.microsoft.com/en-us/windows/win32/api/debugapi/nf-debugapi-continuedebugevent
     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
 
-    char bWow64;
+    // x86 process / MinGW64 G++ trigger
+    // more than one breakpoints at start-up
+    if ((bx64win && debug >= MINGW) || !bx64win) --firstbreak;
+
     unsigned char i;
-    ULONG_PTR wow64;
     DWORD dwThreadId[MAX_THREAD] = {};
-
-    NtQueryInformationProcess(hProcess, ProcessWow64Information,
-        &wow64, sizeof(ULONG_PTR), NULL);
-
-    // x86 process trigger more than one breakpoints
-    if ((bWow64 = !!wow64) && debug < MINGW) --firstbreak;
 
     dwThreadId[0] = DebugEvent.dwThreadId;
 
@@ -583,7 +585,7 @@ void __stdcall main(void)
                     p = buffer + 10;
                 } else p = debug_ultoa(DebugEvent.dwThreadId, buffer + 7);
                 memcpy(p, " caused ", 8);
-                p = FormatDebugException(&DebugEvent.u.Exception.ExceptionRecord, p + 8, bWow64);
+                p = FormatDebugException(&DebugEvent.u.Exception.ExceptionRecord, p + 8, bx64win);
                 *p++ = '\n';
 
                 if (Console)
@@ -607,8 +609,10 @@ void __stdcall main(void)
 
                     if (p != pre) *p++ = '\n';
 
+                // Check if critical exception
                 if (!(DebugEvent.u.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE) &&
-                    (DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x406D1388 ||
+                    // https://learn.microsoft.com/visualstudio/debugger/tips-for-debugging-threads?view=vs-2022&tabs=csharp#set-a-thread-name-by-throwing-an-exception
+                    (DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x406D1388 || // MS_VC_EXCEPTION
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE06D7363 || // STATUS_CPP_EH_EXCEPTION
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE0434f4D)) // STATUS_CLR_EXCEPTION
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
@@ -626,24 +630,25 @@ void __stdcall main(void)
                         NtWriteFile(hStdout, NULL, NULL, NULL,
                             &IoStatusBlock, buffer, p - buffer, NULL, NULL);
                         NtSuspendProcess(hProcess);
+                        ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_REPLY_LATER);
                         DebugActiveProcessStop(DebugEvent.dwProcessId);
 
                         HANDLE hTemp;
                         UNICODE_STRING String;
                         LARGE_INTEGER ByteOffset;
                         OBJECT_ATTRIBUTES ObjectAttributes;
-                        wchar_t CommandLine[MAX_PATH + 18] = L"gdb.exe -q -x=\\??\\";
+                        wchar_t CommandLine[18 + MAX_PATH] = L"gdb.exe -q -x=\\??\\";
                         UNICODE_STRING Variable, Value;
 
                         Variable.Length = 6;
                         Variable.Buffer = L"TMP";
-                        Value.MaximumLength = sizeof(CommandLine) - 18;
+                        Value.MaximumLength = sizeof(CommandLine) - 18 * 2;
                         Value.Buffer = &CommandLine[18];
                         RtlQueryEnvironmentVariable_U(NULL, &Variable, &Value);
                         Value.Length >>= 1;
 
                         // Ensure correct DOS path
-                        if (CommandLine[17 + Value.Length] != '\\')
+                        if (CommandLine[18 - 1 + Value.Length] != '\\')
                         {
                             CommandLine[18 + Value.Length] = '\\';
                             ++Value.Length;
@@ -651,7 +656,7 @@ void __stdcall main(void)
 
                         memcpy(&CommandLine[18 + Value.Length], L"w64dbg", 12);
                         String.Length = (4 + Value.Length + 6) << 1;
-                        String.Buffer = &CommandLine[14];
+                        String.Buffer = &CommandLine[18 - 4];
                         InitializeObjectAttributes(&ObjectAttributes,
                             &String, OBJ_CASE_INSENSITIVE, NULL, NULL);
                         NtCreateFile(&hTemp, GENERIC_WRITE | SYNCHRONIZE, &ObjectAttributes,
@@ -734,6 +739,10 @@ void __stdcall main(void)
                             CreationFlags, NULL, NULL, &startupInfo, &processInfo);
                         NtClose(processInfo.hThread);
                         NtClose(hThread[0]);
+
+                        for (i = 0; i < MAX_DLL; ++i)
+                            if (BaseOfDll[i]) NtClose(hFile[i]);
+
                         // Convert seconds to 100-nanosecond units
                         // (negative for relative time)
                         DelayInterval.QuadPart = -(LATENCY * 10000);
@@ -835,7 +844,15 @@ void __stdcall main(void)
 
                 CONTEXT Context;
 
-                if (bWow64)
+                if (bx64win)
+                {
+                    Context.ContextFlags = CONTEXT_ALL;
+                    NtGetContextThread(hThread[i], &Context);
+                    MachineType = IMAGE_FILE_MACHINE_AMD64;
+                    StackFrame.AddrPC.Offset = Context.Rip;
+                    StackFrame.AddrStack.Offset = Context.Rsp;
+                    StackFrame.AddrFrame.Offset = Context.Rbp;
+                } else
                 {
                     ((PWOW64_CONTEXT) &Context)->ContextFlags = WOW64_CONTEXT_ALL;
                     Wow64GetThreadContext(hThread[i], (PWOW64_CONTEXT) &Context);
@@ -844,14 +861,6 @@ void __stdcall main(void)
                     StackFrame.AddrPC.Offset = ((PWOW64_CONTEXT) &Context)->Eip;
                     StackFrame.AddrStack.Offset = ((PWOW64_CONTEXT) &Context)->Esp;
                     StackFrame.AddrFrame.Offset = ((PWOW64_CONTEXT) &Context)->Ebp;
-                } else
-                {
-                    Context.ContextFlags = CONTEXT_ALL;
-                    NtGetContextThread(hThread[i], &Context);
-                    MachineType = IMAGE_FILE_MACHINE_AMD64;
-                    StackFrame.AddrPC.Offset = Context.Rip;
-                    StackFrame.AddrStack.Offset = Context.Rsp;
-                    StackFrame.AddrFrame.Offset = Context.Rbp;
                 }
 
                 char Success;
@@ -878,7 +887,7 @@ void __stdcall main(void)
                 {
                     UserContext.hProcess = hProcess;
                     UserContext.pContext = &Context;
-                    UserContext.bWow64 = bWow64;
+                    UserContext.bx64win = bx64win;
                     UserContext.Console = Console;
                 }
 
@@ -912,7 +921,7 @@ void __stdcall main(void)
                         p += 5;
                     }
 
-                    p = ulltoaddr(StackFrame.AddrPC.Offset, p, bWow64);
+                    p = ulltoaddr(StackFrame.AddrPC.Offset, p, bx64win);
 
                     if (Console)
                     {

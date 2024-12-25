@@ -28,7 +28,7 @@ typedef struct
     HANDLE hProcess;
     PVOID pContext;
     char *p;
-    char bWow64;
+    DWORD bx64win;
     char Console;
     char DataIsLocal;
     char IsFirst;
