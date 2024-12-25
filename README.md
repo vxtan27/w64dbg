@@ -15,7 +15,7 @@ A native debugging utility for x64 Windows with PDB and DWARF format support.
 ## __Usage__
 
     
-    W64DBG [options] <executable> [exec-args]
+    Usage: W64DBG [options] <executable> [exec-args]
     
     Description:
         A native debugging utility for x64 Windows.
@@ -26,7 +26,7 @@ A native debugging utility for x64 Windows with PDB and DWARF format support.
         exec-args     Target executable arguments.
         
     Options:
-        /B            Ignore breakpoints.
+        /B<n>         Set breakpoints ignorance.
         /D            Load PDB debug symbols.
         /G[+]         Load DWARF debug symbols.
         /O            Suppress OutputDebugString.
@@ -153,7 +153,7 @@ See [__this__](https://learn.microsoft.com/windows-hardware/drivers/debugger/gen
 <details>
     <summary>
         <b>
-            How do I use breakpoints effectively?
+            How do I pause the execution of my code?
         </b>
     </summary>
 
