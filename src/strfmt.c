@@ -173,7 +173,7 @@ static inline char *FormatDebugException(
 }
 
 static inline char *FormatVerboseDebugException(
-    _Out_writes_(152) char *p,
+    char *p,
     _In_ DWORD ExceptionCode
     )
 {
@@ -342,7 +342,7 @@ static __forceinline char *FormatFileLine(
 static __forceinline char *FormatSourceCode(
     _Inout_updates_bytes_all_(4) wchar_t *fname,
     _In_ unsigned int lnum,
-    _Out_ char *p,
+    char *p,
     _In_ char verbose
     )
 {
@@ -368,7 +368,6 @@ static __forceinline char *FormatSourceCode(
         char *ptr;
         DWORD line;
         char buffer[PAGESIZE];
-        IO_STATUS_BLOCK IoStatusBlock;
 
         line = 1;
 

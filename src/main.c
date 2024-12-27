@@ -151,7 +151,7 @@ void __stdcall main(void)
                     {
                         debug = MINGW;
                         pNext += 3;
-                    } else if (*(pNext + 3) == '-' && *(pNext + 3) == ' ')
+                    } else if (*(pNext + 2) == '-' && *(pNext + 3) == ' ')
                     {
                         debug = MINGW + 1;
                         pNext += 4;
@@ -314,7 +314,6 @@ void __stdcall main(void)
     { // Check if executable format (x86-64)
         memcpy(buffer, W64DBG_ERROR_INVALID, 7);
 
-        ULONG UTF8StringActualByteCount;
         RtlUnicodeToUTF8N(buffer + 7, BUFLEN - 7,
             &UTF8StringActualByteCount, ApplicationName, PathLen);
 
@@ -410,12 +409,10 @@ void __stdcall main(void)
                     memcpy(buffer, "LoadDll ", 8);
                     Len = GetFinalPathNameByHandleW(DebugEvent.u.LoadDll.hFile,
                         Tmp, WBUFLEN, FILE_NAME_OPENED);
-
-                    ULONG UTF8StringActualByteCount;
                     RtlUnicodeToUTF8N(buffer + 8, BUFLEN - 8,
                         &UTF8StringActualByteCount, Tmp, Len << 1);
-
                     buffer[UTF8StringActualByteCount + 8] = '\n';
+
                     NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
                         buffer, UTF8StringActualByteCount + 9, NULL, NULL);
                 }
@@ -443,12 +440,10 @@ void __stdcall main(void)
                         memcpy(buffer, "UnloadDll ", 10);
                         Len = GetFinalPathNameByHandleW(DebugEvent.u.LoadDll.hFile,
                             Tmp, WBUFLEN, FILE_NAME_OPENED);
-
-                        ULONG UTF8StringActualByteCount;
                         RtlUnicodeToUTF8N(buffer + 10, BUFLEN - 10,
                             &UTF8StringActualByteCount, Tmp, Len << 1);
-
                         buffer[UTF8StringActualByteCount + 10] = '\n';
+
                         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
                             buffer, UTF8StringActualByteCount + 11, NULL, NULL);
                     }
@@ -536,6 +531,7 @@ void __stdcall main(void)
                 ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
                 ExitProcess(0);
 
+            [[fallthrough]];
             case OUTPUT_DEBUG_STRING_EVENT:
                 if (verbose >= 2)
                 {
@@ -620,12 +616,9 @@ void __stdcall main(void)
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
                 else
                 {
-                    ULONG PathLen;
-                    wchar_t ApplicationName[WBUFLEN];
-
                     // Check if executable exists
-                    if ((PathLen = RtlDosSearchPath_U(PATH, L"gdb.exe", NULL,
-                        sizeof(ApplicationName), ApplicationName, NULL)))
+                    if (RtlDosSearchPath_U(PATH, L"gdb.exe", NULL,
+                        sizeof(ApplicationName), ApplicationName, NULL))
                     {
                         NtWriteFile(hStdout, NULL, NULL, NULL,
                             &IoStatusBlock, buffer, p - buffer, NULL, NULL);
@@ -638,7 +631,6 @@ void __stdcall main(void)
                         LARGE_INTEGER ByteOffset;
                         OBJECT_ATTRIBUTES ObjectAttributes;
                         wchar_t CommandLine[18 + MAX_PATH] = L"gdb.exe -q -x=\\??\\";
-                        UNICODE_STRING Variable, Value;
 
                         Variable.Length = 6;
                         Variable.Buffer = L"TMP";
@@ -872,7 +864,6 @@ void __stdcall main(void)
                 DWORD64 Displacement64;
                 wchar_t Tmp[WBUFLEN];
                 USERCONTEXT UserContext;
-                ULONG UTF8StringActualByteCount;
 
                 count = 0;
                 pSymbol = (PSYMBOL_INFOW) Symbol;
@@ -998,8 +989,6 @@ void __stdcall main(void)
                         Len = GetModuleFileNameExW(hProcess,
                             (HMODULE) SymGetModuleBase64(hProcess,
                                 StackFrame.AddrPC.Offset), Tmp, WBUFLEN);
-
-                        ULONG UTF8StringActualByteCount;
                         RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
                             &UTF8StringActualByteCount, Tmp, Len << 1);
                         p += UTF8StringActualByteCount;

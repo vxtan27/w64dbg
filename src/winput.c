@@ -13,9 +13,17 @@
 #define IsInputValidate(InputRecord) ( \
     InputRecord.EventType == KEY_EVENT && \
     InputRecord.Event.KeyEvent.bKeyDown && \
-    InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_MENU && \
-    InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_CONTROL \
-    )
+    ( \
+        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= 0x30 && InputRecord.Event.KeyEvent.wVirtualKeyCode <= 0x5A) || \
+        InputRecord.Event.KeyEvent.wVirtualKeyCode == VK_RETURN || \
+        InputRecord.Event.KeyEvent.wVirtualKeyCode == VK_ESCAPE || \
+        InputRecord.Event.KeyEvent.wVirtualKeyCode == VK_PAUSE || \
+        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= VK_NUMPAD0 && InputRecord.Event.KeyEvent.wVirtualKeyCode <= VK_NUMPAD9) || \
+        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= VK_OEM_1 && InputRecord.Event.KeyEvent.wVirtualKeyCode <= VK_OEM_3) || \
+        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= VK_OEM_4 && InputRecord.Event.KeyEvent.wVirtualKeyCode <= VK_OEM_8) || \
+        InputRecord.Event.KeyEvent.wVirtualKeyCode == VK_OEM_102 \
+    ) \
+)
 
 static __forceinline VOID WaitForInputOrTimeout(
     _In_ HANDLE hStdin,
