@@ -3,8 +3,7 @@
     Licensed under the BSD-3-Clause.
 */
 
-#include "copyright.c"
-#include "license.c"
+#include "legal.c" // Legal right
 #include "winput.c" // Waiting for input
 #include "strfmt.c" // String formatting
 #include "symen.c" // Symbols enumeration

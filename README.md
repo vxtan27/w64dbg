@@ -189,12 +189,12 @@ Direct access to another thread's errno is not possible.
 * [__Variable Display with Windows Debug API__](https://accu.org/journals/overload/29/165/orr)
 * [__Debugging Tools for Windows__](https://learn.microsoft.com/windows-hardware/drivers/debugger/debugger-download-tools)
 
-## __Copyright__
-
-Copyright (c) 2024, vxtan27, all rights reserved.
-
 ## __License__
 
 w64dbg is licensed under the BSD-3-Clause.
 
 See [__LICENSE__](LICENSE) for more details.
+
+## __Copyright__
+
+Copyright (c) 2024, vxtan27, all rights reserved.
