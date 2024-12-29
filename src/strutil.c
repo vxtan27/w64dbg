@@ -68,7 +68,8 @@ static __forceinline int __builtin_wcstol(
 
     while (TRUE)
     {
-        if ((c = *p - '0') > 9) return 100000;
+        c = *p - '0';
+        if (c < 0 || c > 9) return 100000;
         value = value * 10 + c;
         if (*++p == ' ') break;
     }
@@ -85,19 +86,6 @@ static __forceinline wchar_t const* __builtin_wmemchr(
     for (; 0 < _N; ++_S, --_N)
         if (*_S == _C)
             return (wchar_t const *)_S;
-
-    return 0;
-}
-
-static __forceinline int __builtin_wmemcmp(
-    _In_reads_(_N) wchar_t const* _S1,
-    _In_reads_(_N) wchar_t const* _S2,
-    _In_           size_t         _N
-    )
-{
-    for (; 0 < _N; ++_S1, ++_S2, --_N)
-        if (*_S1 != *_S2)
-            return *_S1 < *_S2 ? -1 : 1;
 
     return 0;
 }

@@ -9,16 +9,6 @@
 #include "symen.c" // Symbols enumeration
 #include <psapi.h>
 
-#define MINGW 2
-#define W64DBG_DEFAULT_TIMEOUT 0
-#define W64DBG_DEFAULT_DEBUG FALSE
-#define W64DBG_DEFAULT_BREAKPOINT TRUE
-#define W64DBG_DEFAULT_FIRSTBREAK FALSE
-#define W64DBG_DEFAULT_OUTPUT TRUE
-#define W64DBG_DEFAULT_VERBOSE FALSE
-#define W64DBG_DEFAULT_START FALSE
-#define W64DBG_DEFAULT_HELP FALSE
-
 #define W64DBG_HELP \
     "Invalid syntax.\n" \
     "Usage: W64DBG [options] <executable> [exec-args]\n" \
@@ -42,6 +32,16 @@
 
 #define W64DBG_VALUE_EXPECTED "Value expected for '"
 #define W64DBG_ERROR_INVALID_TIMEOUT "Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n"
+
+#define MINGW 2
+#define W64DBG_DEFAULT_TIMEOUT 0
+#define W64DBG_DEFAULT_DEBUG FALSE
+#define W64DBG_DEFAULT_BREAKPOINT TRUE
+#define W64DBG_DEFAULT_FIRSTBREAK FALSE
+#define W64DBG_DEFAULT_OUTPUT TRUE
+#define W64DBG_DEFAULT_VERBOSE FALSE
+#define W64DBG_DEFAULT_START FALSE
+#define W64DBG_DEFAULT_HELP FALSE
 
 #define MAX_THREAD 32
 #define MAX_DLL 16
@@ -80,14 +80,11 @@
 __declspec(noreturn)
 void __stdcall main(void)
 {
-    PWSTR pNext;
     size_t temp, len;
     char buffer[BUFLEN];
     ULONG UTF8StringActualByteCount;
 
-    char *p = buffer;
     int timeout = W64DBG_DEFAULT_TIMEOUT;
-    PWSTR pCmdLine = wcschr(GetCommandLineW(), ' ');
     char breakpoint = W64DBG_DEFAULT_BREAKPOINT,
     firstbreak = W64DBG_DEFAULT_FIRSTBREAK,
     verbose = W64DBG_DEFAULT_VERBOSE,
@@ -96,9 +93,12 @@ void __stdcall main(void)
     start = W64DBG_DEFAULT_START,
     help = W64DBG_DEFAULT_HELP;
 
+    char *p = buffer;
+    PWSTR pCmdLine = wcschr(GetCommandLineW(), ' ');
+    PWSTR pNext = pCmdLine;
+
     if (pCmdLine)
     {
-        pNext = pCmdLine;
         len = wcslen(pCmdLine);
         // Modified for processing command-line arguments
         *(pCmdLine + len) = ' ';
@@ -118,7 +118,8 @@ void __stdcall main(void)
                     {
                         breakpoint = FALSE;
                         pNext += 3;
-                    } else if (iswdigit(*(pNext + 2)) && *(pNext + 3) == ' ')
+                    } else if (*(pNext + 2) >= '0' &&
+                        *(pNext + 2) <= '9' && *(pNext + 3) == ' ')
                     {
                         breakpoint -= *(pNext + 2) - '0';
                         pNext += 4;
@@ -206,7 +207,8 @@ void __stdcall main(void)
                     {
                         verbose = 3;
                         pNext += 3;
-                    } else if (iswdigit(*(pNext + 2)) && *(pNext + 3) == ' ')
+                    } else if (*(pNext + 2) >= '0' &&
+                        *(pNext + 2) <= '9' && *(pNext + 3) == ' ')
                     {
                         verbose = *(pNext + 2) - '0';
                         pNext += 4;
@@ -240,7 +242,7 @@ void __stdcall main(void)
     }
 
     if (help)
-    {
+    { // help message
         memcpy(p, W64DBG_HELP + 16, strlen(W64DBG_HELP + 16));
         p += strlen(W64DBG_HELP + 16);
     } else if (!pCmdLine || pCmdLine + len < pNext)
@@ -249,12 +251,9 @@ void __stdcall main(void)
         p += 65;
     }
 
-    char Console;
-    HANDLE hStdout;
     IO_STATUS_BLOCK IoStatusBlock;
-
-    hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-    Console = GetFileType(hStdout) == FILE_TYPE_CHAR;
+    HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+    char Console = GetFileType(hStdout) == FILE_TYPE_CHAR;;
 
     if (Console) SetConsoleOutputCP(65001);
 
@@ -266,17 +265,15 @@ void __stdcall main(void)
     }
 
     wchar_t *ptr;
-    DWORD cDirLen;
-    ULONG PathLen;
-    wchar_t PATH[WBUFLEN];
-    wchar_t ApplicationName[WBUFLEN];
     UNICODE_STRING Variable, Value;
+    DWORD wDirLen, cDirLen, PathLen;
+    wchar_t PATH[WBUFLEN], ApplicationName[WBUFLEN];
 
     Variable.Length = 8;
     Variable.Buffer = L"PATH";
-    cDirLen = RtlGetCurrentDirectory_U(sizeof(PATH), PATH);
-    Value.MaximumLength = sizeof(PATH) - cDirLen - 2;
-    cDirLen >>= 1;
+    wDirLen = RtlGetCurrentDirectory_U(sizeof(PATH), PATH);
+    Value.MaximumLength = sizeof(PATH) - wDirLen - 2;
+    cDirLen = wDirLen >> 1;
     PATH[cDirLen] = ';';
     Value.Buffer = PATH + (cDirLen) + 1;
     RtlQueryEnvironmentVariable_U(NULL, &Variable, &Value);
@@ -291,7 +288,6 @@ void __stdcall main(void)
     if (!(PathLen = RtlDosSearchPath_U(PATH, pNext, L".exe",
         sizeof(ApplicationName), ApplicationName, NULL)))
     {
-        DWORD len;
         wchar_t Tmp[WBUFLEN];
 
         len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
@@ -308,7 +304,6 @@ void __stdcall main(void)
     if (!GetBinaryTypeW(ApplicationName, &bx64win) ||
         (bx64win != SCS_32BIT_BINARY && bx64win != SCS_64BIT_BINARY))
     { // Check if executable format (x86-64)
-        DWORD len;
         wchar_t Tmp[WBUFLEN];
 
         len = FormatMessageW(FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
@@ -399,14 +394,13 @@ void __stdcall main(void)
             case LOAD_DLL_DEBUG_EVENT:
                 if (verbose >= 2)
                 {
-                    DWORD Len;
                     wchar_t Tmp[WBUFLEN];
 
                     memcpy(buffer, "LoadDll ", 8);
-                    Len = GetFinalPathNameByHandleW(DebugEvent.u.LoadDll.hFile,
+                    len = GetFinalPathNameByHandleW(DebugEvent.u.LoadDll.hFile,
                         Tmp, WBUFLEN, FILE_NAME_OPENED);
                     RtlUnicodeToUTF8N(buffer + 8, BUFLEN - 8,
-                        &UTF8StringActualByteCount, Tmp, Len << 1);
+                        &UTF8StringActualByteCount, Tmp, len << 1);
                     buffer[UTF8StringActualByteCount + 8] = '\n';
 
                     NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
@@ -430,14 +424,13 @@ void __stdcall main(void)
                 {
                     if (verbose >= 2)
                     {
-                        DWORD Len;
                         wchar_t Tmp[WBUFLEN];
 
                         memcpy(buffer, "UnloadDll ", 10);
-                        Len = GetFinalPathNameByHandleW(DebugEvent.u.LoadDll.hFile,
+                        len = GetFinalPathNameByHandleW(DebugEvent.u.LoadDll.hFile,
                             Tmp, WBUFLEN, FILE_NAME_OPENED);
                         RtlUnicodeToUTF8N(buffer + 10, BUFLEN - 10,
-                            &UTF8StringActualByteCount, Tmp, Len << 1);
+                            &UTF8StringActualByteCount, Tmp, len << 1);
                         buffer[UTF8StringActualByteCount + 10] = '\n';
 
                         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
@@ -793,7 +786,6 @@ void __stdcall main(void)
                     ExitProcess(0);
                 } else if (verbose >= 3)
                 {
-                    DWORD len;
                     wchar_t Tmp[WBUFLEN];
 
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
@@ -816,13 +808,13 @@ void __stdcall main(void)
                 FILE_STANDARD_INFORMATION FileInfo;
 
                 SymSetOptions(debug == TRUE ? _DebugSymOptions : NDebugSymOptions);
-                SymInitialize(hProcess, NULL, FALSE);
+                SymInitializeW(hProcess, NULL, FALSE);
 
                 for (unsigned char j = 0; j < MAX_DLL; ++j) if (BaseOfDll[j])
                 {
                     NtQueryInformationFile(hFile[j], &IoStatusBlock,
                         &FileInfo, sizeof(FileInfo), 5); // FileStandardInformation
-                    SymLoadModuleEx(hProcess,
+                    SymLoadModuleExW(hProcess,
                         hFile[j],
                         NULL,
                         NULL,
@@ -965,7 +957,7 @@ void __stdcall main(void)
                         }
 
                         // Skip %dir%/
-                        if (!__builtin_wmemcmp(Line.FileName, PATH, cDirLen))
+                        if (!memcmp(Line.FileName, PATH, wDirLen))
                             p = FormatFileLine(Line.FileName + cDirLen + 1,
                                 Line.LineNumber, temp - cDirLen - 1, p, Console);
                         else p = FormatFileLine(Line.FileName,
@@ -973,8 +965,6 @@ void __stdcall main(void)
                         if (verbose >= 1) p = FormatSourceCode(Line.FileName, Line.LineNumber, buffer, p, verbose);
                     } else
                     {
-                        DWORD Len;
-
                         memcpy(p, "from ", strlen("from "));
                         p += strlen("from ");
 
@@ -984,11 +974,11 @@ void __stdcall main(void)
                             p += 5;
                         }
 
-                        Len = GetModuleFileNameExW(hProcess,
+                        len = GetModuleFileNameExW(hProcess,
                             (HMODULE) SymGetModuleBase64(hProcess,
                                 StackFrame.AddrPC.Offset), Tmp, WBUFLEN);
                         RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                            &UTF8StringActualByteCount, Tmp, Len << 1);
+                            &UTF8StringActualByteCount, Tmp, len << 1);
                         p += UTF8StringActualByteCount;
 
                         if (Console)
@@ -1033,9 +1023,6 @@ void __stdcall main(void)
             case RIP_EVENT:
                 if (verbose >= 2)
                 {
-                    DWORD len;
-                    wchar_t Tmp[WBUFLEN];
-
                     memcpy(buffer, "RIP ", 4);
                     p = debug_ultoa(DebugEvent.dwProcessId, buffer + 4);
                     *p = 'x';

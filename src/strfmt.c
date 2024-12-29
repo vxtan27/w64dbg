@@ -342,7 +342,7 @@ static __forceinline char *FormatFileLine(
 static __forceinline char *FormatSourceCode(
     _Inout_updates_bytes_all_(4) wchar_t *fname,
     _In_ unsigned int lnum,
-    char *buffer,
+    char *_buffer,
     char *p,
     _In_ char verbose
     )
@@ -422,7 +422,7 @@ static __forceinline char *FormatSourceCode(
 
         len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
             ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), temp, WBUFLEN, NULL);
-        RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
+        RtlUnicodeToUTF8N(p, _buffer + BUFLEN - p,
             &UTF8StringActualByteCount, temp, len << 1);
         p += UTF8StringActualByteCount;
     }
