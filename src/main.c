@@ -19,16 +19,9 @@
 #define W64DBG_DEFAULT_START FALSE
 #define W64DBG_DEFAULT_HELP FALSE
 
-#define W64DBG_USAGE \
-    "Usage: W64DBG [options] <executable> [exec-args]\n"
-
-#define W64DBG_INVALID_USAGE \
-    "ERROR: Invalid syntax.\n" \
-    W64DBG_USAGE
-
 #define W64DBG_HELP \
-    "\n" \
-    W64DBG_USAGE \
+    "Invalid syntax.\n" \
+    "Usage: W64DBG [options] <executable> [exec-args]\n" \
     "\n" \
     "Description:\n" \
     "    A native debugging utility for x64 Windows.\n" \
@@ -47,10 +40,8 @@
     "    /T            Wait for input (seconds).\n" \
     "    /V<n>         Set output verbosity.\n"
 
-#define W64DBG_VALUE_EXPECTED "ERROR: Value expected for '"
-#define W64DBG_ERROR_INVALID_TIMEOUT "ERROR: Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n"
-#define W64DBG_BAD_EXE_FORMAT " is not a valid Win32 application.\n"
-#define W64DBG_ERROR_INVALID W64DBG_ERROR_INVALID_TIMEOUT
+#define W64DBG_VALUE_EXPECTED "Value expected for '"
+#define W64DBG_ERROR_INVALID_TIMEOUT "Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n"
 
 #define MAX_THREAD 32
 #define MAX_DLL 16
@@ -232,8 +223,8 @@ void __stdcall main(void)
                     }
             }
 
-            memcpy(p, "ERROR: Invalid argument/option - '", 34);
-            p += 34;
+            memcpy(p, "Invalid argument/option - '", 27);
+            p += 27;
 
             temp = __builtin_wmemchr(pNext, ' ',
                 pCmdLine + len + 1 - pNext) - pNext;
@@ -250,13 +241,12 @@ void __stdcall main(void)
 
     if (help)
     {
-        memcpy(p, W64DBG_HELP, strlen(W64DBG_HELP));
-        p += strlen(W64DBG_HELP);
+        memcpy(p, W64DBG_HELP + 16, strlen(W64DBG_HELP + 16));
+        p += strlen(W64DBG_HELP + 16);
     } else if (!pCmdLine || pCmdLine + len < pNext)
     { // No executable specified
-        memcpy(p, W64DBG_INVALID_USAGE,
-            strlen(W64DBG_INVALID_USAGE));
-        p += strlen(W64DBG_INVALID_USAGE);
+        memcpy(p, W64DBG_HELP, 65);
+        p += 65;
     }
 
     char Console;
@@ -318,15 +308,15 @@ void __stdcall main(void)
     if (!GetBinaryTypeW(ApplicationName, &bx64win) ||
         (bx64win != SCS_32BIT_BINARY && bx64win != SCS_64BIT_BINARY))
     { // Check if executable format (x86-64)
-        memcpy(buffer, W64DBG_ERROR_INVALID, 7);
+        DWORD len;
+        wchar_t Tmp[WBUFLEN];
 
-        RtlUnicodeToUTF8N(buffer + 7, BUFLEN - 7,
-            &UTF8StringActualByteCount, ApplicationName, PathLen);
-
-        memcpy(buffer + 7 + UTF8StringActualByteCount,
-            W64DBG_BAD_EXE_FORMAT, strlen(W64DBG_BAD_EXE_FORMAT));
-        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, buffer,
-            7 + strlen(W64DBG_BAD_EXE_FORMAT) + UTF8StringActualByteCount, NULL, NULL);
+        len = FormatMessageW(FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
+            ERROR_BAD_EXE_FORMAT, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), Tmp, WBUFLEN, &pNext);
+        RtlUnicodeToUTF8N(buffer, BUFLEN,
+            &UTF8StringActualByteCount, Tmp, len << 1);
+        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+            buffer, UTF8StringActualByteCount, NULL, NULL);
         ExitProcess(1);
     }
 
