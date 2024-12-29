@@ -301,8 +301,15 @@ void __stdcall main(void)
     if (!(PathLen = RtlDosSearchPath_U(PATH, pNext, L".exe",
         sizeof(ApplicationName), ApplicationName, NULL)))
     {
+        DWORD len;
+        wchar_t Tmp[WBUFLEN];
+
+        len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+            ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), Tmp, WBUFLEN, NULL);
+        RtlUnicodeToUTF8N(buffer, BUFLEN,
+            &UTF8StringActualByteCount, Tmp, len << 1);
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-            W64DBG_FILE_NOT_FOUND, strlen(W64DBG_FILE_NOT_FOUND), NULL, NULL);
+            buffer, UTF8StringActualByteCount, NULL, NULL);
         ExitProcess(1);
     }
 
@@ -613,196 +620,198 @@ void __stdcall main(void)
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
                 else if (debug < MINGW)
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
-                else
+                else if (RtlDosSearchPath_U(PATH, L"gdb.exe", NULL, // Check if executable exists
+                    sizeof(ApplicationName), ApplicationName, NULL))
                 {
-                    // Check if executable exists
-                    if (RtlDosSearchPath_U(PATH, L"gdb.exe", NULL,
-                        sizeof(ApplicationName), ApplicationName, NULL))
+                    NtWriteFile(hStdout, NULL, NULL, NULL,
+                        &IoStatusBlock, buffer, p - buffer, NULL, NULL);
+                    NtSuspendProcess(hProcess);
+                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_REPLY_LATER);
+                    DebugActiveProcessStop(DebugEvent.dwProcessId);
+
+                    HANDLE hTemp;
+                    UNICODE_STRING String;
+                    LARGE_INTEGER ByteOffset;
+                    OBJECT_ATTRIBUTES ObjectAttributes;
+                    wchar_t CommandLine[18 + MAX_PATH] = L"gdb.exe -q -x=\\??\\";
+
+                    Variable.Length = 6;
+                    Variable.Buffer = L"TMP";
+                    Value.MaximumLength = sizeof(CommandLine) - 18 * 2;
+                    Value.Buffer = &CommandLine[18];
+                    RtlQueryEnvironmentVariable_U(NULL, &Variable, &Value);
+                    Value.Length >>= 1;
+
+                    // Ensure correct DOS path
+                    if (CommandLine[18 - 1 + Value.Length] != '\\')
                     {
-                        NtWriteFile(hStdout, NULL, NULL, NULL,
-                            &IoStatusBlock, buffer, p - buffer, NULL, NULL);
-                        NtSuspendProcess(hProcess);
-                        ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_REPLY_LATER);
-                        DebugActiveProcessStop(DebugEvent.dwProcessId);
-
-                        HANDLE hTemp;
-                        UNICODE_STRING String;
-                        LARGE_INTEGER ByteOffset;
-                        OBJECT_ATTRIBUTES ObjectAttributes;
-                        wchar_t CommandLine[18 + MAX_PATH] = L"gdb.exe -q -x=\\??\\";
-
-                        Variable.Length = 6;
-                        Variable.Buffer = L"TMP";
-                        Value.MaximumLength = sizeof(CommandLine) - 18 * 2;
-                        Value.Buffer = &CommandLine[18];
-                        RtlQueryEnvironmentVariable_U(NULL, &Variable, &Value);
-                        Value.Length >>= 1;
-
-                        // Ensure correct DOS path
-                        if (CommandLine[18 - 1 + Value.Length] != '\\')
-                        {
-                            CommandLine[18 + Value.Length] = '\\';
-                            ++Value.Length;
-                        }
-
-                        memcpy(&CommandLine[18 + Value.Length], L"w64dbg", 12);
-                        String.Length = (4 + Value.Length + 6) << 1;
-                        String.Buffer = &CommandLine[18 - 4];
-                        InitializeObjectAttributes(&ObjectAttributes,
-                            &String, OBJ_CASE_INSENSITIVE, NULL, NULL);
-                        NtCreateFile(&hTemp, GENERIC_WRITE | SYNCHRONIZE, &ObjectAttributes,
-                            &IoStatusBlock, NULL, FILE_ATTRIBUTE_NORMAL, 0, FILE_OPEN_IF,
-                            FILE_WRITE_THROUGH | FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT,
-                            NULL, 0);
-
-                        // First time run
-                        if (IoStatusBlock.Information == FILE_CREATED)
-                            NtWriteFile(hTemp, NULL, NULL, NULL,
-                                &IoStatusBlock,
-                                "set bac l 100\n" // set backtrace limit 100
-                                "set p th of\n" // set print thread-events off
-                                "set p i of\n" // set print inferior-events off
-                                "set lo r\n" // set logging redirect
-                                "set lo d\n" // set logging debugredirect
-                                "set lo f NUL\n" // set logging file
-                                "set lo e\n" // set logging enabled
-                                "set con of\n" // set confirm off
-                                "set p en n\n" // set print entry-values no
-                                "set p frame-i source-a\n" // set print frame-info source-and-location
-                                "at " // attach
-                                , W64DBG_DEFAULT_LEN, NULL, NULL);
-
-                        space_ultoa(DebugEvent.dwProcessId, buffer);
-                        p = buffer + 5;
-                        *p++ = '\n';
-
-                        if (debug == MINGW + 1)
-                        {
-                            memcpy(p,
-                                "set pa of\n" // set pagination off
-                                "set wi 0" // set width 0
-                                , 18);
-                            p += 18;
-                        } else
-                        {
-                            // set style enabled
-                            memcpy(p, "set sty e", 9);
-                            p += 9;
-                        }
-
-                        *p++ = '\n';
-
-                        if (verbose >= 1)
-                        {
-                            // set print frame-arguments all
-                            memcpy(p,
-                                "set p frame-a a\n"
-                                "set p pr\n"
-                                , 25);
-                            p += 25;
-                        }
-
-                        // continue & set logging enabled off & backtrace
-                        memcpy(p, "c\nset lo e of\nbt", 16);
-                        p += 16;
-
-                        if (verbose >= 1)
-                        {
-                            *p++ = ' ';
-                            *p++ = 'f';
-                        }
-
-                        ByteOffset.QuadPart = W64DBG_DEFAULT_OFFSET;
-                        NtWriteFile(hTemp, NULL, NULL, NULL, &IoStatusBlock,
-                            buffer, p - buffer, &ByteOffset, NULL);
-                        ByteOffset.QuadPart +=  p - buffer;
-                        NtSetInformationFile(hTemp, &IoStatusBlock, &ByteOffset,
-                            sizeof(LARGE_INTEGER), 20); // FileEndOfFileInformation
-                        NtClose(hTemp);
-
-                        if (debug == MINGW && !timeout)
-                            memcpy(&CommandLine[18 + Value.Length + 6], L" --batch", 16);
-
-                        DWORD_PTR ProcDbgPt;
-                        LARGE_INTEGER DelayInterval;
-
-                        CreateProcessW(ApplicationName, CommandLine, NULL, NULL, FALSE,
-                            CreationFlags, NULL, NULL, &startupInfo, &processInfo);
-                        NtClose(processInfo.hThread);
-                        NtClose(hThread[0]);
-
-                        for (i = 0; i < MAX_DLL; ++i)
-                            if (BaseOfDll[i]) NtClose(hFile[i]);
-
-                        // Convert seconds to 100-nanosecond units
-                        // (negative for relative time)
-                        DelayInterval.QuadPart = -(LATENCY * 10000);
-
-                        while (TRUE)
-                        { // Wait until GDB attachs
-                            NtDelayExecution(FALSE, &DelayInterval);
-                            NtQueryInformationProcess(hProcess, ProcessDebugPort,
-                                &ProcDbgPt, sizeof(ProcDbgPt), NULL);
-                            if (ProcDbgPt) break;
-                        }
-
-                        HANDLE hStdin;
-                        char StdinConsole;
-
-                        NtResumeProcess(hProcess);
-                        // marks deletion on close, prevent writting to disk
-                        NtClose(hProcess);
-
-                        if (timeout)
-                        { // Quit GDB first
-                            hStdin = GetStdHandle(STD_INPUT_HANDLE);
-                            StdinConsole = GetFileType(hStdin) == FILE_TYPE_CHAR;
-
-                            if (StdinConsole)
-                            {
-                                DWORD dwWriten;
-                                INPUT_RECORD InputRecord[2];
-
-                                InputRecord[0].EventType = KEY_EVENT;
-                                InputRecord[0].Event.KeyEvent.bKeyDown = TRUE;
-                                InputRecord[0].Event.KeyEvent.wRepeatCount = 1;
-                                InputRecord[0].Event.KeyEvent.uChar.AsciiChar = 'q';
-
-                                InputRecord[1].EventType = KEY_EVENT;
-                                InputRecord[1].Event.KeyEvent.bKeyDown = TRUE;
-                                InputRecord[1].Event.KeyEvent.wRepeatCount = 1;
-                                InputRecord[1].Event.KeyEvent.uChar.AsciiChar = '\n';
-
-                                WriteConsoleInputW(hStdin,
-                                    InputRecord, 2, &dwWriten);
-                            } else NtWriteFile(hStdout, NULL, NULL, NULL,
-                                &IoStatusBlock, "q\n", 2, NULL, NULL);
-                        }
-
-                        NtWaitForSingleObject(processInfo.hProcess, FALSE, NULL);
-                        NtClose(processInfo.hProcess);
-
-                        if (timeout) WaitForInputOrTimeout(hStdin,
-                            hStdout, StdinConsole, timeout);
-
-                        if (verbose >= 2)
-                        {
-                            memcpy(buffer, "ExitProcess ", 12);
-                            p = debug_ultoa(DebugEvent.dwProcessId, buffer + 12);
-                            *p = 'x';
-                            p = debug_ultoa(DebugEvent.dwThreadId, p + 1);
-                            *p = '\n';
-                            NtWriteFile(hStdout, NULL, NULL, NULL,
-                                &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
-                        }
-
-                        ExitProcess(0);
-                    } else if (verbose >= 3)
-                    {
-                        memcpy(p, W64DBG_FILE_NOT_FOUND,
-                            strlen(W64DBG_FILE_NOT_FOUND));
-                        p += strlen(W64DBG_FILE_NOT_FOUND);
+                        CommandLine[18 + Value.Length] = '\\';
+                        ++Value.Length;
                     }
+
+                    memcpy(&CommandLine[18 + Value.Length], L"w64dbg", 12);
+                    String.Length = (4 + Value.Length + 6) << 1;
+                    String.Buffer = &CommandLine[18 - 4];
+                    InitializeObjectAttributes(&ObjectAttributes,
+                        &String, OBJ_CASE_INSENSITIVE, NULL, NULL);
+                    NtCreateFile(&hTemp, GENERIC_WRITE | SYNCHRONIZE, &ObjectAttributes,
+                        &IoStatusBlock, NULL, FILE_ATTRIBUTE_NORMAL, 0, FILE_OPEN_IF,
+                        FILE_WRITE_THROUGH | FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT,
+                        NULL, 0);
+
+                    // First time run
+                    if (IoStatusBlock.Information == FILE_CREATED)
+                        NtWriteFile(hTemp, NULL, NULL, NULL,
+                            &IoStatusBlock,
+                            "set bac l 100\n" // set backtrace limit 100
+                            "set p th of\n" // set print thread-events off
+                            "set p i of\n" // set print inferior-events off
+                            "set lo r\n" // set logging redirect
+                            "set lo d\n" // set logging debugredirect
+                            "set lo f NUL\n" // set logging file
+                            "set lo e\n" // set logging enabled
+                            "set con of\n" // set confirm off
+                            "set p en n\n" // set print entry-values no
+                            "set p frame-i source-a\n" // set print frame-info source-and-location
+                            "at " // attach
+                            , W64DBG_DEFAULT_LEN, NULL, NULL);
+
+                    space_ultoa(DebugEvent.dwProcessId, buffer);
+                    p = buffer + 5;
+                    *p++ = '\n';
+
+                    if (debug == MINGW + 1)
+                    {
+                        memcpy(p,
+                            "set pa of\n" // set pagination off
+                            "set wi 0" // set width 0
+                            , 18);
+                        p += 18;
+                    } else
+                    {
+                        // set style enabled
+                        memcpy(p, "set sty e", 9);
+                        p += 9;
+                    }
+
+                    *p++ = '\n';
+
+                    if (verbose >= 1)
+                    {
+                        // set print frame-arguments all
+                        memcpy(p,
+                            "set p frame-a a\n"
+                            "set p pr\n"
+                            , 25);
+                        p += 25;
+                    }
+
+                    // continue & set logging enabled off & backtrace
+                    memcpy(p, "c\nset lo e of\nbt", 16);
+                    p += 16;
+
+                    if (verbose >= 1)
+                    {
+                        *p++ = ' ';
+                        *p++ = 'f';
+                    }
+
+                    ByteOffset.QuadPart = W64DBG_DEFAULT_OFFSET;
+                    NtWriteFile(hTemp, NULL, NULL, NULL, &IoStatusBlock,
+                        buffer, p - buffer, &ByteOffset, NULL);
+                    ByteOffset.QuadPart +=  p - buffer;
+                    NtSetInformationFile(hTemp, &IoStatusBlock, &ByteOffset,
+                        sizeof(LARGE_INTEGER), 20); // FileEndOfFileInformation
+                    NtClose(hTemp);
+
+                    if (debug == MINGW && !timeout)
+                        memcpy(&CommandLine[18 + Value.Length + 6], L" --batch", 16);
+
+                    DWORD_PTR ProcDbgPt;
+                    LARGE_INTEGER DelayInterval;
+
+                    CreateProcessW(ApplicationName, CommandLine, NULL, NULL, FALSE,
+                        CreationFlags, NULL, NULL, &startupInfo, &processInfo);
+                    NtClose(processInfo.hThread);
+                    NtClose(hThread[0]);
+
+                    for (i = 0; i < MAX_DLL; ++i)
+                        if (BaseOfDll[i]) NtClose(hFile[i]);
+
+                    // Convert seconds to 100-nanosecond units
+                    // (negative for relative time)
+                    DelayInterval.QuadPart = -(LATENCY * 10000);
+
+                    while (TRUE)
+                    { // Wait until GDB attachs
+                        NtDelayExecution(FALSE, &DelayInterval);
+                        NtQueryInformationProcess(hProcess, ProcessDebugPort,
+                            &ProcDbgPt, sizeof(ProcDbgPt), NULL);
+                        if (ProcDbgPt) break;
+                    }
+
+                    HANDLE hStdin;
+                    char StdinConsole;
+
+                    NtResumeProcess(hProcess);
+                    // marks deletion on close, prevent writting to disk
+                    NtClose(hProcess);
+
+                    if (timeout)
+                    { // Quit GDB first
+                        hStdin = GetStdHandle(STD_INPUT_HANDLE);
+                        StdinConsole = GetFileType(hStdin) == FILE_TYPE_CHAR;
+
+                        if (StdinConsole)
+                        {
+                            DWORD dwWriten;
+                            INPUT_RECORD InputRecord[2];
+
+                            InputRecord[0].EventType = KEY_EVENT;
+                            InputRecord[0].Event.KeyEvent.bKeyDown = TRUE;
+                            InputRecord[0].Event.KeyEvent.wRepeatCount = 1;
+                            InputRecord[0].Event.KeyEvent.uChar.AsciiChar = 'q';
+
+                            InputRecord[1].EventType = KEY_EVENT;
+                            InputRecord[1].Event.KeyEvent.bKeyDown = TRUE;
+                            InputRecord[1].Event.KeyEvent.wRepeatCount = 1;
+                            InputRecord[1].Event.KeyEvent.uChar.AsciiChar = '\n';
+
+                            WriteConsoleInputW(hStdin,
+                                InputRecord, 2, &dwWriten);
+                        } else NtWriteFile(hStdout, NULL, NULL, NULL,
+                            &IoStatusBlock, "q\n", 2, NULL, NULL);
+                    }
+
+                    NtWaitForSingleObject(processInfo.hProcess, FALSE, NULL);
+                    NtClose(processInfo.hProcess);
+
+                    if (timeout) WaitForInputOrTimeout(hStdin,
+                        hStdout, StdinConsole, timeout);
+
+                    if (verbose >= 2)
+                    {
+                        memcpy(buffer, "ExitProcess ", 12);
+                        p = debug_ultoa(DebugEvent.dwProcessId, buffer + 12);
+                        *p = 'x';
+                        p = debug_ultoa(DebugEvent.dwThreadId, p + 1);
+                        *p = '\n';
+                        NtWriteFile(hStdout, NULL, NULL, NULL,
+                            &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
+                    }
+
+                    ExitProcess(0);
+                } else if (verbose >= 3)
+                {
+                    DWORD len;
+                    wchar_t Tmp[WBUFLEN];
+
+                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
+                    len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+                        ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), Tmp, WBUFLEN, NULL);
+                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
+                        &UTF8StringActualByteCount, Tmp, len << 1);
+                    p += UTF8StringActualByteCount;
                 }
 
                 if (DebugEvent.dwThreadId != dwThreadId[i])
@@ -971,7 +980,7 @@ void __stdcall main(void)
                                 Line.LineNumber, temp - cDirLen - 1, p, Console);
                         else p = FormatFileLine(Line.FileName,
                             Line.LineNumber, temp, p, Console);
-                        if (verbose >= 1) p = FormatSourceCode(Line.FileName, Line.LineNumber, p, verbose);
+                        if (verbose >= 1) p = FormatSourceCode(Line.FileName, Line.LineNumber, buffer, p, verbose);
                     } else
                     {
                         DWORD Len;
@@ -1034,13 +1043,20 @@ void __stdcall main(void)
             case RIP_EVENT:
                 if (verbose >= 2)
                 {
+                    DWORD len;
+                    wchar_t Tmp[WBUFLEN];
+
                     memcpy(buffer, "RIP ", 4);
                     p = debug_ultoa(DebugEvent.dwProcessId, buffer + 4);
                     *p = 'x';
                     p = debug_ultoa(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
-                    p += FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-                        DebugEvent.u.RipInfo.dwError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), p + 1, 256, NULL);
+
+                    len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+                        DebugEvent.u.RipInfo.dwError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), Tmp, WBUFLEN, NULL);
+                    RtlUnicodeToUTF8N(p + 1, buffer + BUFLEN - p - 1,
+                        &UTF8StringActualByteCount, Tmp, len << 1);
+                    p += UTF8StringActualByteCount;
 
                     if (DebugEvent.u.RipInfo.dwType == 1)
                     {

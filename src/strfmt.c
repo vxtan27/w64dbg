@@ -342,6 +342,7 @@ static __forceinline char *FormatFileLine(
 static __forceinline char *FormatSourceCode(
     _Inout_updates_bytes_all_(4) wchar_t *fname,
     _In_ unsigned int lnum,
+    char *buffer,
     char *p,
     _In_ char verbose
     )
@@ -415,9 +416,15 @@ static __forceinline char *FormatSourceCode(
         NtClose(hFile);
     } else if (verbose >= 3)
     {
-        memcpy(p, W64DBG_FILE_NOT_FOUND,
-            strlen(W64DBG_FILE_NOT_FOUND));
-        p += strlen(W64DBG_FILE_NOT_FOUND);
+        DWORD len;
+        wchar_t temp[WBUFLEN];
+        ULONG UTF8StringActualByteCount;
+
+        len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+            ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), temp, WBUFLEN, NULL);
+        RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
+            &UTF8StringActualByteCount, temp, len << 1);
+        p += UTF8StringActualByteCount;
     }
 
     return p;

@@ -9,8 +9,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <windows.h>
 
-#define W64DBG_FILE_NOT_FOUND "ERROR: The system cannot find the file specified.\n"
-
 // https://learn.microsoft.com/en-us/windows/win32/fileio/file-buffering#alignment-and-file-access-requirements
 // Page size is 4,096 bytes on x64 and x86 or 8,192 bytes for Itanium-based systems
 
