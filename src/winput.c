@@ -32,9 +32,7 @@ static __forceinline VOID WaitForInputOrTimeout(
     _In_ int timeout
     )
 {
-    IO_STATUS_BLOCK IoStatusBlock;
-
-    NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+    NtWriteFile(hStdout, NULL, NULL, NULL, _alloca(sizeof(IO_STATUS_BLOCK)),
         W64DBG_KEY_MESSAGE, strlen(W64DBG_KEY_MESSAGE), NULL, NULL);
 
     if (StdinConsole)
@@ -65,15 +63,13 @@ static __forceinline VOID WaitForInputOrTimeout(
         }
     } else
     {
-        LARGE_INTEGER DelayInterval;
-
         // Convert seconds to 100-nanosecond units
         // (negative for relative time)
-        DelayInterval.QuadPart = -SecToUnits(timeout);
-        NtWaitForSingleObject(hStdin, FALSE, &DelayInterval);
+        NtWaitForSingleObject(hStdin, FALSE,
+            &(LARGE_INTEGER){.QuadPart=-SecToUnits(timeout)});
     }
 
     // Simulate pause / timeout -1 behavior
-    NtWriteFile(hStdout, NULL, NULL, NULL,
-        &IoStatusBlock, W64DBG_KEY_MESSAGE, 1, NULL, NULL);
+    NtWriteFile(hStdout, NULL, NULL, NULL, _alloca(sizeof(IO_STATUS_BLOCK)),
+        W64DBG_KEY_MESSAGE, 1, NULL, NULL);
 }

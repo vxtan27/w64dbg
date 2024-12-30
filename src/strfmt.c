@@ -357,20 +357,15 @@ static __forceinline char *FormatSourceCode(
     String.Buffer = fname - 4;
     InitializeObjectAttributes(&ObjectAttributes,
         &String, OBJ_CASE_INSENSITIVE, NULL, NULL);
-    NtCreateFile(&hFile,
-        GENERIC_READ | SYNCHRONIZE, &ObjectAttributes,
+    NtCreateFile(&hFile, FILE_READ_DATA | SYNCHRONIZE, &ObjectAttributes,
         &IoStatusBlock, NULL, FILE_ATTRIBUTE_NORMAL, 0, FILE_OPEN,
-        FILE_SEQUENTIAL_ONLY | FILE_NO_INTERMEDIATE_BUFFERING |
-        FILE_SYNCHRONOUS_IO_NONALERT,
-        NULL, 0);
+        FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
 
     if (IoStatusBlock.Information == FILE_OPENED)
     {
         char *ptr;
-        DWORD line;
         char buffer[PAGESIZE];
-
-        line = 1;
+        DWORD line = 1;
 
         while (TRUE)
         {
@@ -416,11 +411,10 @@ static __forceinline char *FormatSourceCode(
         NtClose(hFile);
     } else if (verbose >= 3)
     {
-        DWORD len;
         wchar_t temp[WBUFLEN];
         ULONG UTF8StringActualByteCount;
 
-        len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+        DWORD len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
             ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), temp, WBUFLEN, NULL);
         RtlUnicodeToUTF8N(p, _buffer + BUFLEN - p,
             &UTF8StringActualByteCount, temp, len << 1);

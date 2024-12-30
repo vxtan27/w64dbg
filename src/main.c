@@ -4,9 +4,9 @@
 */
 
 #include "legal.c" // Legal right
-#include "winput.c" // Waiting for input
 #include "strfmt.c" // String formatting
 #include "symen.c" // Symbols enumeration
+#include "winput.c" // Waiting for input
 #include <psapi.h>
 
 #define W64DBG_HELP \
@@ -68,8 +68,7 @@
     SymOptions | \
     SYMOPT_AUTO_PUBLICS | \
     SYMOPT_LOAD_ANYTHING | \
-    SYMOPT_LOAD_LINES | \
-    SYMOPT_NO_PUBLICS
+    SYMOPT_LOAD_LINES
 
 #define LATENCY 25
 #define W64DBG_DEFAULT_LEN 125
@@ -637,25 +636,24 @@ void __stdcall main(void)
                     String.Buffer = &CommandLine[18 - 4];
                     InitializeObjectAttributes(&ObjectAttributes,
                         &String, OBJ_CASE_INSENSITIVE, NULL, NULL);
-                    NtCreateFile(&hTemp, GENERIC_WRITE | SYNCHRONIZE, &ObjectAttributes,
+                    NtCreateFile(&hTemp, FILE_WRITE_DATA | SYNCHRONIZE, &ObjectAttributes,
                         &IoStatusBlock, NULL, FILE_ATTRIBUTE_NORMAL, 0, FILE_OPEN_IF,
-                        FILE_WRITE_THROUGH | FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT,
-                        NULL, 0);
+                        FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
 
                     // First time run
                     if (IoStatusBlock.Information == FILE_CREATED)
                         NtWriteFile(hTemp, NULL, NULL, NULL,
                             &IoStatusBlock,
                             "set bac l 100\n" // set backtrace limit 100
+                            "set con of\n" // set confirm off
                             "set p th of\n" // set print thread-events off
                             "set p i of\n" // set print inferior-events off
+                            "set p frame-i source-a\n" // set print frame-info source-and-location
+                            "set p en n\n" // set print entry-values no
+                            "set lo f NUL\n" // set logging file
                             "set lo r\n" // set logging redirect
                             "set lo d\n" // set logging debugredirect
-                            "set lo f NUL\n" // set logging file
                             "set lo e\n" // set logging enabled
-                            "set con of\n" // set confirm off
-                            "set p en n\n" // set print entry-values no
-                            "set p frame-i source-a\n" // set print frame-info source-and-location
                             "at " // attach
                             , W64DBG_DEFAULT_LEN, NULL, NULL);
 
@@ -784,17 +782,7 @@ void __stdcall main(void)
                     }
 
                     ExitProcess(0);
-                } else if (verbose >= 3)
-                {
-                    wchar_t Tmp[WBUFLEN];
-
-                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
-                    len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-                        ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), Tmp, WBUFLEN, NULL);
-                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                        &UTF8StringActualByteCount, Tmp, len << 1);
-                    p += UTF8StringActualByteCount;
-                }
+                } else ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
 
                 if (DebugEvent.dwThreadId != dwThreadId[i])
                 {

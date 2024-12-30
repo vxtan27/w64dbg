@@ -145,7 +145,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
         }
 
         char *p;
-        SIZE_T Len;
+        long double value = 0;
 
         *User->p++ = '=';
 
@@ -155,12 +155,14 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
         {
             *User->p++ = '0';
             *User->p++ = 'x';
-            Len = pSymbol->Address + Offset;
+            value = pSymbol->Address + Offset;
             p = "%Ix";
         } else
         {
+            ULONG64 Len;
+
             SymGetTypeInfo(User->hProcess, pSymbol->ModBase, pSymbol->TypeIndex, TI_GET_LENGTH, &Len);
-            NtReadVirtualMemory(User->hProcess, (PVOID) (pSymbol->Address + Offset), &Len, Len, NULL);
+            NtReadVirtualMemory(User->hProcess, (PVOID) (pSymbol->Address + Offset), &value, Len, NULL);
 
             if (DTag == SymTagPointerType)
             {
@@ -174,25 +176,18 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
                 switch (BaseType)
                 {
                     case btChar:
-                        p = "'%c'";
-                        break;
                     case btWChar:
-                        p = "'%lc'";
-                        break;
                     case btInt:
                     case btLong:
                         p = "%lld";
                         break;
                     case btUInt:
+                    case btBool:
                     case btULong:
                         p = "%llu";
                         break;
                     case btFloat:
                         p = "%Lg";
-                        break;
-                    case btBool:
-                        if (Len) p = "TRUE";
-                        else p = "FALSE";
                         break;
                     case btHresult:
                         p = "%IX";
@@ -215,7 +210,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
 
         }
 
-        User->p += __builtin_snprintf(User->p, PAGESIZE, p, Len);
+        User->p += __builtin_snprintf(User->p, PAGESIZE, p, value);
 
         if (User->DataIsLocal) *User->p++ = '\n';
     }
