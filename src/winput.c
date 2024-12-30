@@ -6,8 +6,6 @@
 #include "resrc.h" // Resource
 #include "ntdll.h" // Native
 
-#define W64DBG_KEY_MESSAGE "\nPress any key to continue ..."
-
 #define SecToUnits(lSeconds) (lSeconds * 10000000LL)
 
 #define IsInputValidate(InputRecord) ( \
@@ -25,7 +23,11 @@
     ) \
 )
 
-static __forceinline VOID WaitForInputOrTimeout(
+static const char Message[30] = "\nPress any key to continue ...";
+
+static
+__forceinline
+VOID WaitForInputOrTimeout(
     _In_ HANDLE hStdin,
     _In_ HANDLE hStdout,
     _In_ char StdinConsole,
@@ -33,7 +35,7 @@ static __forceinline VOID WaitForInputOrTimeout(
     )
 {
     NtWriteFile(hStdout, NULL, NULL, NULL, _alloca(sizeof(IO_STATUS_BLOCK)),
-        W64DBG_KEY_MESSAGE, strlen(W64DBG_KEY_MESSAGE), NULL, NULL);
+        Message, sizeof(Message), NULL, NULL);
 
     if (StdinConsole)
     {
@@ -71,5 +73,5 @@ static __forceinline VOID WaitForInputOrTimeout(
 
     // Simulate pause / timeout -1 behavior
     NtWriteFile(hStdout, NULL, NULL, NULL, _alloca(sizeof(IO_STATUS_BLOCK)),
-        W64DBG_KEY_MESSAGE, 1, NULL, NULL);
+        Message, 1, NULL, NULL);
 }

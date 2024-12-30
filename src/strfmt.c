@@ -7,7 +7,9 @@
 #include "ntdll.h" // Native
 #include <wchar.h>
 
-static inline char *FormatDebugException(
+static
+inline
+char *FormatDebugException(
     _In_ const EXCEPTION_RECORD *ExceptionRecord,
     _Out_writes_(48) char *p,
     _In_ DWORD bx64win
@@ -172,7 +174,9 @@ static inline char *FormatDebugException(
     return p;
 }
 
-static inline char *FormatVerboseDebugException(
+static
+inline
+char *FormatVerboseDebugException(
     char *p,
     _In_ DWORD ExceptionCode
     )
@@ -312,7 +316,9 @@ static inline char *FormatVerboseDebugException(
     return p;
 }
 
-static __forceinline char *FormatFileLine(
+static
+__forceinline
+char *FormatFileLine(
     _In_reads_or_z_(len) wchar_t *fname,
     _In_ unsigned int lnum,
     _In_ ULONG len,
@@ -339,7 +345,9 @@ static __forceinline char *FormatFileLine(
     return p + 1;
 }
 
-static __forceinline char *FormatSourceCode(
+static
+__forceinline
+char *FormatSourceCode(
     _Inout_updates_bytes_all_(4) wchar_t *fname,
     _In_ unsigned int lnum,
     char *_buffer,
@@ -381,7 +389,9 @@ static __forceinline char *FormatSourceCode(
                     char *_ptr;
                     size_t temp;
 
-                    p = line_ultoa(line, p);
+                    p = __builtin_ulltoa(line, p);
+                    memset(p, ' ', 6);
+                    p += 6;
                     _ptr = (char *) memchr(ptr, '\n', buffer + IoStatusBlock.Information - ptr);
 
                     if (_ptr) temp = _ptr - ptr;

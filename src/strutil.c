@@ -5,7 +5,11 @@
 
 #include "resrc.h" // Resource
 
-static __forceinline char *__builtin_hextoa(
+static const char hex_table[16] = "0123456789abcdef";
+
+static
+__forceinline
+char *__builtin_hextoa(
     _In_ unsigned int value,
     _Out_writes_(8) char *p
     )
@@ -13,21 +17,20 @@ static __forceinline char *__builtin_hextoa(
     unsigned int num = value;
 
     // Pre-compute number length
-    do ++p; while ((num >>= 4));
+    while ((num >>= 4)) ++p;
 
     char *ptr = p;
 
     do
-    {
-        *(--ptr) = (value & 0xF) + '0';
-        if (*ptr >= 10 + '0') *ptr += 'a' - '0' - 10;
-        value >>= 4;
-    } while (value);
+        *ptr-- = hex_table[value & 0xF];
+    while ((value >>= 4));
 
-    return p;
+    return p + 1;
 }
 
-static __forceinline char *__builtin_ulltoa(
+static
+__forceinline
+char *__builtin_ulltoa(
     _In_ unsigned int value,
     _Out_writes_(10) char *p
     )
@@ -35,41 +38,47 @@ static __forceinline char *__builtin_ulltoa(
     unsigned int num = value;
 
     // Pre-compute number length
-    do ++p; while ((num /= 10));
+    while ((num /= 10)) ++p;
 
     char *ptr = p;
 
     do
-    {
-        *(--ptr) = (value % 10) + '0';
-        value /= 10;
-    } while (value);
+        *ptr-- = (value % 10) + '0';
+    while ((value /= 10));
 
-    return p;
+    return p + 1;
 }
 
 // Modified for processing command-line arguments
 
-static __forceinline int __builtin_wcstol(
+static
+__forceinline
+int __builtin_wcstol(
     _In_z_ wchar_t *p
     )
 {
     if (*p == '-')
     {
-        if (*(p + 1) == '1' && *(p + 2) == ' ')
-            return -1;
+        if (*(p + 2) == ' ')
+        {
+            if (*(p + 1) == '1')
+                return -1;
+            if (*(p + 1) == '0')
+                return 0;
+        }
+
         return 100000;
     }
 
     if (*p == '+') ++p;
 
-    char c;
+    unsigned char c;
     int value = 0;
 
     while (TRUE)
     {
         c = *p - '0';
-        if (c < 0 || c > 9) return 100000;
+        if (c > 9) return 100000;
         value = value * 10 + c;
         if (*++p == ' ') break;
     }
@@ -77,20 +86,24 @@ static __forceinline int __builtin_wcstol(
     return value;
 }
 
-static __forceinline wchar_t const* __builtin_wmemchr(
-    _In_reads_(_N) wchar_t const* _S,
+static
+__forceinline
+wchar_t *__builtin_wmemchr(
+    _In_reads_(_N) wchar_t const *_S,
     _In_           wchar_t        _C,
     _In_           size_t         _N
     )
 {
     for (; 0 < _N; ++_S, --_N)
         if (*_S == _C)
-            return (wchar_t const *)_S;
+            return (wchar_t *)_S;
 
     return 0;
 }
 
-static __forceinline char *debug_ultoa(
+static
+__forceinline
+char *debug_ultoa(
     _In_ unsigned int value,
     _Out_writes_(5) char *p
     )
@@ -98,27 +111,29 @@ static __forceinline char *debug_ultoa(
     unsigned int num = value;
 
     // Pre-compute number length
-    do ++p; while ((num /= 10));
+    while ((num /= 10)) ++p;
 
     char *ptr = p;
 
-    *(--ptr) = (value % 10) + '0';
+    *ptr-- = (value % 10) + '0';
     value /= 10;
-    *(--ptr) = (value % 10) + '0';
+    *ptr-- = (value % 10) + '0';
     value /= 10;
-    *(--ptr) = (value % 10) + '0';
+    *ptr-- = (value % 10) + '0';
 
     if (value >= 10)
     {
         value /= 10;
-        *(--ptr) = (value % 10) + '0';
-        if (value >= 10) *(--ptr) = value / 10 + '0';
+        *ptr-- = (value % 10) + '0';
+        if (value >= 10) *ptr-- = value / 10 + '0';
     }
 
-    return p;
+    return p + 1;
 }
 
-static __forceinline char *ulltoaddr(
+static
+__forceinline
+char *ulltoaddr(
     _In_ unsigned long long value,
     _Out_writes_(16) char *p,
     _In_ DWORD bx64win
@@ -130,26 +145,25 @@ static __forceinline char *ulltoaddr(
     if (bx64win)
     { // FFFFFFFFFFFFFFFF
         memset(p, '0', 16);
-        p += 16;
+        p += 16 - 1;
     } else
     { // FFFFFFFF
         memset(p, '0', 8);
-        p += 8;
+        p += 8 - 1;
     }
 
     char *ptr = p;
 
     do
-    {
-        *(--ptr) = (value & 0xF) + '0';
-        if (*ptr >= 10 + '0') *ptr += 'a' - '0' - 10;
-        value >>= 4;
-    } while (value);
+        *ptr-- = hex_table[value & 0xF];
+    while ((value >>= 4));
 
-    return p;
+    return p + 1;
 }
 
-static __forceinline void space_ultoa(
+static
+__forceinline
+void space_ultoa(
     _In_ unsigned int value,
     _Out_writes_(6) char *p
     )
@@ -157,43 +171,17 @@ static __forceinline void space_ultoa(
     memset(p, ' ', 3);
     p += 5;
 
-    *p = '\0';
-    *(--p) = (value % 10) + '0';
+    *p-- = '\0';
+    *p-- = (value % 10) + '0';
     value /= 10;
-    *(--p) = (value % 10) + '0';
+    *p-- = (value % 10) + '0';
     value /= 10;
-    *(--p) = (value % 10) + '0';
+    *p-- = (value % 10) + '0';
 
     if (value >= 10)
     {
         value /= 10;
-        *(--p) = (value % 10) + '0';
-        if (value >= 10) *(--p) = value / 10 + '0';
+        *p-- = (value % 10) + '0';
+        if (value >= 10) *p-- = value / 10 + '0';
     }
-}
-
-static __forceinline char *line_ultoa(
-    _In_ unsigned int value,
-    _Out_writes_(9) char *p
-    )
-{ // Undefined behavior for more than 99 999 999 lines
-    memset(p, ' ', 8);
-    p += 8;
-    *p = '|';
-
-    unsigned char i = 1;
-    unsigned int num = value;
-
-    // Pre-compute number length
-    do ++i; while ((num /= 10));
-
-    char *ptr = p - ((8 - --i) >> 1);
-
-    do
-    {
-        *(--ptr) = (value % 10) + '0';
-        value /= 10;
-    } while (value);
-
-    return p + 1;
 }

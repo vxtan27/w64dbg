@@ -10,7 +10,8 @@
 #include <stdio.h>
 
 _Success_(return >= 0)
-static int __builtin_snprintf(
+static
+int __builtin_snprintf(
     _Out_writes_opt_(_BufferCount) _Always_(_Post_z_) char*       const _Buffer,
     _In_                                              size_t      const _BufferCount,
     _In_z_ _Printf_format_string_                     char const* const _Format,
@@ -32,7 +33,10 @@ static int __builtin_snprintf(
 // https://accu.org/journals/overload/29/165/orr
 // https://github.com/rogerorr/NtTrace/blob/main/src/SymbolEngine.cpp#L1185
 
-static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, PVOID UserContext)
+static
+BOOL
+CALLBACK
+EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, PVOID UserContext)
 {
     (void) SymbolSize;
 
@@ -123,8 +127,8 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
             } else User->IsFirst = FALSE;
         } else
         {
-            memset(User->p, ' ', 9);
-            User->p += 9;
+            memset(User->p, ' ', 8);
+            User->p += 8;
         }
 
         if (User->Console)
