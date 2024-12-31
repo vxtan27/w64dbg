@@ -1,17 +1,17 @@
-# __Building__
+# Building 
 
-## __Prerequisites__
+## Prerequisites 
 
-A supported C/C++ compiler is required. Fully supported compilers include:
+A compatible C/C++ compiler is required:
 
-* MSVC C/C++ Compiler
-* MSVC Clang Compiler
+- MSVC C/C++ Compiler
+- MSVC Clang Compiler
 
-## __Instructions__
+## Instructions 
 
-Open the Microsoft Visual Studio Tools Command Prompt.
+Launch the Microsoft Visual Studio Tools Command Prompt.
 
-Navigate to the `src` directory:
+Change to the `src` directory:
 
     cd src
 
@@ -19,8 +19,8 @@ Compile the source code:
 
     cl main.c /link ntdll.lib kernel32.lib msvcrt.lib ucrt.lib vcruntime.lib dbghelp.lib /ENTRY:main
 
-* Use `/ENTRY:main` to minimize CRT (C Runtime Library) dependencies.
+- The `/ENTRY:main` option should be used to reduce dependencies on the C Runtime Library (CRT).
 
-## __Optimizations__
+## Optimizations 
 
-Add compiler and linker options based on your requirements to improve performance or customize the build process.
+Customize the build process by adding compiler and linker options as needed to enhance performance or meet specific requirements.
