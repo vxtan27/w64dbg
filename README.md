@@ -1,18 +1,18 @@
-# __w64dbg__
+# w64dbg
 
 A native debugging utility for x64 Windows with PDB and DWARF format support.
 
-## __Download__
+## Download
 
-* [__Latest release__](https://github.com/vxtan27/w64dbg/releases/latest)
-* [__Source code__](./)
+- [Latest release](https://github.com/vxtan27/w64dbg/releases/latest)
+- [Source code](./)
 
-## __Installation__
+## Installation
 
 1. Download and extract the archive.
-2. Run the included `bin\PREREQUISITES.bat` script.
+2. Run `bin\PREREQUISITES.bat` script.
 
-## __Usage__
+## Usage
 
     
     Usage: W64DBG [options] <executable> [exec-args]
@@ -33,9 +33,9 @@ A native debugging utility for x64 Windows with PDB and DWARF format support.
         /S            Open in a new console window.
         /T            Wait for input (seconds).
         /V<n>         Set output verbosity.
-    
+        
 
-## __Examples__
+## Examples
 
 <details>
     <summary>
@@ -57,33 +57,33 @@ A native debugging utility for x64 Windows with PDB and DWARF format support.
     <img src="./samples/8.png"/>
 </details>
 
-See [__here__](samples) for more samples.
+Refer to [samples](samples) for additional examples.
 
-## __Requirements__
+## Requirements
 
-### __System Requirements__
+### System Requirements
 
 System type: **64-bit**
 
 Windows version: **7+** / **10+** (x86 debugging)
 
-### __Dynamic link libraries__
+### Dynamic link libraries
 
-|       DLL        |       Location       |             Description              |
-| ---------------- | -------------------- | ------------------------------------ |
-| ntdll.dll        | C:\Windows\System32  | Windows Native API                   |
-| kernel32.dll     | C:\Windows\System32  | Windows Core API                     |
-| ucrtbase.dll     | C:\Windows\System32  | Universal C Runtime                  |
-| vcruntime140.dll | C:\Windows\System32  | Microsoft Visual C++ Redistributable |
-| dbghelp.dll      | C:\Windows\System32  | Debugging Tools For Windows          |
+| DLL              | Location            | Description                          |
+| ---------------- | ------------------- | ------------------------------------ |
+| ntdll.dll        | C:\Windows\System32 | Windows Native API                   |
+| kernel32.dll     | C:\Windows\System32 | Windows Core API                     |
+| ucrtbase.dll     | C:\Windows\System32 | Universal C Runtime                  |
+| vcruntime140.dll | C:\Windows\System32 | Microsoft Visual C++ Redistributable |
+| dbghelp.dll      | C:\Windows\System32 | Debugging Tools For Windows          |
 
 Missing DLLs can be downloaded from trusted sources.
 
-## __Limitations__
+## Limitations
 
-Supports up to 32 threads and 16 DLLs, meeting typical debugging needs.
+Supports a maximum of 32 threads and 32 DLLs, sufficient for most debugging scenarios.
 
-## __Frequently Asked Questions__
+## Frequently Asked Questions
 
 <details>
     <summary>
@@ -94,7 +94,7 @@ Supports up to 32 threads and 16 DLLs, meeting typical debugging needs.
 
 Use these options with MSVC:
 
-|     Option      | MSVC-Optimized |   Debug info level   |
+| Option          | MSVC-Optimized | Debug info level     |
 | --------------- | -------------- | -------------------- |
 | /DEBUG          | Yes            | Standard             |
 | /DEBUG:FULL     | Yes            | Maximum              |
@@ -106,9 +106,9 @@ Use these options with MSVC:
 
 For more information:
 
-* [__Generate debug info__](https://learn.microsoft.com/cpp/build/reference/debug-generate-debug-info)
-* [__Debug Information Format__](https://learn.microsoft.com/cpp/build/reference/z7-zi-zi-debug-information-format)
-* [__Optimizations__](https://learn.microsoft.com/cpp/build/reference/opt-optimizations)
+- [Generate debug info](https://learn.microsoft.com/cpp/build/reference/debug-generate-debug-info)
+- [Debug Information Format](https://learn.microsoft.com/cpp/build/reference/z7-zi-zi-debug-information-format)
+- [Optimizations](https://learn.microsoft.com/cpp/build/reference/opt-optimizations)
 
 </details>
 
@@ -128,12 +128,12 @@ Use these options with MinGW:
 | -ggdb  | No         | Yes           | Basic            |
 | -ggdb3 | Yes        | Yes           | Maximum          |
 
-Add `-fno-omit-frame-pointer` to retain frame pointers.
+Include `-fno-omit-frame-pointer` to preserve frame pointers.
 
 For more information:
 
-* [__Debugging Options__](https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html)
-* [__Optimize Options__](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html#index-fomit-frame-pointer)
+- [Debugging Options](https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html)
+- [Optimize Options](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html#index-fomit-frame-pointer)
 
 </details>
 
@@ -146,7 +146,7 @@ For more information:
 
 Place `*.pdb` files alongside the executable or configure symbol paths via `_NT_ALT_SYMBOL_PATH` or `_NT_SYMBOL_PATH`
 
-See [__this__](https://learn.microsoft.com/windows-hardware/drivers/debugger/general-environment-variables) for more information.
+Refer to [this documentation](https://learn.microsoft.com/windows-hardware/drivers/debugger/general-environment-variables) for additional information.
 
 </details>
 
@@ -159,42 +159,40 @@ See [__this__](https://learn.microsoft.com/windows-hardware/drivers/debugger/gen
 
 You can use the `__debugbreak()` or `DebugBreak()` API to pause execution at specific points.
 
-See [__this__](https://learn.microsoft.com/visualstudio/debugger/using-breakpoints) for more information.
+Refer to [this documentation](https://learn.microsoft.com/visualstudio/debugger/using-breakpoints) for additional information.
 
 </details>
 
 <details>
     <summary>
         <b>
-            How can I access errno for a specific thread?
+            How can I access errno value for a specific thread?
         </b>
     </summary>
 
-`errno` is thread-local and accessed via `_errno()`, defined as:
+`errno` is thread-local and accessed via `_errno()`:
 
-    
     _ACRTIMP int* __cdecl _errno(void);
     #define errno (*_errno())
-    
 
-Direct access to another thread's errno is not possible.
+Direct access to another thread's `errno` is not possible.
 
 </details>
 
-## __Other links__
+## Additional Resources
 
-* [__PDB format__](https://github.com/Microsoft/microsoft-pdb/blob/master/docs/ExternalResources.md)
-* [__Debug Help Library__](https://learn.microsoft.com/windows/win32/debug/debug-help-library)
-* [__DbgHelp experimentation__](https://debuginfo.com/articles.html)
-* [__Variable Display with Windows Debug API__](https://accu.org/journals/overload/29/165/orr)
-* [__Debugging Tools for Windows__](https://learn.microsoft.com/windows-hardware/drivers/debugger/debugger-download-tools)
+- [PDB format](https://github.com/Microsoft/microsoft-pdb/blob/master/docs/ExternalResources.md)
+- [Debug Help Library](https://learn.microsoft.com/windows/win32/debug/debug-help-library)
+- [DbgHelp experimentation](https://debuginfo.com/articles.html)
+- [Variable Display with Windows Debug API](https://accu.org/journals/overload/29/165/orr)
+- [Debugging Tools for Windows](https://learn.microsoft.com/windows-hardware/drivers/debugger/debugger-download-tools)
 
-## __License__
+## License
 
 w64dbg is licensed under the BSD-3-Clause.
 
-See [__LICENSE__](LICENSE) for more details.
+See [LICENSE](LICENSE) for more details.
 
-## __Copyright__
+## Copyright
 
 Copyright (c) 2024, vxtan27, all rights reserved.
