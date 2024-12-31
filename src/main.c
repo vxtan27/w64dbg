@@ -44,7 +44,7 @@
 #define W64DBG_DEFAULT_HELP FALSE
 
 #define MAX_THREAD 32
-#define MAX_DLL 16
+#define MAX_DLL 32
 
 #define CreationFlags \
     CREATE_BREAKAWAY_FROM_JOB | \
