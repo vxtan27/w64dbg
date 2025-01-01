@@ -1,13 +1,13 @@
-# Building 
+# Building
 
-## Prerequisites 
+## Prerequisites
 
 A compatible C/C++ compiler is required:
 
 - MSVC C/C++ Compiler
 - MSVC Clang Compiler
 
-## Instructions 
+## Instructions
 
 Launch the Microsoft Visual Studio Tools Command Prompt.
 
@@ -21,6 +21,6 @@ Compile the source code:
 
 - The `/ENTRY:main` option should be used to reduce dependencies on the C Runtime Library (CRT).
 
-## Optimizations 
+## Optimizations
 
 Customize the build process by adding compiler and linker options as needed to enhance performance or meet specific requirements.
