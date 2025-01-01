@@ -10,7 +10,7 @@
 int main(void)
 {
     SYSTEM_INFO si;
-    
+
     // Retrieve system information (specifically page size)
     GetSystemInfo(&si);
 
