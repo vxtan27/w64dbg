@@ -5,55 +5,11 @@
 
 #include "resrc.h" // Resource
 
-static const char hex_table[16] = "0123456789abcdef";
-
-static
-__forceinline
-char *__builtin_hextoa(
-    _In_ unsigned int value,
-    _Out_writes_(8) char *p
-    )
-{
-    unsigned int num = value;
-
-    // Pre-compute number length
-    while ((num >>= 4)) ++p;
-
-    char *ptr = p;
-
-    do
-        *ptr-- = hex_table[value & 0xF];
-    while ((value >>= 4));
-
-    return p + 1;
-}
-
-static
-__forceinline
-char *__builtin_ulltoa(
-    _In_ unsigned int value,
-    _Out_writes_(10) char *p
-    )
-{
-    unsigned int num = value;
-
-    // Pre-compute number length
-    while ((num /= 10)) ++p;
-
-    char *ptr = p;
-
-    do
-        *ptr-- = (value % 10) + '0';
-    while ((value /= 10));
-
-    return p + 1;
-}
-
 // Modified for processing command-line arguments
 
 static
 __forceinline
-int __builtin_wcstol(
+long __builtin_wcstol(
     _In_z_ wchar_t *p
     )
 {
@@ -73,15 +29,14 @@ int __builtin_wcstol(
     if (*p == '+') ++p;
 
     unsigned char c;
-    int value = 0;
+    long value = 0;
 
-    while (TRUE)
+    do
     {
         c = *p - '0';
         if (c > 9) return 100000;
         value = value * 10 + c;
-        if (*++p == ' ') break;
-    }
+    } while (*++p != ' ');
 
     return value;
 }
@@ -101,11 +56,33 @@ wchar_t *__builtin_wmemchr(
     return 0;
 }
 
+static const char hex_table[16] = "0123456789abcdef";
+
 static
 __forceinline
-char *debug_ultoa(
+char *__builtin_hextoa(
     _In_ unsigned int value,
-    _Out_writes_(5) char *p
+    _Out_writes_(8) char *p
+    )
+{
+    unsigned int num = value;
+
+    // Pre-compute number length
+    while ((num >>= 4)) ++p;
+
+    char *ptr = p;
+
+    do *ptr-- = hex_table[value & 0xF];
+    while ((value >>= 4));
+
+    return p + 1;
+}
+
+static
+__forceinline
+char *__builtin_ulltoa(
+    _In_ unsigned int value,
+    _Out_writes_(10) char *p
     )
 {
     unsigned int num = value;
@@ -115,18 +92,8 @@ char *debug_ultoa(
 
     char *ptr = p;
 
-    *ptr-- = (value % 10) + '0';
-    value /= 10;
-    *ptr-- = (value % 10) + '0';
-    value /= 10;
-    *ptr-- = (value % 10) + '0';
-
-    if (value >= 10)
-    {
-        value /= 10;
-        *ptr-- = (value % 10) + '0';
-        if (value >= 10) *ptr-- = value / 10 + '0';
-    }
+    do *ptr-- = (value % 10) + '0';
+    while ((value /= 10));
 
     return p + 1;
 }
@@ -154,8 +121,7 @@ char *ulltoaddr(
 
     char *ptr = p;
 
-    do
-        *ptr-- = hex_table[value & 0xF];
+    do *ptr-- = hex_table[value & 0xF];
     while ((value >>= 4));
 
     return p + 1;

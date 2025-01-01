@@ -9,30 +9,6 @@
 #include "winput.c" // Waiting for input
 #include <psapi.h>
 
-#define W64DBG_HELP \
-    "Invalid syntax.\n" \
-    "Usage: W64DBG [options] <executable> [exec-args]\n" \
-    "\n" \
-    "Description:\n" \
-    "    A native debugging utility for x64 Windows.\n" \
-    "\n" \
-    "Entries:\n" \
-    "    options       Options control behavior.\n" \
-    "    executable    Target executable file.\n" \
-    "    exec-args     Target executable arguments.\n" \
-    "\n" \
-    "Options:\n" \
-    "    /B<n>         Set breakpoints ignorance.\n" \
-    "    /D            Load PDB debug symbols.\n" \
-    "    /G[+]         Load DWARF debug symbols.\n" \
-    "    /O            Suppress OutputDebugString.\n" \
-    "    /S            Open in a new console window.\n" \
-    "    /T            Wait for input (seconds).\n" \
-    "    /V<n>         Set output verbosity.\n"
-
-#define W64DBG_VALUE_EXPECTED "Value expected for '"
-#define W64DBG_ERROR_INVALID_TIMEOUT "Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n"
-
 #define MINGW 2
 #define W64DBG_DEFAULT_TIMEOUT 0
 #define W64DBG_DEFAULT_DEBUG FALSE
@@ -44,7 +20,7 @@
 #define W64DBG_DEFAULT_HELP FALSE
 
 #define MAX_THREAD 32
-#define MAX_DLL 32
+#define MAX_DLL 16
 
 #define CreationFlags \
     CREATE_BREAKAWAY_FROM_JOB | \
@@ -73,6 +49,40 @@
 #define LATENCY 25
 #define W64DBG_DEFAULT_LEN 125
 #define W64DBG_DEFAULT_OFFSET W64DBG_DEFAULT_LEN
+
+static const char W64DBG_HELP[589] =
+"Invalid syntax.\n"
+"Usage: W64DBG [options] <executable> [exec-args]\n"
+"\n"
+"Description:\n"
+"    A native debugging utility for x64 Windows.\n"
+"\n"
+"Entries:\n"
+"    options       Options control behavior.\n"
+"    executable    Target executable file.\n"
+"    exec-args     Target executable arguments.\n"
+"\n"
+"Options:\n"
+"    /B<n>         Set breakpoints ignorance.\n"
+"    /D            Load PDB debug symbols.\n"
+"    /G[+]         Load DWARF debug symbols.\n"
+"    /O            Suppress OutputDebugString.\n"
+"    /S            Open in a new console window.\n"
+"    /T            Wait for input (seconds).\n"
+"    /V<n>         Set output verbosity.\n";
+
+static const char W64DBG_VALUE_EXPECTED[20] =
+"Value expected for '";
+static const char W64DBG_INVALID_TIMEOUT[70] =
+"Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n";
+static const char W64DBG_INVALID_ARGUMENT[27] = "Invalid argument/option - '";
+
+static const char _SLE_ERROR[88] =
+"Invalid data was passed to the function that failed. This caused the application to fail";
+static const char _SLE_MINORERROR[102] =
+"Invalid data was passed to the function, but the error probably will not cause the application to fail";
+static const char _SLE_WARNING[90] =
+"Potentially invalid data was passed to the function, but the function completed processing";
 
 // https://hero.handmade.network/forums/code-discussion/t/94-guide_-_how_to_avoid_c_c++_runtime_on_windows
 
@@ -179,8 +189,8 @@ void __stdcall main(void)
                     if (temp <= 0)
                     {
                         memcpy(p, W64DBG_VALUE_EXPECTED,
-                            strlen(W64DBG_VALUE_EXPECTED));
-                        p += strlen(W64DBG_VALUE_EXPECTED);
+                            sizeof(W64DBG_VALUE_EXPECTED));
+                        p += sizeof(W64DBG_VALUE_EXPECTED);
                         *p++ = *cmd;
                         *p++ = *(cmd + 1);
                         *p++ = '\'';
@@ -189,8 +199,8 @@ void __stdcall main(void)
                     {
                         if ((timeout = __builtin_wcstol(pNext)) > 99999)
                         {
-                            memcpy(p, W64DBG_ERROR_INVALID_TIMEOUT, strlen(W64DBG_ERROR_INVALID_TIMEOUT));
-                            p += strlen(W64DBG_ERROR_INVALID_TIMEOUT);
+                            memcpy(p, W64DBG_INVALID_TIMEOUT, sizeof(W64DBG_INVALID_TIMEOUT));
+                            p += sizeof(W64DBG_INVALID_TIMEOUT);
                             *(p - 43) = *cmd;
                             *(p - 42) = *(cmd + 1);
                         }
@@ -224,8 +234,9 @@ void __stdcall main(void)
                     }
             }
 
-            memcpy(p, "Invalid argument/option - '", 27);
-            p += 27;
+            memcpy(p, W64DBG_INVALID_ARGUMENT,
+                sizeof(W64DBG_INVALID_ARGUMENT));
+            p += sizeof(W64DBG_INVALID_ARGUMENT);
 
             temp = __builtin_wmemchr(pNext, ' ',
                 pCmdLine + len + 1 - pNext) - pNext;
@@ -242,8 +253,8 @@ void __stdcall main(void)
 
     if (help)
     { // help message
-        memcpy(p, W64DBG_HELP + 16, strlen(W64DBG_HELP + 16));
-        p += strlen(W64DBG_HELP + 16);
+        memcpy(p, W64DBG_HELP + 16, sizeof(W64DBG_HELP) - 16);
+        p += sizeof(W64DBG_HELP) - 16;
     } else if (!pCmdLine || pCmdLine + len < pNext)
     { // No executable specified
         memcpy(p, W64DBG_HELP, 65);
@@ -361,9 +372,9 @@ void __stdcall main(void)
     if (verbose >= 2)
     {
         memcpy(buffer, "CreateProcess ", 14);
-        p = debug_ultoa(DebugEvent.dwProcessId, buffer + 14);
+        p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 14);
         *p = 'x';
-        p = debug_ultoa(DebugEvent.dwThreadId, p + 1);
+        p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
         *p = '\n';
         NtWriteFile(hStdout, NULL, NULL, NULL,
             &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
@@ -447,9 +458,9 @@ void __stdcall main(void)
                 if (verbose >= 2)
                 {
                     memcpy(buffer, "CreateThread ", 13);
-                    p = debug_ultoa(DebugEvent.dwProcessId, buffer + 13);
+                    p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 13);
                     *p = 'x';
-                    p = debug_ultoa(DebugEvent.dwThreadId, p + 1);
+                    p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
@@ -469,9 +480,9 @@ void __stdcall main(void)
                 if (verbose >= 2)
                 {
                     memcpy(buffer, "ExitThread ", 11);
-                    p = debug_ultoa(DebugEvent.dwProcessId, buffer + 11);
+                    p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 11);
                     *p = 'x';
-                    p = debug_ultoa(DebugEvent.dwThreadId, p + 1);
+                    p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
@@ -490,9 +501,9 @@ void __stdcall main(void)
                 if (verbose >= 2)
                 {
                     memcpy(buffer, "ExitProcess ", 12);
-                    p = debug_ultoa(DebugEvent.dwProcessId, buffer + 12);
+                    p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 12);
                     *p = 'x';
-                    p = debug_ultoa(DebugEvent.dwThreadId, p + 1);
+                    p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
@@ -524,9 +535,9 @@ void __stdcall main(void)
                 if (verbose >= 2)
                 {
                     memcpy(buffer, "OutputDebugString ", 18);
-                    p = debug_ultoa(DebugEvent.dwProcessId, buffer + 18);
+                    p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 18);
                     *p = 'x';
-                    p = debug_ultoa(DebugEvent.dwThreadId, p + 1);
+                    p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
@@ -567,7 +578,7 @@ void __stdcall main(void)
                     buffer[8] = '0' + (i + 1) / 10;
                     buffer[9] = '0' + (i + 1) % 10;
                     p = buffer + 10;
-                } else p = debug_ultoa(DebugEvent.dwThreadId, buffer + 7);
+                } else p = __builtin_ulltoa(DebugEvent.dwThreadId, buffer + 7);
                 memcpy(p, " caused ", 8);
                 p = FormatDebugException(&DebugEvent.u.Exception.ExceptionRecord, p + 8, bx64win);
                 *p++ = '\n';
@@ -773,9 +784,9 @@ void __stdcall main(void)
                     if (verbose >= 2)
                     {
                         memcpy(buffer, "ExitProcess ", 12);
-                        p = debug_ultoa(DebugEvent.dwProcessId, buffer + 12);
+                        p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 12);
                         *p = 'x';
-                        p = debug_ultoa(DebugEvent.dwThreadId, p + 1);
+                        p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
                         *p = '\n';
                         NtWriteFile(hStdout, NULL, NULL, NULL,
                             &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
@@ -1012,9 +1023,9 @@ void __stdcall main(void)
                 if (verbose >= 2)
                 {
                     memcpy(buffer, "RIP ", 4);
-                    p = debug_ultoa(DebugEvent.dwProcessId, buffer + 4);
+                    p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 4);
                     *p = 'x';
-                    p = debug_ultoa(DebugEvent.dwThreadId, p + 1);
+                    p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
 
                     len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
@@ -1025,20 +1036,21 @@ void __stdcall main(void)
 
                     if (DebugEvent.u.RipInfo.dwType == 1)
                     {
-                        memcpy(p, "Invalid data was passed to the function that failed. This caused the application to fail", 88);
-                        p += 88;
+                        memcpy(p, _SLE_ERROR, sizeof(_SLE_ERROR));
+                        p += sizeof(_SLE_ERROR);
                     } else if (DebugEvent.u.RipInfo.dwType == 2)
                     {
-                        memcpy(p, "Invalid data was passed to the function, but the error probably will not cause the application to fail", 102);
-                        p += 102;
+                        memcpy(p, _SLE_MINORERROR, sizeof(_SLE_MINORERROR));
+                        p += sizeof(_SLE_MINORERROR);
                     } else if (DebugEvent.u.RipInfo.dwType == 3)
                     {
-                        memcpy(p, "Potentially invalid data was passed to the function, but the function completed processing", 90);
-                        p += 90;
+                        memcpy(p, _SLE_WARNING, sizeof(_SLE_WARNING));
+                        p += sizeof(_SLE_WARNING);
                     }
 
                     if (DebugEvent.u.RipInfo.dwType) *p++ = '.';
                     *p = '\n';
+
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
                 }

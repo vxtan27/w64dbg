@@ -5,22 +5,44 @@
 
 #include "resrc.h" // Resource
 #include "ntdll.h" // Native
+#include <malloc.h>
 
-#define SecToUnits(lSeconds) (lSeconds * 10000000LL)
+#define SecToUnits(lSeconds) ((lSeconds) * 10000000LL)
 
 #define IsInputValidate(InputRecord) ( \
     InputRecord.EventType == KEY_EVENT && \
     InputRecord.Event.KeyEvent.bKeyDown && \
     ( \
-        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= 0x30 && InputRecord.Event.KeyEvent.wVirtualKeyCode <= 0x5A) || \
+        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= 0x30 && \
+            InputRecord.Event.KeyEvent.wVirtualKeyCode <= 0x5A) || \
         InputRecord.Event.KeyEvent.wVirtualKeyCode == VK_RETURN || \
         InputRecord.Event.KeyEvent.wVirtualKeyCode == VK_ESCAPE || \
         InputRecord.Event.KeyEvent.wVirtualKeyCode == VK_PAUSE || \
-        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= VK_NUMPAD0 && InputRecord.Event.KeyEvent.wVirtualKeyCode <= VK_NUMPAD9) || \
-        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= VK_OEM_1 && InputRecord.Event.KeyEvent.wVirtualKeyCode <= VK_OEM_3) || \
-        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= VK_OEM_4 && InputRecord.Event.KeyEvent.wVirtualKeyCode <= VK_OEM_8) || \
+        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= VK_NUMPAD0 && \
+            InputRecord.Event.KeyEvent.wVirtualKeyCode <= VK_DIVIDE) || \
+        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= VK_OEM_1 && \
+            InputRecord.Event.KeyEvent.wVirtualKeyCode <= VK_OEM_3) || \
+        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= VK_OEM_4 && \
+            InputRecord.Event.KeyEvent.wVirtualKeyCode <= VK_OEM_8) || \
         InputRecord.Event.KeyEvent.wVirtualKeyCode == VK_OEM_102 \
     ) \
+)
+
+#define IsInputNotValidate(InputRecord) ( \
+    InputRecord.EventType != KEY_EVENT || \
+    !InputRecord.Event.KeyEvent.bKeyDown || \
+    ( \
+        InputRecord.Event.KeyEvent.wVirtualKeyCode < 0x30 && \
+        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_RETURN && \
+        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_ESCAPE && \
+        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_PAUSE) || \
+    ( \
+        InputRecord.Event.KeyEvent.wVirtualKeyCode > 0x5A && \
+        InputRecord.Event.KeyEvent.wVirtualKeyCode < VK_SLEEP) || \
+    ( \
+        InputRecord.Event.KeyEvent.wVirtualKeyCode > VK_DIVIDE && \
+        InputRecord.Event.KeyEvent.wVirtualKeyCode < VK_OEM_1) || \
+    InputRecord.Event.KeyEvent.wVirtualKeyCode > VK_OEM_102 \
 )
 
 static const char Message[30] = "\nPress any key to continue ...";
@@ -34,44 +56,41 @@ VOID WaitForInputOrTimeout(
     _In_ int timeout
     )
 {
-    NtWriteFile(hStdout, NULL, NULL, NULL, _alloca(sizeof(IO_STATUS_BLOCK)),
-        Message, sizeof(Message), NULL, NULL);
+    IO_STATUS_BLOCK IoStatusBlock;
+
+    // Write the message in one call to minimize I/O overhead
+    NtWriteFile(hStdout, NULL, NULL, NULL,
+        &IoStatusBlock, Message, sizeof(Message), NULL, NULL);
 
     if (StdinConsole)
     {
         DWORD dwRead;
         INPUT_RECORD InputRecord;
 
-        if (timeout == -1) while (TRUE)
+        if (timeout == -1)
         {
-            ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
-            if (IsInputValidate(InputRecord)) break;
+            do
+            { // Infinite loop waiting for valid input
+                ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
+            } while (IsInputNotValidate(InputRecord));
         } else
         {
             LARGE_INTEGER DelayInterval;
-
             NtQuerySystemTime(&DelayInterval);
-            // Convert seconds to 100-nanosecond units
-            // (positive for absolute time)
+            // Positive value for Absolute timeout
             DelayInterval.QuadPart += SecToUnits(timeout);
 
-            while (TRUE)
-            {
+            do
+            { // Wait for either timeout or input
                 if (NtWaitForSingleObject(hStdin, FALSE,
                     &DelayInterval) == STATUS_TIMEOUT) break;
                 ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
-                if (IsInputValidate(InputRecord)) break;
-            }
+            } while (IsInputNotValidate(InputRecord));
         }
-    } else
-    {
-        // Convert seconds to 100-nanosecond units
-        // (negative for relative time)
-        NtWaitForSingleObject(hStdin, FALSE,
+    } else NtWaitForSingleObject(hStdin, FALSE, // Relative time
             &(LARGE_INTEGER){.QuadPart=-SecToUnits(timeout)});
-    }
 
-    // Simulate pause / timeout -1 behavior
-    NtWriteFile(hStdout, NULL, NULL, NULL, _alloca(sizeof(IO_STATUS_BLOCK)),
-        Message, 1, NULL, NULL);
+    // Clear the message display by writing a single character
+    NtWriteFile(hStdout, NULL, NULL, NULL,
+        &IoStatusBlock, Message, 1, NULL, NULL);
 }
