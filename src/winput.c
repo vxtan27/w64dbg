@@ -5,30 +5,10 @@
 
 #include "resrc.h" // Resource
 #include "ntdll.h" // Native
-#include <malloc.h>
 
 #define SecToUnits(lSeconds) ((lSeconds) * 10000000LL)
 
-#define IsInputValidate(InputRecord) ( \
-    InputRecord.EventType == KEY_EVENT && \
-    InputRecord.Event.KeyEvent.bKeyDown && \
-    ( \
-        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= 0x30 && \
-            InputRecord.Event.KeyEvent.wVirtualKeyCode <= 0x5A) || \
-        InputRecord.Event.KeyEvent.wVirtualKeyCode == VK_RETURN || \
-        InputRecord.Event.KeyEvent.wVirtualKeyCode == VK_ESCAPE || \
-        InputRecord.Event.KeyEvent.wVirtualKeyCode == VK_PAUSE || \
-        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= VK_NUMPAD0 && \
-            InputRecord.Event.KeyEvent.wVirtualKeyCode <= VK_DIVIDE) || \
-        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= VK_OEM_1 && \
-            InputRecord.Event.KeyEvent.wVirtualKeyCode <= VK_OEM_3) || \
-        (InputRecord.Event.KeyEvent.wVirtualKeyCode >= VK_OEM_4 && \
-            InputRecord.Event.KeyEvent.wVirtualKeyCode <= VK_OEM_8) || \
-        InputRecord.Event.KeyEvent.wVirtualKeyCode == VK_OEM_102 \
-    ) \
-)
-
-#define IsInputNotValidate(InputRecord) ( \
+#define IsInputInvalidate(InputRecord) ( \
     InputRecord.EventType != KEY_EVENT || \
     !InputRecord.Event.KeyEvent.bKeyDown || \
     ( \
@@ -45,7 +25,57 @@
     InputRecord.Event.KeyEvent.wVirtualKeyCode > VK_OEM_102 \
 )
 
-static const char Message[30] = "\nPress any key to continue ...";
+typedef struct
+{
+    HANDLE hStdin;
+    long timeout;
+} THREAD_PARAMETER;
+
+DWORD WINAPI WaitForInput(
+  _In_ LPVOID lpParameter
+)
+{
+    DWORD dwRead;
+    INPUT_RECORD InputRecord;
+    LARGE_INTEGER DelayInterval;
+    THREAD_PARAMETER *Parameter = (THREAD_PARAMETER *) lpParameter;
+
+    NtQuerySystemTime(&DelayInterval);
+    // Positive value for Absolute timeout
+    DelayInterval.QuadPart += SecToUnits(Parameter->timeout);
+
+    do
+    { // Wait for either timeout or input
+        if (NtWaitForSingleObject(Parameter->hStdin, FALSE,
+            &DelayInterval) == STATUS_TIMEOUT) break;
+        ReadConsoleInputW(Parameter->hStdin, &InputRecord, 1, &dwRead);
+    } while (IsInputInvalidate(InputRecord));
+
+    ExitProcess(0);
+}
+
+static
+__forceinline
+char *__builtin_ltoa(
+    _In_ long value,
+    _Out_writes_(10) char *p
+    )
+{
+    long num = value;
+
+    // Pre-compute number Count
+    while ((num /= 10)) ++p;
+
+    char *ptr = p;
+
+    do *ptr-- = (value % 10) + '0';
+    while ((value /= 10));
+
+    return p + 1;
+}
+
+static const char InfiniteMessage[30] = "\nPress any key to continue ...";
+static const char FiniteMessage[41] = "\0337 seconds, press a key to continue ...\0338";
 
 static
 __forceinline
@@ -53,14 +83,14 @@ VOID WaitForInputOrTimeout(
     _In_ HANDLE hStdin,
     _In_ HANDLE hStdout,
     _In_ char StdinConsole,
-    _In_ int timeout
+    _In_ long timeout
     )
 {
     IO_STATUS_BLOCK IoStatusBlock;
 
-    // Write the message in one call to minimize I/O overhead
-    NtWriteFile(hStdout, NULL, NULL, NULL,
-        &IoStatusBlock, Message, sizeof(Message), NULL, NULL);
+    // Write the InfiniteMessage
+    NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+        InfiniteMessage, sizeof(InfiniteMessage), NULL, NULL);
 
     if (StdinConsole)
     {
@@ -72,25 +102,60 @@ VOID WaitForInputOrTimeout(
             do
             { // Infinite loop waiting for valid input
                 ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
-            } while (IsInputNotValidate(InputRecord));
+            } while (IsInputInvalidate(InputRecord));
         } else
         {
-            LARGE_INTEGER DelayInterval;
-            NtQuerySystemTime(&DelayInterval);
-            // Positive value for Absolute timeout
-            DelayInterval.QuadPart += SecToUnits(timeout);
+            char *p;
+            long temp;
+            ULONG Length;
+            char Count, Recursive;
+            char buffer[64] = "\nWaiting for ";
 
-            do
-            { // Wait for either timeout or input
-                if (NtWaitForSingleObject(hStdin, FALSE,
-                    &DelayInterval) == STATUS_TIMEOUT) break;
-                ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
-            } while (IsInputNotValidate(InputRecord));
+            CreateThread(NULL, 0, WaitForInput,
+                &(THREAD_PARAMETER){hStdin, timeout}, 0, NULL);
+            p = __builtin_ltoa(timeout, buffer + 13);
+            memcpy(p, FiniteMessage, sizeof(FiniteMessage));
+            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+                buffer, p - buffer + sizeof(FiniteMessage), NULL, NULL);
+            buffer[0] = '\b';
+
+            while (TRUE)
+            {
+                Sleep(999);
+                temp = --timeout;
+                Count = 1;
+
+                while (temp % 10 + '0' == '9')
+                {
+                    buffer[Count++] = '\b';
+                    temp /= 10;
+                }
+
+                Recursive = Count;
+
+                if (!temp)
+                {
+                    buffer[Count++] = ' ';
+                    --Recursive;
+                }
+
+                temp = timeout;
+                Length = Count + Recursive;
+
+                while (Recursive)
+                {
+                    buffer[Count + --Recursive] = temp % 10 + '0';
+                    temp /= 10;
+                }
+
+                NtWriteFile(hStdout, NULL, NULL, NULL,
+                    &IoStatusBlock, buffer, Length, NULL, NULL);
+            }
         }
     } else NtWaitForSingleObject(hStdin, FALSE, // Relative time
             &(LARGE_INTEGER){.QuadPart=-SecToUnits(timeout)});
 
-    // Clear the message display by writing a single character
+    // Simulate normal behavior
     NtWriteFile(hStdout, NULL, NULL, NULL,
-        &IoStatusBlock, Message, 1, NULL, NULL);
+        &IoStatusBlock, InfiniteMessage, 1, NULL, NULL);
 }

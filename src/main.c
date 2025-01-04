@@ -4,8 +4,8 @@
 */
 
 #include "legal.c" // Legal right
-#include "strfmt.c" // String formatting
-#include "symen.c" // Symbols enumeration
+#include "string/strfmt.c" // String formatting
+#include "symbols/symen.c" // Symbols enumeration
 #include "winput.c" // Waiting for input
 #include <psapi.h>
 
@@ -93,7 +93,7 @@ void __stdcall main(void)
     char buffer[BUFLEN];
     ULONG UTF8StringActualByteCount;
 
-    int timeout = W64DBG_DEFAULT_TIMEOUT;
+    long timeout = W64DBG_DEFAULT_TIMEOUT;
     char breakpoint = W64DBG_DEFAULT_BREAKPOINT,
     firstbreak = W64DBG_DEFAULT_FIRSTBREAK,
     verbose = W64DBG_DEFAULT_VERBOSE,
@@ -265,7 +265,12 @@ void __stdcall main(void)
     HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
     char Console = GetFileType(hStdout) == FILE_TYPE_CHAR;;
 
-    if (Console) SetConsoleOutputCP(65001);
+    if (Console)
+    {
+        SetConsoleOutputCP(65001);
+        SetConsoleMode(hStdout, ENABLE_PROCESSED_OUTPUT |
+            ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    }
 
     if (p != buffer)
     {
@@ -372,9 +377,9 @@ void __stdcall main(void)
     if (verbose >= 2)
     {
         memcpy(buffer, "CreateProcess ", 14);
-        p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 14);
+        p = __builtin_ultoa(DebugEvent.dwProcessId, buffer + 14);
         *p = 'x';
-        p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
+        p = __builtin_ultoa(DebugEvent.dwThreadId, p + 1);
         *p = '\n';
         NtWriteFile(hStdout, NULL, NULL, NULL,
             &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
@@ -458,9 +463,9 @@ void __stdcall main(void)
                 if (verbose >= 2)
                 {
                     memcpy(buffer, "CreateThread ", 13);
-                    p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 13);
+                    p = __builtin_ultoa(DebugEvent.dwProcessId, buffer + 13);
                     *p = 'x';
-                    p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
+                    p = __builtin_ultoa(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
@@ -480,9 +485,9 @@ void __stdcall main(void)
                 if (verbose >= 2)
                 {
                     memcpy(buffer, "ExitThread ", 11);
-                    p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 11);
+                    p = __builtin_ultoa(DebugEvent.dwProcessId, buffer + 11);
                     *p = 'x';
-                    p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
+                    p = __builtin_ultoa(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
@@ -501,9 +506,9 @@ void __stdcall main(void)
                 if (verbose >= 2)
                 {
                     memcpy(buffer, "ExitProcess ", 12);
-                    p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 12);
+                    p = __builtin_ultoa(DebugEvent.dwProcessId, buffer + 12);
                     *p = 'x';
-                    p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
+                    p = __builtin_ultoa(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
@@ -535,9 +540,9 @@ void __stdcall main(void)
                 if (verbose >= 2)
                 {
                     memcpy(buffer, "OutputDebugString ", 18);
-                    p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 18);
+                    p = __builtin_ultoa(DebugEvent.dwProcessId, buffer + 18);
                     *p = 'x';
-                    p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
+                    p = __builtin_ultoa(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
@@ -578,7 +583,7 @@ void __stdcall main(void)
                     buffer[8] = '0' + (i + 1) / 10;
                     buffer[9] = '0' + (i + 1) % 10;
                     p = buffer + 10;
-                } else p = __builtin_ulltoa(DebugEvent.dwThreadId, buffer + 7);
+                } else p = __builtin_ultoa(DebugEvent.dwThreadId, buffer + 7);
                 memcpy(p, " caused ", 8);
                 p = FormatDebugException(&DebugEvent.u.Exception.ExceptionRecord, p + 8, bx64win);
                 *p++ = '\n';
@@ -598,8 +603,6 @@ void __stdcall main(void)
                 {
                     memcpy(p, "\x1b[m", 3);
                     p += 3;
-                    SetConsoleMode(hStdout, ENABLE_PROCESSED_OUTPUT |
-                        ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
                 }
 
                     if (p != pre) *p++ = '\n';
@@ -668,8 +671,7 @@ void __stdcall main(void)
                             "at " // attach
                             , W64DBG_DEFAULT_LEN, NULL, NULL);
 
-                    space_ultoa(DebugEvent.dwProcessId, buffer);
-                    p = buffer + 5;
+                    p = __builtin_ultoa(DebugEvent.dwProcessId, buffer);
                     *p++ = '\n';
 
                     if (debug == MINGW + 1)
@@ -784,9 +786,9 @@ void __stdcall main(void)
                     if (verbose >= 2)
                     {
                         memcpy(buffer, "ExitProcess ", 12);
-                        p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 12);
+                        p = __builtin_ultoa(DebugEvent.dwProcessId, buffer + 12);
                         *p = 'x';
-                        p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
+                        p = __builtin_ultoa(DebugEvent.dwThreadId, p + 1);
                         *p = '\n';
                         NtWriteFile(hStdout, NULL, NULL, NULL,
                             &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
@@ -1023,9 +1025,9 @@ void __stdcall main(void)
                 if (verbose >= 2)
                 {
                     memcpy(buffer, "RIP ", 4);
-                    p = __builtin_ulltoa(DebugEvent.dwProcessId, buffer + 4);
+                    p = __builtin_ultoa(DebugEvent.dwProcessId, buffer + 4);
                     *p = 'x';
-                    p = __builtin_ulltoa(DebugEvent.dwThreadId, p + 1);
+                    p = __builtin_ultoa(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
 
                     len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,

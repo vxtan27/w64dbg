@@ -56,6 +56,26 @@ wchar_t *__builtin_wmemchr(
     return 0;
 }
 
+static
+__forceinline
+char *__builtin_ultoa(
+    _In_ unsigned long value,
+    _Out_writes_(10) char *p
+    )
+{
+    unsigned long num = value;
+
+    // Pre-compute number length
+    while ((num /= 10)) ++p;
+
+    char *ptr = p;
+
+    do *ptr-- = (value % 10) + '0';
+    while ((value /= 10));
+
+    return p + 1;
+}
+
 static const char hex_table[16] = "0123456789abcdef";
 
 static
@@ -74,26 +94,6 @@ char *__builtin_hextoa(
 
     do *ptr-- = hex_table[value & 0xF];
     while ((value >>= 4));
-
-    return p + 1;
-}
-
-static
-__forceinline
-char *__builtin_ulltoa(
-    _In_ unsigned int value,
-    _Out_writes_(10) char *p
-    )
-{
-    unsigned int num = value;
-
-    // Pre-compute number length
-    while ((num /= 10)) ++p;
-
-    char *ptr = p;
-
-    do *ptr-- = (value % 10) + '0';
-    while ((value /= 10));
 
     return p + 1;
 }
@@ -125,29 +125,4 @@ char *ulltoaddr(
     while ((value >>= 4));
 
     return p + 1;
-}
-
-static
-__forceinline
-void space_ultoa(
-    _In_ unsigned int value,
-    _Out_writes_(6) char *p
-    )
-{
-    memset(p, ' ', 3);
-    p += 5;
-
-    *p-- = '\0';
-    *p-- = (value % 10) + '0';
-    value /= 10;
-    *p-- = (value % 10) + '0';
-    value /= 10;
-    *p-- = (value % 10) + '0';
-
-    if (value >= 10)
-    {
-        value /= 10;
-        *p-- = (value % 10) + '0';
-        if (value >= 10) *p-- = value / 10 + '0';
-    }
 }

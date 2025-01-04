@@ -339,7 +339,7 @@ char *FormatFileLine(
     }
 
     *p = ':';
-    p = __builtin_ulltoa(lnum, p + 1);
+    p = __builtin_ultoa(lnum, p + 1);
     *p = '\n';
 
     return p + 1;
@@ -389,7 +389,7 @@ char *FormatSourceCode(
                     char *_ptr;
                     size_t temp;
 
-                    p = __builtin_ulltoa(line, p);
+                    p = __builtin_ultoa(line, p);
                     memset(p, ' ', 6);
                     p += 6;
                     _ptr = (char *) memchr(ptr, '\n', buffer + IoStatusBlock.Information - ptr);
