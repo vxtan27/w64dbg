@@ -31,7 +31,7 @@ typedef struct
     long timeout;
 } THREAD_PARAMETER;
 
-DWORD WINAPI WaitForInput(
+static DWORD WINAPI WaitForInput(
   _In_ LPVOID lpParameter
 )
 {
@@ -75,7 +75,7 @@ char *__builtin_ltoa(
 }
 
 static const char InfiniteMessage[30] = "\nPress any key to continue ...";
-static const char FiniteMessage[41] = "\0337 seconds, press a key to continue ...\0338";
+static const char FiniteMessage[42] = " seconds, press a key to continue ...\x1b[37D";
 
 static
 __forceinline
@@ -88,40 +88,47 @@ VOID WaitForInputOrTimeout(
 {
     IO_STATUS_BLOCK IoStatusBlock;
 
-    // Write the InfiniteMessage
-    NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-        InfiniteMessage, sizeof(InfiniteMessage), NULL, NULL);
-
-    if (StdinConsole)
+    if (timeout == -1)
     {
-        DWORD dwRead;
-        INPUT_RECORD InputRecord;
+        // Write the InfiniteMessage
+        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+            InfiniteMessage, sizeof(InfiniteMessage), NULL, NULL);
 
-        if (timeout == -1)
+        if (StdinConsole)
         {
+            DWORD dwRead;
+            INPUT_RECORD InputRecord;
+
             do
             { // Infinite loop waiting for valid input
                 ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
             } while (IsInputInvalidate(InputRecord));
-        } else
+        } else NtWaitForSingleObject(hStdin, FALSE, // Relative time
+            &(LARGE_INTEGER){.QuadPart=MAXLONGLONG});
+    } else
+    {
+        char *p;
+        char buffer[64] = "\nWaiting for ";
+
+        p = __builtin_ltoa(timeout, buffer + 13);
+        memcpy(p, FiniteMessage, sizeof(FiniteMessage));
+        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+            buffer, p - buffer + sizeof(FiniteMessage), NULL, NULL);
+
+        if (StdinConsole)
         {
-            char *p;
             long temp;
             ULONG Length;
             char Count, Recursive;
-            char buffer[64] = "\nWaiting for ";
 
             CreateThread(NULL, 0, WaitForInput,
                 &(THREAD_PARAMETER){hStdin, timeout}, 0, NULL);
-            p = __builtin_ltoa(timeout, buffer + 13);
-            memcpy(p, FiniteMessage, sizeof(FiniteMessage));
-            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-                buffer, p - buffer + sizeof(FiniteMessage), NULL, NULL);
             buffer[0] = '\b';
 
             while (TRUE)
             {
-                Sleep(999);
+                NtDelayExecution(FALSE,
+                    &(LARGE_INTEGER){.QuadPart=-(999 * 10000)});
                 temp = --timeout;
                 Count = 1;
 
@@ -151,9 +158,9 @@ VOID WaitForInputOrTimeout(
                 NtWriteFile(hStdout, NULL, NULL, NULL,
                     &IoStatusBlock, buffer, Length, NULL, NULL);
             }
-        }
-    } else NtWaitForSingleObject(hStdin, FALSE, // Relative time
+        } else NtWaitForSingleObject(hStdin, FALSE, // Relative time
             &(LARGE_INTEGER){.QuadPart=-SecToUnits(timeout)});
+    }
 
     // Simulate normal behavior
     NtWriteFile(hStdout, NULL, NULL, NULL,

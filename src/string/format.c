@@ -3,7 +3,7 @@
     Licensed under the BSD-3-Clause.
 */
 
-#include "strutil.c" // String utilities
+#include "utils.c" // String utilities
 #include "ntdll.h" // Native
 #include <wchar.h>
 

@@ -4,8 +4,8 @@
 */
 
 #include "legal.c" // Legal right
-#include "string/strfmt.c" // String formatting
-#include "symbols/symen.c" // Symbols enumeration
+#include "string/format.c" // String formatting
+#include "symbols/enum.c" // Symbols enumeration
 #include "winput.c" // Waiting for input
 #include <psapi.h>
 

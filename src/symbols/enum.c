@@ -4,7 +4,7 @@
 */
 
 #include "resrc.h" // Resource
-#include "symd.h" // Symbol definitions
+#include "enum.h" // Symbol Enumerations
 #include "ntdll.h" // Native
 #include <dbghelp.h>
 #include <stdio.h>
