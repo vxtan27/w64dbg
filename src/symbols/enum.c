@@ -3,9 +3,9 @@
     Licensed under the BSD-3-Clause.
 */
 
-#include "enum.h" // Symbol Enumerations
-#include "..\resrc.h" // Resource
-#include "..\ntdll.h" // Native
+#include "enum.h"
+#include "..\resrc.h"
+#include "..\ntdll.h"
 #include <dbghelp.h>
 #include <stdio.h>
 
@@ -144,8 +144,9 @@ EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, PVOID UserContext)
 
         if (User->Console)
         {
-            memcpy(User->p, "\x1b[m", 3);
-            User->p += 3;
+            memcpy(User->p, CONSOLE_DEFAULT_FORMAT,
+                sizeof(CONSOLE_DEFAULT_FORMAT));
+            User->p += sizeof(CONSOLE_DEFAULT_FORMAT);
         }
 
         char* p;

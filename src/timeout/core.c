@@ -4,8 +4,8 @@
 */
 
 #include "core.h"
-#include "..\ntdll.h" // Native
-#include "..\string\utils.c" // String utilities
+#include "..\ntdll.h"
+#include "..\string\conversion.c"
 
 static DWORD WINAPI WaitForInput(LPVOID lpParameter)
 {
@@ -61,7 +61,7 @@ VOID WaitForInputOrTimeout(
         char *p;
         char buffer[64] = "\nWaiting for ";
 
-        p = __builtin_ltoa(timeout, buffer + 13);
+        p = _ltoa10(timeout, buffer + 13);
         memcpy(p, FiniteMessage, sizeof(FiniteMessage));
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, p - buffer + sizeof(FiniteMessage), NULL, NULL);

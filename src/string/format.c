@@ -7,15 +7,17 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "..\ntdll.h" // Native
-#include "..\resrc.h" // Resource
-#include "utils.c" // String utilities
+
+#include "..\ntdll.h"
+#include "..\resrc.h"
+#include "format.h"
+#include "conversion.c"
 
 static
 inline
-char *FormatDebugException(
-    const EXCEPTION_RECORD *ExceptionRecord,
-    char *p,
+char* FormatDebugException(
+    const PEXCEPTION_RECORD64 ExceptionRecord,
+    char* p,
     DWORD bx64win
 )
 {
@@ -25,153 +27,191 @@ char *FormatDebugException(
         case 0xC0000006: // EXCEPTION_IN_PAGE_ERROR
             if (ExceptionRecord->ExceptionCode == 0xC0000005)
             { // EXCEPTION_ACCESS_VIOLATION
-                memcpy(p, "access violation", 16);
-                p += 16;
+                memcpy(p, _EXCEPTION_ACCESS_VIOLATION,
+                    sizeof(_EXCEPTION_ACCESS_VIOLATION));
+                p += sizeof(_EXCEPTION_ACCESS_VIOLATION);
             } else
             { // EXCEPTION_IN_PAGE_ERROR
-                memcpy(p, "in page error", 13);
-                p += 13;
+                memcpy(p, _EXCEPTION_IN_PAGE_ERROR,
+                    sizeof(_EXCEPTION_IN_PAGE_ERROR));
+                p += sizeof(_EXCEPTION_IN_PAGE_ERROR);
             }
 
             *p++ = ' ';
 
             if (!ExceptionRecord->ExceptionInformation[0])
             {
-                memcpy(p, "reading from", 12);
-                p += 12;
+                memcpy(p, EXCEPTION_READING_FROM,
+                    sizeof(EXCEPTION_READING_FROM));
+                p += sizeof(EXCEPTION_READING_FROM);
             } else if (ExceptionRecord->ExceptionInformation[0] == 1)
             {
-                memcpy(p, "writing to", 10);
-                p += 10;
+                memcpy(p, EXCEPTION_WRITING_TO,
+                    sizeof(EXCEPTION_WRITING_TO));
+                p += sizeof(EXCEPTION_WRITING_TO);
             } else
             {
-                memcpy(p, "DEP violation at", 16);
-                p += 16;
+                memcpy(p, EXCEPTION_DEP_VIOLATION,
+                    sizeof(EXCEPTION_DEP_VIOLATION));
+                p += sizeof(EXCEPTION_DEP_VIOLATION);
             }
 
-            memcpy(p, " location ", 10);
-            p = ulltoaddr(ExceptionRecord->ExceptionInformation[1], p + 10, bx64win);
+            memcpy(p, EXCEPTION_LOCATION,
+                sizeof(EXCEPTION_LOCATION));
+            p = _ui64toa16(ExceptionRecord->ExceptionInformation[1],
+                p + sizeof(EXCEPTION_LOCATION), bx64win);
             break;
         case 0xC0000008: // EXCEPTION_INVALID_HANDLE
-            memcpy(p, "invalid handle", 14);
-            p += 14;
+            memcpy(p, _EXCEPTION_INVALID_HANDLE,
+                sizeof(_EXCEPTION_INVALID_HANDLE));
+            p += sizeof(_EXCEPTION_INVALID_HANDLE);
             break;
         case 0xC000001D: // EXCEPTION_ILLEGAL_INSTRUCTION
-            memcpy(p, "illegal instruction", 19);
-            p += 19;
+            memcpy(p, _EXCEPTION_ILLEGAL_INSTRUCTION,
+                sizeof(_EXCEPTION_ILLEGAL_INSTRUCTION));
+            p += sizeof(_EXCEPTION_ILLEGAL_INSTRUCTION);
             break;
         case 0xC0000026: // EXCEPTION_INVALID_DISPOSITION
-            memcpy(p, "invalid disposition", 19);
-            p += 19;
+            memcpy(p, _EXCEPTION_INVALID_DISPOSITION,
+                sizeof(_EXCEPTION_INVALID_DISPOSITION));
+            p += sizeof(_EXCEPTION_INVALID_DISPOSITION);
             break;
         case 0xC000008C: // EXCEPTION_ARRAY_BOUNDS_EXCEEDED
-            memcpy(p, "array bounds exceeded", 21);
-            p += 21;
+            memcpy(p, _EXCEPTION_ARRAY_BOUNDS_EXCEEDED,
+                sizeof(_EXCEPTION_ARRAY_BOUNDS_EXCEEDED));
+            p += sizeof(_EXCEPTION_ARRAY_BOUNDS_EXCEEDED);
             break;
         case 0xC000008D: // EXCEPTION_FLT_DENORMAL_OPERAND
-            memcpy(p, "floating-point denormal operand", 31);
-            p += 31;
+            memcpy(p, _EXCEPTION_FLT_DENORMAL_OPERAND,
+                sizeof(_EXCEPTION_FLT_DENORMAL_OPERAND));
+            p += sizeof(_EXCEPTION_FLT_DENORMAL_OPERAND);
             break;
         case 0xC000008E: // EXCEPTION_FLT_DIVIDE_BY_ZERO
-            memcpy(p, "floating-point division by zero", 31);
-            p += 31;
+            memcpy(p, _EXCEPTION_FLT_DIVIDE_BY_ZERO,
+                sizeof(_EXCEPTION_FLT_DIVIDE_BY_ZERO));
+            p += sizeof(_EXCEPTION_FLT_DIVIDE_BY_ZERO);
             break;
         case 0xC000008F: // EXCEPTION_FLT_INEXACT_RESULT
-            memcpy(p, "floating-point inexact result", 29);
-            p += 29;
+            memcpy(p, _EXCEPTION_FLT_INEXACT_RESULT,
+                sizeof(_EXCEPTION_FLT_INEXACT_RESULT));
+            p += sizeof(_EXCEPTION_FLT_INEXACT_RESULT);
             break;
         case 0xC0000090: // EXCEPTION_FLT_INVALID_OPERATION
-            memcpy(p, "floating-point invalid operation", 32);
-            p += 32;
+            memcpy(p, _EXCEPTION_FLT_INVALID_OPERATION,
+                sizeof(_EXCEPTION_FLT_INVALID_OPERATION));
+            p += sizeof(_EXCEPTION_FLT_INVALID_OPERATION);
             break;
         case 0xC0000091: // EXCEPTION_FLT_OVERFLOW
-            memcpy(p, "floating-point overflow", 23);
-            p += 23;
+            memcpy(p, _EXCEPTION_FLT_OVERFLOW,
+                sizeof(_EXCEPTION_FLT_OVERFLOW));
+            p += sizeof(_EXCEPTION_FLT_OVERFLOW);
             break;
         case 0xC0000092: // EXCEPTION_FLT_STACK_CHECK
-            memcpy(p, "floating-point stack check", 26);
-            p += 26;
+            memcpy(p, _EXCEPTION_FLT_STACK_CHECK,
+                sizeof(_EXCEPTION_FLT_STACK_CHECK));
+            p += sizeof(_EXCEPTION_FLT_STACK_CHECK);
             break;
         case 0xC0000093: // EXCEPTION_FLT_UNDERFLOW
-            memcpy(p, "floating-point underflow", 24);
-            p += 24;
+            memcpy(p, _EXCEPTION_FLT_UNDERFLOW,
+                sizeof(_EXCEPTION_FLT_UNDERFLOW));
+            p += sizeof(_EXCEPTION_FLT_UNDERFLOW);
             break;
         case 0xC0000094: // EXCEPTION_INT_DIVIDE_BY_ZERO
-            memcpy(p, "integer division by zero", 24);
-            p += 24;
+            memcpy(p, _EXCEPTION_INT_DIVIDE_BY_ZERO,
+                sizeof(_EXCEPTION_INT_DIVIDE_BY_ZERO));
+            p += sizeof(_EXCEPTION_INT_DIVIDE_BY_ZERO);
             break;
         case 0xC0000095: // EXCEPTION_INT_OVERFLOW
-            memcpy(p, "integer overflow", 16);
-            p += 16;
+            memcpy(p, _EXCEPTION_INT_OVERFLOW,
+                sizeof(_EXCEPTION_INT_OVERFLOW));
+            p += sizeof(_EXCEPTION_INT_OVERFLOW);
             break;
         case 0xC0000096: // EXCEPTION_PRIV_INSTRUCTION
-            memcpy(p, "privileged instruction", 22);
-            p += 22;
+            memcpy(p, _EXCEPTION_PRIV_INSTRUCTION,
+                sizeof(_EXCEPTION_PRIV_INSTRUCTION));
+            p += sizeof(_EXCEPTION_PRIV_INSTRUCTION);
             break;
         case 0xC00000FD: // EXCEPTION_STACK_OVERFLOW
-            memcpy(p, "stack overflow", 14);
-            p += 14;
+            memcpy(p, _EXCEPTION_STACK_OVERFLOW,
+                sizeof(_EXCEPTION_STACK_OVERFLOW));
+            p += sizeof(_EXCEPTION_STACK_OVERFLOW);
             break;
         case 0xC0000194: // EXCEPTION_POSSIBLE_DEADLOCK
-            memcpy(p, "possible deadlock condition", 27);
-            p += 27;
+            memcpy(p, _EXCEPTION_POSSIBLE_DEADLOCK,
+                sizeof(_EXCEPTION_POSSIBLE_DEADLOCK));
+            p += sizeof(_EXCEPTION_POSSIBLE_DEADLOCK);
             break;
         case 0xC0000409: // STATUS_STACK_BUFFER_OVERRUN
-            memcpy(p, "fast fail", 9);
-            p += 9;
+            memcpy(p, _STATUS_STACK_BUFFER_OVERRUN,
+                sizeof(_STATUS_STACK_BUFFER_OVERRUN));
+            p += sizeof(_STATUS_STACK_BUFFER_OVERRUN);
             break;
         case 0xC000041D: // STATUS_FATAL_USER_CALLBACK_EXCEPTION
-            memcpy(p, "fatal user callback exception", 29);
-            p += 29;
+            memcpy(p, _STATUS_FATAL_USER_CALLBACK_EXCEPTION,
+                sizeof(_STATUS_FATAL_USER_CALLBACK_EXCEPTION));
+            p += sizeof(_STATUS_FATAL_USER_CALLBACK_EXCEPTION);
             break;
         case 0xC0000420: // STATUS_ASSERTION_FAILURE
-            memcpy(p, "assertion failure", 17);
-            p += 17;
+            memcpy(p, _STATUS_ASSERTION_FAILURE,
+                sizeof(_STATUS_ASSERTION_FAILURE));
+            p += sizeof(_STATUS_ASSERTION_FAILURE);
             break;
         case 0xE0434f4D: // STATUS_CLR_EXCEPTION
-            memcpy(p, "CLR exception", 13);
-            p += 13;
+            memcpy(p, _STATUS_CLR_EXCEPTION,
+                sizeof(_STATUS_CLR_EXCEPTION));
+            p += sizeof(_STATUS_CLR_EXCEPTION);
             break;
         case 0xE06D7363: // STATUS_CPP_EH_EXCEPTION
-            memcpy(p, "C++ exception handling exception", 32);
-            p += 32;
+            memcpy(p, _STATUS_CPP_EH_EXCEPTION,
+                sizeof(_STATUS_CPP_EH_EXCEPTION));
+            p += sizeof(_STATUS_CPP_EH_EXCEPTION);
             break;
         case 0x80000001: // EXCEPTION_GUARD_PAGE
-            memcpy(p, "guard page exception", 20);
-            p += 20;
+            memcpy(p, _EXCEPTION_GUARD_PAGE,
+                sizeof(_EXCEPTION_GUARD_PAGE));
+            p += sizeof(_EXCEPTION_GUARD_PAGE);
             break;
         case 0x80000002: // EXCEPTION_DATATYPE_MISALIGNMENT
-            memcpy(p, "alignment fault", 15);
-            p += 15;
+            memcpy(p, _EXCEPTION_DATATYPE_MISALIGNMENT,
+                sizeof(_EXCEPTION_DATATYPE_MISALIGNMENT));
+            p += sizeof(_EXCEPTION_DATATYPE_MISALIGNMENT);
             break;
         case 0x80000003: // EXCEPTION_BREAKPOINT
         case 0x4000001F: // STATUS_WX86_BREAKPOINT
-            memcpy(p, "breakpoint", 10);
-            p += 10;
+            memcpy(p, _EXCEPTION_BREAKPOINT,
+                sizeof(_EXCEPTION_BREAKPOINT));
+            p += sizeof(_EXCEPTION_BREAKPOINT);
             break;
         case 0x80000004: // EXCEPTION_SINGLE_STEP
-            memcpy(p, "trace trap or other single-instruction mechanism", 48);
-            p += 48;
+            memcpy(p, _EXCEPTION_SINGLE_STEP,
+                sizeof(_EXCEPTION_SINGLE_STEP));
+            p += sizeof(_EXCEPTION_SINGLE_STEP);
             break;
         case 0x40000015: // STATUS_FATAL_APP_EXIT
-            memcpy(p, "fast application exit", 21);
-            p += 21;
+            memcpy(p, _STATUS_FATAL_APP_EXIT,
+                sizeof(_STATUS_FATAL_APP_EXIT));
+            p += sizeof(_STATUS_FATAL_APP_EXIT);
             break;
         case 0x406D1388: // https://learn.microsoft.com/visualstudio/debugger/tips-for-debugging-threads
-            memcpy(p, "thread name exception", 21);
-            p += 21;
+            memcpy(p, _MS_VC_EXCEPTION,
+                sizeof(_MS_VC_EXCEPTION));
+            p += sizeof(_MS_VC_EXCEPTION);
             break;
         case 1717: // RPC_S_UNKNOWN_IF
-            memcpy(p, "unknown interface", 17);
-            p += 17;
+            memcpy(p, _RPC_S_UNKNOWN_IF,
+                sizeof(_RPC_S_UNKNOWN_IF));
+            p += sizeof(_RPC_S_UNKNOWN_IF);
             break;
         case 1722: // RPC_S_SERVER_UNAVAILABLE
-            memcpy(p, "server unavailable", 18);
-            p += 18;
+            memcpy(p, _RPC_S_SERVER_UNAVAILABLE,
+                sizeof(_RPC_S_SERVER_UNAVAILABLE));
+            p += sizeof(_RPC_S_SERVER_UNAVAILABLE);
             break;
         default:
-            memcpy(p, "unknown exception (0x", 21);
-            p = __builtin_hextoa(ExceptionRecord->ExceptionCode, p + 21);
+            memcpy(p, _EXCEPTION_UNKNOWN,
+                sizeof(_EXCEPTION_UNKNOWN));
+            p = _ultoa16(ExceptionRecord->ExceptionCode,
+                p + sizeof(_EXCEPTION_UNKNOWN));
             *p++ = ')';
     }
 
@@ -180,140 +220,172 @@ char *FormatDebugException(
 
 static
 inline
-char *FormatVerboseDebugException(
-    char *p,
+char* FormatVerboseDebugException(
+    char* p,
     DWORD ExceptionCode
 )
 {
     switch (ExceptionCode)
     {
         case 0xC0000005: // EXCEPTION_ACCESS_VIOLATION
-            memcpy(p, "The thread tried to read from or write to a virtual address for which it does not have the appropriate access", 109);
-            p += 109;
+            memcpy(p, EXCEPTION_ACCESS_VIOLATION_,
+                sizeof(EXCEPTION_ACCESS_VIOLATION_));
+            p += sizeof(EXCEPTION_ACCESS_VIOLATION_);
             break;
         case 0xC0000006: // EXCEPTION_IN_PAGE_ERROR
-            memcpy(p, "The thread tried to access a page that was not present, and the system was unable to load the page", 98);
-            p += 98;
+            memcpy(p, _EXCEPTION_IN_PAGE_ERROR,
+                sizeof(_EXCEPTION_IN_PAGE_ERROR));
+            p += sizeof(_EXCEPTION_IN_PAGE_ERROR);
             break;
         case 0xC0000008: // EXCEPTION_INVALID_HANDLE
-            memcpy(p, "The thread used a handle to a kernel object that was invalid", 60);
-            p += 60;
+            memcpy(p, EXCEPTION_INVALID_HANDLE_,
+                sizeof(EXCEPTION_INVALID_HANDLE_));
+            p += sizeof(EXCEPTION_INVALID_HANDLE_);
             break;
         case 0xC000001D: // EXCEPTION_ILLEGAL_INSTRUCTION
-            memcpy(p, "The thread tried to execute an invalid instruction", 50);
-            p += 50;
+            memcpy(p, EXCEPTION_ILLEGAL_INSTRUCTION_,
+                sizeof(EXCEPTION_ILLEGAL_INSTRUCTION_));
+            p += sizeof(EXCEPTION_ILLEGAL_INSTRUCTION_);
             break;
         case 0xC0000026: // EXCEPTION_INVALID_DISPOSITION
-            memcpy(p, "An exception handler returned an invalid disposition to the exception dispatcher", 80);
-            p += 80;
+            memcpy(p, EXCEPTION_INVALID_DISPOSITION_,
+                sizeof(EXCEPTION_INVALID_DISPOSITION_));
+            p += sizeof(EXCEPTION_INVALID_DISPOSITION_);
             break;
         case 0xC000008C: // EXCEPTION_ARRAY_BOUNDS_EXCEEDED
-            memcpy(p, "The thread tried to access an array element that is out of bounds and the underlying hardware supports bounds checking", 118);
-            p += 118;
+            memcpy(p, EXCEPTION_ARRAY_BOUNDS_EXCEEDED_,
+                sizeof(EXCEPTION_ARRAY_BOUNDS_EXCEEDED_));
+            p += sizeof(EXCEPTION_ARRAY_BOUNDS_EXCEEDED_);
             break;
         case 0xC000008D: // EXCEPTION_FLT_DENORMAL_OPERAND
-            memcpy(p, "One of the operands in a floating-point operation is denormal. A denormal value is one that is too small to represent as a standard floating-point value", 152);
-            p += 152;
+            memcpy(p, EXCEPTION_FLT_DENORMAL_OPERAND_,
+                sizeof(EXCEPTION_FLT_DENORMAL_OPERAND_));
+            p += sizeof(EXCEPTION_FLT_DENORMAL_OPERAND_);
             break;
         case 0xC000008E: // EXCEPTION_FLT_DIVIDE_BY_ZERO
-            memcpy(p, "The thread tried to divide a floating-point value by a floating-point divisor of zero", 85);
-            p += 85;
+            memcpy(p, EXCEPTION_FLT_DIVIDE_BY_ZERO_,
+                sizeof(EXCEPTION_FLT_DIVIDE_BY_ZERO_));
+            p += sizeof(EXCEPTION_FLT_DIVIDE_BY_ZERO_);
             break;
         case 0xC000008F: // EXCEPTION_FLT_INEXACT_RESULT
-            memcpy(p, "The result of a floating-point operation cannot be represented exactly as a decimal fraction", 92);
-            p += 92;
+            memcpy(p, EXCEPTION_FLT_INEXACT_RESULT_,
+                sizeof(EXCEPTION_FLT_INEXACT_RESULT_));
+            p += sizeof(EXCEPTION_FLT_INEXACT_RESULT_);
             break;
         case 0xC0000090: // EXCEPTION_FLT_INVALID_OPERATION
-            memcpy(p, "This exception represents any floating-point exception not included", 67);
-            p += 67;
+            memcpy(p, EXCEPTION_FLT_INVALID_OPERATION_,
+                sizeof(EXCEPTION_FLT_INVALID_OPERATION_));
+            p += sizeof(EXCEPTION_FLT_INVALID_OPERATION_);
             break;
         case 0xC0000091: // EXCEPTION_FLT_OVERFLOW
-            memcpy(p, "The exponent of a floating-point operation is greater than the magnitude allowed by the corresponding type", 106);
-            p += 106;
+            memcpy(p, EXCEPTION_FLT_OVERFLOW_,
+                sizeof(EXCEPTION_FLT_OVERFLOW_));
+            p += sizeof(EXCEPTION_FLT_OVERFLOW_);
             break;
         case 0xC0000092: // EXCEPTION_FLT_STACK_CHECK
-            memcpy(p, "The stack overflowed or underflowed as the result of a floating-point operation", 79);
-            p += 79;
+            memcpy(p, EXCEPTION_FLT_STACK_CHECK_,
+                sizeof(EXCEPTION_FLT_STACK_CHECK_));
+            p += sizeof(EXCEPTION_FLT_STACK_CHECK_);
             break;
         case 0xC0000093: // EXCEPTION_FLT_UNDERFLOW
-            memcpy(p, "The exponent of a floating-point operation is less than the magnitude allowed by the corresponding type", 103);
-            p += 103;
+            memcpy(p, EXCEPTION_FLT_UNDERFLOW_,
+                sizeof(EXCEPTION_FLT_UNDERFLOW_));
+            p += sizeof(EXCEPTION_FLT_UNDERFLOW_);
             break;
         case 0xC0000094: // EXCEPTION_INT_DIVIDE_BY_ZERO
-            memcpy(p, "The thread tried to divide an integer value by an integer divisor of zero", 73);
-            p += 73;
+            memcpy(p, EXCEPTION_INT_DIVIDE_BY_ZERO_,
+                sizeof(EXCEPTION_INT_DIVIDE_BY_ZERO_));
+            p += sizeof(EXCEPTION_INT_DIVIDE_BY_ZERO_);
             break;
         case 0xC0000095: // EXCEPTION_INT_OVERFLOW
-            memcpy(p, "The result of an integer operation caused a carry out of the most significant bit of the result", 95);
-            p += 95;
+            memcpy(p, EXCEPTION_INT_OVERFLOW_,
+                sizeof(EXCEPTION_INT_OVERFLOW_));
+            p += sizeof(EXCEPTION_INT_OVERFLOW_);
             break;
         case 0xC0000096: // EXCEPTION_PRIV_INSTRUCTION
-            memcpy(p, "The thread tried to execute an instruction whose operation is not allowed in the current machine mode", 101);
-            p += 101;
+            memcpy(p, EXCEPTION_PRIV_INSTRUCTION_,
+                sizeof(EXCEPTION_PRIV_INSTRUCTION_));
+            p += sizeof(EXCEPTION_PRIV_INSTRUCTION_);
             break;
         case 0xC00000FD: // EXCEPTION_STACK_OVERFLOW
-            memcpy(p, "The thread used up its stack", 28);
-            p += 28;
+            memcpy(p, EXCEPTION_STACK_OVERFLOW_,
+                sizeof(EXCEPTION_STACK_OVERFLOW_));
+            p += sizeof(EXCEPTION_STACK_OVERFLOW_);
             break;
         case 0xC0000194: // EXCEPTION_POSSIBLE_DEADLOCK
-            memcpy(p, "The wait operation on the critical section times out", 52);
-            p += 52;
+            memcpy(p, EXCEPTION_POSSIBLE_DEADLOCK_,
+                sizeof(EXCEPTION_POSSIBLE_DEADLOCK_));
+            p += sizeof(EXCEPTION_POSSIBLE_DEADLOCK_);
             break;
         case 0xC0000409: // STATUS_STACK_BUFFER_OVERRUN
-            memcpy(p, "The system detected an overrun of a stack-based buffer in this application", 74);
-            p += 74;
+            memcpy(p, STATUS_STACK_BUFFER_OVERRUN_,
+                sizeof(STATUS_STACK_BUFFER_OVERRUN_));
+            p += sizeof(STATUS_STACK_BUFFER_OVERRUN_);
             break;
         case 0xC000041D: // STATUS_FATAL_USER_CALLBACK_EXCEPTION
-            memcpy(p, "An unhandled exception was encountered during a user callback", 61);
-            p += 61;
+            memcpy(p, STATUS_FATAL_USER_CALLBACK_EXCEPTION_,
+                sizeof(STATUS_FATAL_USER_CALLBACK_EXCEPTION_));
+            p += sizeof(STATUS_FATAL_USER_CALLBACK_EXCEPTION_);
             break;
         case 0xC0000420: // STATUS_ASSERTION_FAILURE
-            memcpy(p, "An assertion failure has occurred", 33);
-            p += 33;
+            memcpy(p, STATUS_ASSERTION_FAILURE_,
+                sizeof(STATUS_ASSERTION_FAILURE_));
+            p += sizeof(STATUS_ASSERTION_FAILURE_);
             break;
         case 0xE0434f4D: // STATUS_CLR_EXCEPTION
-            memcpy(p, "A managed code exception was encountered within .NET Common Language Runtime", 76);
-            p += 76;
+            memcpy(p, STATUS_CLR_EXCEPTION_,
+                sizeof(STATUS_CLR_EXCEPTION_));
+            p += sizeof(STATUS_CLR_EXCEPTION_);
             break;
         case 0xE06D7363: // STATUS_CPP_EH_EXCEPTION
-            memcpy(p, "A C++ exception has been thrown and is being handled or caught", 62);
-            p += 62;
+            memcpy(p, STATUS_CPP_EH_EXCEPTION_,
+                sizeof(STATUS_CPP_EH_EXCEPTION_));
+            p += sizeof(STATUS_CPP_EH_EXCEPTION_);
             break;
         case 0x80000001: // EXCEPTION_GUARD_PAGE
-            memcpy(p, "The thread accessed memory allocated with the PAGE_GUARD modifier", 65);
-            p += 65;
+            memcpy(p, EXCEPTION_GUARD_PAGE_,
+                sizeof(EXCEPTION_GUARD_PAGE_));
+            p += sizeof(EXCEPTION_GUARD_PAGE_);
             break;
         case 0x80000002: // EXCEPTION_DATATYPE_MISALIGNMENT
-            memcpy(p, "The thread tried to read or write data that is misaligned on hardware that does not provide alignment", 101);
-            p += 101;
+            memcpy(p, EXCEPTION_DATATYPE_MISALIGNMENT_,
+                sizeof(EXCEPTION_DATATYPE_MISALIGNMENT_));
+            p += sizeof(EXCEPTION_DATATYPE_MISALIGNMENT_);
             break;
         case 0x80000003: // EXCEPTION_BREAKPOINT
-            memcpy(p, "A breakpoint was encountered", 28);
-            p += 28;
+            memcpy(p, EXCEPTION_BREAKPOINT_,
+                sizeof(EXCEPTION_BREAKPOINT_));
+            p += sizeof(EXCEPTION_BREAKPOINT_);
             break;
         case 0x80000004: // EXCEPTION_SINGLE_STEP
-            memcpy(p, "A trace trap or other single-instruction mechanism signaled that one instruction has been executed", 98);
-            p += 98;
+            memcpy(p, EXCEPTION_SINGLE_STEP_,
+                sizeof(EXCEPTION_SINGLE_STEP_));
+            p += sizeof(EXCEPTION_SINGLE_STEP_);
             break;
         case 0x4000001F: // STATUS_WX86_BREAKPOINT
-            memcpy(p, "A Win32 x86 breakpoint was encountered", 38);
-            p += 38;
+            memcpy(p, STATUS_WX86_BREAKPOINT_,
+                sizeof(STATUS_WX86_BREAKPOINT_));
+            p += sizeof(STATUS_WX86_BREAKPOINT_);
             break;
         case 0x40000015: // STATUS_FATAL_APP_EXIT
-            memcpy(p, "The application caused an unhandled runtime exception during shutdown", 69);
-            p += 69;
+            memcpy(p, STATUS_FATAL_APP_EXIT_,
+                sizeof(STATUS_FATAL_APP_EXIT_));
+            p += sizeof(STATUS_FATAL_APP_EXIT_);
             break;
         case 0x406D1388: // https://learn.microsoft.com/visualstudio/debugger/tips-for-debugging-threads
-            memcpy(p, "The thread set its own name by raising exception", 48);
-            p += 48;
+            memcpy(p, MS_VC_EXCEPTION_,
+                sizeof(MS_VC_EXCEPTION_));
+            p += sizeof(MS_VC_EXCEPTION_);
             break;
         case 1717: // RPC_S_UNKNOWN_IF
-            memcpy(p, "The interface is unknown", 24);
-            p += 24;
+            memcpy(p, RPC_S_UNKNOWN_IF_,
+                sizeof(RPC_S_UNKNOWN_IF_));
+            p += sizeof(RPC_S_UNKNOWN_IF_);
             break;
         case 1722: // RPC_S_SERVER_UNAVAILABLE
-            memcpy(p, "The RPC server is unavailable", 29);
-            p += 29;
+            memcpy(p, RPC_S_SERVER_UNAVAILABLE_,
+                sizeof(RPC_S_SERVER_UNAVAILABLE_));
+            p += sizeof(RPC_S_SERVER_UNAVAILABLE_);
             break;
     }
 
@@ -322,28 +394,29 @@ char *FormatVerboseDebugException(
 
 static
 __forceinline
-char *FormatFileLine(
-    wchar_t *fname,
-    unsigned int lnum,
+char* FormatFileLine(
+    PWSTR FileName,
+    DWORD LineNumber,
     ULONG len,
-    char *p,
+    char* p,
     char Color
 )
 {
     ULONG UTF8StringActualByteCount;
 
     RtlUnicodeToUTF8N(p, BUFLEN,
-        &UTF8StringActualByteCount, fname, len << 1);
+        &UTF8StringActualByteCount, FileName, len << 1);
     p += UTF8StringActualByteCount;
 
     if (Color)
     {
-        memcpy(p, "\x1b[m", 3);
-        p += 3;
+        memcpy(p, CONSOLE_DEFAULT_FORMAT,
+            sizeof(CONSOLE_DEFAULT_FORMAT));
+        p += sizeof(CONSOLE_DEFAULT_FORMAT);
     }
 
     *p = ':';
-    p = __builtin_ultoa(lnum, p + 1);
+    p = _ultoa10(LineNumber, p + 1);
     *p = '\n';
 
     return p + 1;
@@ -351,11 +424,12 @@ char *FormatFileLine(
 
 static
 __forceinline
-char *FormatSourceCode(
-    wchar_t *fname,
-    unsigned int lnum,
-    char *_buffer,
-    char *p,
+char* FormatSourceCode(
+    PWSTR FileName,
+    DWORD LineNumber,
+    size_t len,
+    char* _buffer,
+    char* p,
     char verbose
 )
 {
@@ -364,9 +438,11 @@ char *FormatSourceCode(
     IO_STATUS_BLOCK IoStatusBlock;
     OBJECT_ATTRIBUTES ObjectAttributes;
 
-    memcpy(fname - 4, L"\\??\\", 8);
-    String.Length = (wcslen(fname) << 1) + 8;
-    String.Buffer = fname - 4;
+    // Windows Object Manager namespace
+    memcpy(FileName - 4, OBJECT_MANAGER_NAMESPACE,
+        sizeof(OBJECT_MANAGER_NAMESPACE));
+    String.Length = (len << 1) + sizeof(OBJECT_MANAGER_NAMESPACE);
+    String.Buffer = FileName - 4;
     InitializeObjectAttributes(&ObjectAttributes,
         &String, OBJ_CASE_INSENSITIVE, NULL, NULL);
     NtCreateFile(&hFile, FILE_READ_DATA | SYNCHRONIZE, &ObjectAttributes,
@@ -375,7 +451,7 @@ char *FormatSourceCode(
 
     if (IoStatusBlock.Information == FILE_OPENED)
     {
-        char *ptr;
+        char* ptr;
         char buffer[PAGESIZE];
         DWORD line = 1;
 
@@ -386,17 +462,17 @@ char *FormatSourceCode(
 
             ptr = buffer;
 
-            while ((ptr = (char *) memchr(ptr, '\n', buffer + IoStatusBlock.Information - ptr) + 1) > (char *) 1)
+            while ((ptr = (char* ) memchr(ptr, '\n', buffer + IoStatusBlock.Information - ptr) + 1) > (char* ) 1)
             {
-                if (++line == lnum)
+                if (++line == LineNumber)
                 {
-                    char *_ptr;
+                    char* _ptr;
                     size_t temp;
 
-                    p = __builtin_ultoa(line, p);
+                    p = _ultoa10(line, p);
                     memset(p, ' ', 6);
                     p += 6;
-                    _ptr = (char *) memchr(ptr, '\n', buffer + IoStatusBlock.Information - ptr);
+                    _ptr = (char* ) memchr(ptr, '\n', buffer + IoStatusBlock.Information - ptr);
 
                     if (_ptr) temp = _ptr - ptr;
                     else
@@ -407,7 +483,7 @@ char *FormatSourceCode(
                         if (NtReadFile(hFile, NULL, NULL, NULL, &IoStatusBlock, buffer,
                             PAGESIZE, NULL, NULL)) break;
                         ptr = buffer;
-                        _ptr = (char *) memchr(buffer, '\n', IoStatusBlock.Information);
+                        _ptr = (char* ) memchr(buffer, '\n', IoStatusBlock.Information);
                         if (_ptr) temp = buffer + IoStatusBlock.Information - _ptr;
                         else temp = IoStatusBlock.Information;
                     }
@@ -419,7 +495,7 @@ char *FormatSourceCode(
                 }
             }
 
-            if (line == lnum) break;
+            if (line == LineNumber) break;
         }
 
         NtClose(hFile);

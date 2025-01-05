@@ -16,3 +16,5 @@
 
 #define BUFLEN (PAGESIZE << 1)
 #define WBUFLEN (BUFLEN >> 1)
+
+static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
