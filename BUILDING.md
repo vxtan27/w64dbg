@@ -17,9 +17,7 @@ Change to the `src` directory:
 
 Compile the source code:
 
-    cl main.c /link ntdll.lib kernel32.lib msvcrt.lib ucrt.lib vcruntime.lib dbghelp.lib /ENTRY:main
-
-- The `/ENTRY:main` option should be used to reduce dependencies on the C Runtime Library (CRT).
+    cl /std:clatest main.c /link ntdll.lib kernel32.lib ucrt.lib vcruntime.lib dbghelp.lib /ENTRY:main
 
 ## Optimizations
 
