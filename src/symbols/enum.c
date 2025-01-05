@@ -3,18 +3,18 @@
     Licensed under the BSD-3-Clause.
 */
 
-#include "resrc.h" // Resource
 #include "enum.h" // Symbol Enumerations
-#include "ntdll.h" // Native
+#include "..\resrc.h" // Resource
+#include "..\ntdll.h" // Native
 #include <dbghelp.h>
 #include <stdio.h>
 
 _Success_(return >= 0)
 static
 int __builtin_snprintf(
-    _Out_writes_opt_(_BufferCount) _Always_(_Post_z_) char*       const _Buffer,
-    _In_                                              size_t      const _BufferCount,
-    _In_z_ _Printf_format_string_                     char const* const _Format,
+    char*       const _Buffer,
+    size_t      const _BufferCount,
+    char const* const _Format,
     ...)
 {
     int _Result;
@@ -40,7 +40,7 @@ EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, PVOID UserContext)
 {
     (void) SymbolSize;
 
-    USERCONTEXT *User = (USERCONTEXT *) UserContext;
+    USERCONTEXT* User = (USERCONTEXT*) UserContext;
 
     if ((User->DataIsLocal && !(pSymbol->Flags & SYMFLAG_PARAMETER)) ||
         (!User->DataIsLocal && pSymbol->Flags & SYMFLAG_PARAMETER))
@@ -148,7 +148,7 @@ EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, PVOID UserContext)
             User->p += 3;
         }
 
-        char *p;
+        char* p;
         long double value = 0;
 
         *User->p++ = '=';

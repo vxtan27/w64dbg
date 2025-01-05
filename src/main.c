@@ -6,7 +6,8 @@
 #include "legal.c" // Legal right
 #include "string/format.c" // String formatting
 #include "symbols/enum.c" // Symbols enumeration
-#include "winput.c" // Waiting for input
+#include "timeout/core.c" // Waiting for input
+#include <wchar.h>
 #include <psapi.h>
 
 #define MINGW 2
@@ -68,14 +69,15 @@ static const char W64DBG_HELP[589] =
 "    /G[+]         Load DWARF debug symbols.\n"
 "    /O            Suppress OutputDebugString.\n"
 "    /S            Open in a new console window.\n"
-"    /T            Wait for input (seconds).\n"
+"    /T<n>         Wait for input (seconds).\n"
 "    /V<n>         Set output verbosity.\n";
 
 static const char W64DBG_VALUE_EXPECTED[20] =
 "Value expected for '";
 static const char W64DBG_INVALID_TIMEOUT[70] =
 "Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n";
-static const char W64DBG_INVALID_ARGUMENT[27] = "Invalid argument/option - '";
+static const char _W64DBG_INVALID_ARGUMENT[27] = "Invalid argument/option - '";
+static const char W64DBG_INVALID_ARGUMENT_[3] = "'.\n";
 
 static const char _SLE_ERROR[88] =
 "Invalid data was passed to the function that failed. This caused the application to fail";
@@ -102,7 +104,7 @@ void __stdcall main(void)
     start = W64DBG_DEFAULT_START,
     help = W64DBG_DEFAULT_HELP;
 
-    char *p = buffer;
+    char* p = buffer;
     PWSTR pCmdLine = wcschr(GetCommandLineW(), ' ');
     PWSTR pNext = pCmdLine;
 
@@ -179,7 +181,7 @@ void __stdcall main(void)
 
                 case 'T':
                 case 't':
-                    wchar_t *cmd = pNext;
+                    wchar_t* cmd = pNext;
                     pNext += 2;
 
                     while (*pNext == ' ') ++pNext; // Skip spaces
@@ -197,7 +199,7 @@ void __stdcall main(void)
                         *p++ = '\n';
                     } else
                     {
-                        if ((timeout = __builtin_wcstol(pNext)) > 99999)
+                        if ((timeout = wtol_timeout(pNext)) > 99999)
                         {
                             memcpy(p, W64DBG_INVALID_TIMEOUT, sizeof(W64DBG_INVALID_TIMEOUT));
                             p += sizeof(W64DBG_INVALID_TIMEOUT);
@@ -205,7 +207,7 @@ void __stdcall main(void)
                             *(p - 42) = *(cmd + 1);
                         }
 
-                        pNext = (wchar_t *) __builtin_wmemchr(pNext, ' ', temp) + 1;
+                        pNext = (wchar_t*) (wchar_t*) wmemchr(pNext, ' ', temp) + 1;
                     }
 
                     continue;
@@ -234,11 +236,11 @@ void __stdcall main(void)
                     }
             }
 
-            memcpy(p, W64DBG_INVALID_ARGUMENT,
-                sizeof(W64DBG_INVALID_ARGUMENT));
-            p += sizeof(W64DBG_INVALID_ARGUMENT);
+            memcpy(p, _W64DBG_INVALID_ARGUMENT,
+                sizeof(_W64DBG_INVALID_ARGUMENT));
+            p += sizeof(_W64DBG_INVALID_ARGUMENT);
 
-            temp = __builtin_wmemchr(pNext, ' ',
+            temp = (wchar_t*) wmemchr(pNext, ' ',
                 pCmdLine + len + 1 - pNext) - pNext;
 
             RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
@@ -246,7 +248,7 @@ void __stdcall main(void)
             p += UTF8StringActualByteCount;
             pNext += temp + 1;
 
-            memcpy(p, "'.\n", 3);
+            memcpy(p, W64DBG_INVALID_ARGUMENT_, 3);
             p += 3;
         }
     }
@@ -279,7 +281,7 @@ void __stdcall main(void)
         ExitProcess(1);
     }
 
-    wchar_t *ptr;
+    wchar_t* ptr;
     UNICODE_STRING Variable, Value;
     DWORD wDirLen, cDirLen, PathLen;
     wchar_t PATH[WBUFLEN], ApplicationName[WBUFLEN];
@@ -293,7 +295,7 @@ void __stdcall main(void)
     Value.Buffer = PATH + (cDirLen) + 1;
     RtlQueryEnvironmentVariable_U(NULL, &Variable, &Value);
 
-    ptr = __builtin_wmemchr(pNext, ' ',
+    ptr = (wchar_t*) wmemchr(pNext, ' ',
         pCmdLine + len + 1 - pNext);
     *ptr = '\0';
 
@@ -386,7 +388,7 @@ void __stdcall main(void)
     }
 
     // DBG_EXCEPTION_NOT_HANDLED
-    // https://learn.microsoft.com/en-us/windows/win32/api/debugapi/nf-debugapi-continuedebugevent
+    // https://learn.microsoft.com/windows/win32/api/debugapi/nf-debugapi-continuedebugevent
     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
 
     // x86 process / MinGW64 G++ trigger
@@ -402,7 +404,7 @@ void __stdcall main(void)
     {
         WaitForDebugEvent(&DebugEvent, INFINITE);
 
-        // https://learn.microsoft.com/en-us/windows/win32/debug/debugging-events
+        // https://learn.microsoft.com/windows/win32/debug/debugging-events
         switch (DebugEvent.dwDebugEventCode)
         {
 
@@ -527,8 +529,8 @@ void __stdcall main(void)
                 if (timeout)
                 {
                     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-                    WaitForInputOrTimeout(hStdin, hStdout,
-                        GetFileType(hStdin) == FILE_TYPE_CHAR, timeout);
+                    WaitForInputOrTimeout(hStdin, hStdout, timeout,
+                        GetFileType(hStdin) == FILE_TYPE_CHAR);
                 }
 
                 NtTerminateProcess(hProcess, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode);
@@ -562,7 +564,7 @@ void __stdcall main(void)
             case EXCEPTION_DEBUG_EVENT:
                 // Skip first-chance breakpoints
                 if ((DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x80000003 || // EXCEPTION_BREAKPOINT
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x4000001F ) && // STATUS_WX86_BREAKPOINT
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x4000001F) && // STATUS_WX86_BREAKPOINT
                     ((breakpoint == FALSE) || (breakpoint == TRUE && ++firstbreak <= 1)))
                     break;
 
@@ -594,7 +596,7 @@ void __stdcall main(void)
                     p += 5;
                 }
 
-                char *pre = p;
+                char* pre = p;
 
                 p = FormatVerboseDebugException(p,
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode);
@@ -734,7 +736,7 @@ void __stdcall main(void)
 
                     // Convert seconds to 100-nanosecond units
                     // (negative for relative time)
-                    DelayInterval.QuadPart = -(LATENCY * 10000);
+                    DelayInterval.QuadPart = -(LATENCY * 10000LL);
 
                     while (TRUE)
                     { // Wait until GDB attachs
@@ -781,7 +783,7 @@ void __stdcall main(void)
                     NtClose(processInfo.hProcess);
 
                     if (timeout) WaitForInputOrTimeout(hStdin,
-                        hStdout, StdinConsole, timeout);
+                        hStdout, timeout, StdinConsole);
 
                     if (verbose >= 2)
                     {

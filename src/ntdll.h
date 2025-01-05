@@ -9,8 +9,6 @@
 #error "Unsupported Windows version"
 #endif
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
 #include <winternl.h>
 
 typedef struct _FILE_STANDARD_INFORMATION

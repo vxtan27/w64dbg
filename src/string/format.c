@@ -3,17 +3,21 @@
     Licensed under the BSD-3-Clause.
 */
 
+#pragma once
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include "..\ntdll.h" // Native
+#include "..\resrc.h" // Resource
 #include "utils.c" // String utilities
-#include "ntdll.h" // Native
-#include <wchar.h>
 
 static
 inline
 char *FormatDebugException(
-    _In_ const EXCEPTION_RECORD *ExceptionRecord,
-    _Out_writes_(48) char *p,
-    _In_ DWORD bx64win
-    )
+    const EXCEPTION_RECORD *ExceptionRecord,
+    char *p,
+    DWORD bx64win
+)
 {
     switch (ExceptionRecord->ExceptionCode)
     {
@@ -153,7 +157,7 @@ char *FormatDebugException(
             memcpy(p, "fast application exit", 21);
             p += 21;
             break;
-        case 0x406D1388: // https://learn.microsoft.com/en-us/visualstudio/debugger/tips-for-debugging-threads
+        case 0x406D1388: // https://learn.microsoft.com/visualstudio/debugger/tips-for-debugging-threads
             memcpy(p, "thread name exception", 21);
             p += 21;
             break;
@@ -178,8 +182,8 @@ static
 inline
 char *FormatVerboseDebugException(
     char *p,
-    _In_ DWORD ExceptionCode
-    )
+    DWORD ExceptionCode
+)
 {
     switch (ExceptionCode)
     {
@@ -299,7 +303,7 @@ char *FormatVerboseDebugException(
             memcpy(p, "The application caused an unhandled runtime exception during shutdown", 69);
             p += 69;
             break;
-        case 0x406D1388: // https://learn.microsoft.com/en-us/visualstudio/debugger/tips-for-debugging-threads
+        case 0x406D1388: // https://learn.microsoft.com/visualstudio/debugger/tips-for-debugging-threads
             memcpy(p, "The thread set its own name by raising exception", 48);
             p += 48;
             break;
@@ -319,12 +323,12 @@ char *FormatVerboseDebugException(
 static
 __forceinline
 char *FormatFileLine(
-    _In_reads_or_z_(len) wchar_t *fname,
-    _In_ unsigned int lnum,
-    _In_ ULONG len,
-    _Out_writes_(len + 10) char *p,
-    _In_ char Color
-    )
+    wchar_t *fname,
+    unsigned int lnum,
+    ULONG len,
+    char *p,
+    char Color
+)
 {
     ULONG UTF8StringActualByteCount;
 
@@ -348,12 +352,12 @@ char *FormatFileLine(
 static
 __forceinline
 char *FormatSourceCode(
-    _Inout_updates_bytes_all_(4) wchar_t *fname,
-    _In_ unsigned int lnum,
+    wchar_t *fname,
+    unsigned int lnum,
     char *_buffer,
     char *p,
-    _In_ char verbose
-    )
+    char verbose
+)
 {
     HANDLE hFile;
     UNICODE_STRING String;

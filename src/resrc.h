@@ -5,10 +5,7 @@
 
 #pragma once
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-
-// https://learn.microsoft.com/en-us/windows/win32/fileio/file-buffering#alignment-and-file-access-requirements
+// https://learn.microsoft.com/windows/win32/fileio/file-buffering#alignment-and-file-access-requirements
 // Page size is 4,096 bytes on x64 and x86 or 8,192 bytes for Itanium-based systems
 
 #if defined(_M_IA64) || defined(__ia64__)
@@ -19,14 +16,3 @@
 
 #define BUFLEN (PAGESIZE << 1)
 #define WBUFLEN (BUFLEN >> 1)
-
-typedef struct
-{
-    HANDLE hProcess;
-    PVOID pContext;
-    char *p;
-    DWORD bx64win;
-    char Console;
-    char DataIsLocal;
-    char IsFirst;
-} USERCONTEXT;

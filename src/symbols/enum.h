@@ -71,3 +71,14 @@ enum BasicType
     btBSTR = 30,
     btHresult = 31
 };
+
+typedef struct
+{
+    HANDLE hProcess;
+    PVOID pContext;
+    char *p;
+    DWORD bx64win;
+    char Console;
+    char DataIsLocal;
+    char IsFirst;
+} USERCONTEXT;

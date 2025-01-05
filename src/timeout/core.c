@@ -3,42 +3,16 @@
     Licensed under the BSD-3-Clause.
 */
 
-#include "resrc.h" // Resource
-#include "ntdll.h" // Native
+#include "core.h"
+#include "..\ntdll.h" // Native
+#include "..\string\utils.c" // String utilities
 
-#define SecToUnits(lSeconds) ((lSeconds) * 10000000LL)
-
-#define IsInputInvalidate(InputRecord) ( \
-    InputRecord.EventType != KEY_EVENT || \
-    !InputRecord.Event.KeyEvent.bKeyDown || \
-    ( \
-        InputRecord.Event.KeyEvent.wVirtualKeyCode < 0x30 && \
-        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_RETURN && \
-        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_ESCAPE && \
-        InputRecord.Event.KeyEvent.wVirtualKeyCode != VK_PAUSE) || \
-    ( \
-        InputRecord.Event.KeyEvent.wVirtualKeyCode > 0x5A && \
-        InputRecord.Event.KeyEvent.wVirtualKeyCode < VK_SLEEP) || \
-    ( \
-        InputRecord.Event.KeyEvent.wVirtualKeyCode > VK_DIVIDE && \
-        InputRecord.Event.KeyEvent.wVirtualKeyCode < VK_OEM_1) || \
-    InputRecord.Event.KeyEvent.wVirtualKeyCode > VK_OEM_102 \
-)
-
-typedef struct
-{
-    HANDLE hStdin;
-    long timeout;
-} THREAD_PARAMETER;
-
-static DWORD WINAPI WaitForInput(
-  _In_ LPVOID lpParameter
-)
+static DWORD WINAPI WaitForInput(LPVOID lpParameter)
 {
     DWORD dwRead;
     INPUT_RECORD InputRecord;
     LARGE_INTEGER DelayInterval;
-    THREAD_PARAMETER *Parameter = (THREAD_PARAMETER *) lpParameter;
+    THREAD_PARAMETER* Parameter = (THREAD_PARAMETER*) lpParameter;
 
     NtQuerySystemTime(&DelayInterval);
     // Positive value for Absolute timeout
@@ -56,35 +30,12 @@ static DWORD WINAPI WaitForInput(
 
 static
 __forceinline
-char *__builtin_ltoa(
-    _In_ long value,
-    _Out_writes_(10) char *p
-    )
-{
-    long num = value;
-
-    // Pre-compute number Count
-    while ((num /= 10)) ++p;
-
-    char *ptr = p;
-
-    do *ptr-- = (value % 10) + '0';
-    while ((value /= 10));
-
-    return p + 1;
-}
-
-static const char InfiniteMessage[30] = "\nPress any key to continue ...";
-static const char FiniteMessage[42] = " seconds, press a key to continue ...\x1b[37D";
-
-static
-__forceinline
 VOID WaitForInputOrTimeout(
-    _In_ HANDLE hStdin,
-    _In_ HANDLE hStdout,
-    _In_ char StdinConsole,
-    _In_ long timeout
-    )
+    HANDLE     hStdin,
+    HANDLE    hStdout,
+    long      timeout,
+    char StdinConsole
+)
 {
     IO_STATUS_BLOCK IoStatusBlock;
 
@@ -128,7 +79,7 @@ VOID WaitForInputOrTimeout(
             while (TRUE)
             {
                 NtDelayExecution(FALSE,
-                    &(LARGE_INTEGER){.QuadPart=-(999 * 10000)});
+                    &(LARGE_INTEGER){.QuadPart=-(999 * 10000LL)});
                 temp = --timeout;
                 Count = 1;
 
