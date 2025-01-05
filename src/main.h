@@ -3,8 +3,29 @@
     Licensed under the BSD-3-Clause.
 */
 
+// Debugger's default configuration
+#define DEFAULT_TIMEOUT       0
+#define DEFAULT_DEBUG         FALSE
+#define DEFAULT_BREAKPOINT    TRUE
+#define DEFAULT_FIRSTBREAK    FALSE
+#define DEFAULT_OUTPUT        TRUE
+#define DEFAULT_VERBOSE       FALSE
+#define DEFAULT_START         FALSE
+#define DEFAULT_HELP          FALSE
+#define DEFAULT_LEN           125
+
+// Debugger buffer length
+#define PAGESIZE    4096
+#define BUFLEN      8192
+#define WBUFLEN     4096
+
+// Returns all attributes to the default state prior to modification
+static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
+
+// Faster Builds
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
+
 #include <wchar.h>
 #include <stdio.h>
 #include <windows.h>
@@ -12,25 +33,16 @@
 #include <psapi.h>
 
 #include "legal.h"
-#include "resrc.h"
 #include "ntdll.h"
 #include "string\conversion.h"
 #include "string\format.h"
 #include "symbols.h"
 #include "timeout.h"
 
-#define MINGW 2
-#define W64DBG_DEFAULT_TIMEOUT 0
-#define W64DBG_DEFAULT_DEBUG FALSE
-#define W64DBG_DEFAULT_BREAKPOINT TRUE
-#define W64DBG_DEFAULT_FIRSTBREAK FALSE
-#define W64DBG_DEFAULT_OUTPUT TRUE
-#define W64DBG_DEFAULT_VERBOSE FALSE
-#define W64DBG_DEFAULT_START FALSE
-#define W64DBG_DEFAULT_HELP FALSE
-
 #define MAX_THREAD 32
 #define MAX_DLL 16
+#define MINGW 2
+#define LATENCY 25
 
 #define CreationFlags \
     CREATE_BREAKAWAY_FROM_JOB | \
@@ -56,11 +68,7 @@
     SYMOPT_LOAD_ANYTHING | \
     SYMOPT_LOAD_LINES
 
-#define LATENCY 25
-#define W64DBG_DEFAULT_LEN 125
-#define W64DBG_DEFAULT_OFFSET W64DBG_DEFAULT_LEN
-
-static const char W64DBG_HELP[589] =
+static const char HELP[589] =
 "Invalid syntax.\n"
 "Usage: W64DBG [options] <executable> [exec-args]\n"
 "\n"
@@ -81,12 +89,12 @@ static const char W64DBG_HELP[589] =
 "    /T<n>         Wait for input (seconds).\n"
 "    /V<n>         Set output verbosity.\n";
 
-static const char W64DBG_VALUE_EXPECTED[20] =
+static const char VALUE_EXPECTED[20] =
 "Value expected for '";
-static const char W64DBG_INVALID_TIMEOUT[70] =
+static const char INVALID_TIMEOUT[70] =
 "Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n";
-static const char _W64DBG_INVALID_ARGUMENT[27] = "Invalid argument/option - '";
-static const char W64DBG_INVALID_ARGUMENT_[3] = "'.\n";
+static const char _INVALID_ARGUMENT[27] = "Invalid argument/option - '";
+static const char INVALID_ARGUMENT_[3] = "'.\n";
 
 static const char _SLE_ERROR[88] =
 "Invalid data was passed to the function that failed. This caused the application to fail";

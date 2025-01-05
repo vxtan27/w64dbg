@@ -14,14 +14,14 @@ void __stdcall main(void)
     char buffer[BUFLEN];
     ULONG UTF8StringActualByteCount;
 
-    long timeout = W64DBG_DEFAULT_TIMEOUT;
-    char breakpoint = W64DBG_DEFAULT_BREAKPOINT,
-    firstbreak = W64DBG_DEFAULT_FIRSTBREAK,
-    verbose = W64DBG_DEFAULT_VERBOSE,
-    output = W64DBG_DEFAULT_OUTPUT,
-    debug = W64DBG_DEFAULT_DEBUG,
-    start = W64DBG_DEFAULT_START,
-    help = W64DBG_DEFAULT_HELP;
+    long timeout = DEFAULT_TIMEOUT;
+    char breakpoint = DEFAULT_BREAKPOINT,
+    firstbreak = DEFAULT_FIRSTBREAK,
+    verbose = DEFAULT_VERBOSE,
+    output = DEFAULT_OUTPUT,
+    debug = DEFAULT_DEBUG,
+    start = DEFAULT_START,
+    help = DEFAULT_HELP;
 
     char* p = buffer;
     PWSTR pCmdLine = wcschr(GetCommandLineW(), ' ');
@@ -109,9 +109,9 @@ void __stdcall main(void)
 
                     if (temp <= 0)
                     {
-                        memcpy(p, W64DBG_VALUE_EXPECTED,
-                            sizeof(W64DBG_VALUE_EXPECTED));
-                        p += sizeof(W64DBG_VALUE_EXPECTED);
+                        memcpy(p, VALUE_EXPECTED,
+                            sizeof(VALUE_EXPECTED));
+                        p += sizeof(VALUE_EXPECTED);
                         *p++ = *cmd;
                         *p++ = *(cmd + 1);
                         *p++ = '\'';
@@ -120,8 +120,8 @@ void __stdcall main(void)
                     {
                         if ((timeout = _wtol_timeout(pNext)) > 99999)
                         {
-                            memcpy(p, W64DBG_INVALID_TIMEOUT, sizeof(W64DBG_INVALID_TIMEOUT));
-                            p += sizeof(W64DBG_INVALID_TIMEOUT);
+                            memcpy(p, INVALID_TIMEOUT, sizeof(INVALID_TIMEOUT));
+                            p += sizeof(INVALID_TIMEOUT);
                             *(p - 43) = *cmd;
                             *(p - 42) = *(cmd + 1);
                         }
@@ -155,9 +155,9 @@ void __stdcall main(void)
                     }
             }
 
-            memcpy(p, _W64DBG_INVALID_ARGUMENT,
-                sizeof(_W64DBG_INVALID_ARGUMENT));
-            p += sizeof(_W64DBG_INVALID_ARGUMENT);
+            memcpy(p, _INVALID_ARGUMENT,
+                sizeof(_INVALID_ARGUMENT));
+            p += sizeof(_INVALID_ARGUMENT);
 
             temp = (wchar_t*) wmemchr(pNext, ' ',
                 pCmdLine + len + 1 - pNext) - pNext;
@@ -167,18 +167,18 @@ void __stdcall main(void)
             p += UTF8StringActualByteCount;
             pNext += temp + 1;
 
-            memcpy(p, W64DBG_INVALID_ARGUMENT_, 3);
+            memcpy(p, INVALID_ARGUMENT_, 3);
             p += 3;
         }
     }
 
     if (help)
     { // help message
-        memcpy(p, W64DBG_HELP + 16, sizeof(W64DBG_HELP) - 16);
-        p += sizeof(W64DBG_HELP) - 16;
+        memcpy(p, HELP + 16, sizeof(HELP) - 16);
+        p += sizeof(HELP) - 16;
     } else if (!pCmdLine || pCmdLine + len < pNext)
     { // No executable specified
-        memcpy(p, W64DBG_HELP, 65);
+        memcpy(p, HELP, 65);
         p += 65;
     }
 
@@ -591,7 +591,7 @@ void __stdcall main(void)
                             "set lo d\n" // set logging debugredirect
                             "set lo e\n" // set logging enabled
                             "at " // attach
-                            , W64DBG_DEFAULT_LEN, NULL, NULL);
+                            , DEFAULT_LEN, NULL, NULL);
 
                     p = _ultoa10(DebugEvent.dwProcessId, buffer);
                     *p++ = '\n';
@@ -632,7 +632,7 @@ void __stdcall main(void)
                         *p++ = 'f';
                     }
 
-                    ByteOffset.QuadPart = W64DBG_DEFAULT_OFFSET;
+                    ByteOffset.QuadPart = DEFAULT_LEN;
                     NtWriteFile(hTemp, NULL, NULL, NULL, &IoStatusBlock,
                         buffer, p - buffer, &ByteOffset, NULL);
                     ByteOffset.QuadPart +=  p - buffer;

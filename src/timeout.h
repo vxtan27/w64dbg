@@ -52,9 +52,7 @@ static DWORD WINAPI WaitForInput(LPVOID lpParameter)
 static const char InfiniteMessage[30] = "\nPress any key to continue ...";
 static const char FiniteMessage[42] = " seconds, press a key to continue ...\x1b[37D";
 
-static
-__forceinline
-VOID WaitForInputOrTimeout(
+static __forceinline VOID WaitForInputOrTimeout(
     HANDLE     hStdin,
     HANDLE    hStdout,
     long      timeout,
