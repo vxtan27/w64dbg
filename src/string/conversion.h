@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include <vcruntime_string.h>
-
 static __forceinline long _wtol_timeout(wchar_t* p) {
     if (*p == '-') {
         if (*(p + 2) == ' ') {

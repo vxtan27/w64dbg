@@ -3,15 +3,7 @@
     Licensed under the BSD-3-Clause.
 */
 
-#include "enum.h"
-#include "..\resrc.h"
-#include "..\ntdll.h"
-#include <dbghelp.h>
-#include <stdio.h>
-
-_Success_(return >= 0)
-static
-int __builtin_snprintf(
+static int __builtin_snprintf(
     char*       const _Buffer,
     size_t      const _BufferCount,
     char const* const _Format,
@@ -28,19 +20,96 @@ int __builtin_snprintf(
     return _Result;
 }
 
+enum SymTagEnum {
+    SymTagNull,
+    SymTagExe,
+    SymTagCompiland,
+    SymTagCompilandDetails,
+    SymTagCompilandEnv,
+    SymTagFunction,
+    SymTagBlock,
+    SymTagData,
+    SymTagAnnotation,
+    SymTagLabel,
+    SymTagPublicSymbol,
+    SymTagUDT,
+    SymTagEnum,
+    SymTagFunctionType,
+    SymTagPointerType,
+    SymTagArrayType,
+    SymTagBaseType,
+    SymTagTypedef,
+    SymTagBaseClass,
+    SymTagFriend,
+    SymTagFunctionArgType,
+    SymTagFuncDebugStart,
+    SymTagFuncDebugEnd,
+    SymTagUsingNamespace,
+    SymTagVTableShape,
+    SymTagVTable,
+    SymTagCustom,
+    SymTagThunk,
+    SymTagCustomType,
+    SymTagManagedType,
+    SymTagDimension,
+    SymTagCallSite,
+    SymTagInlineSite,
+    SymTagBaseInterface,
+    SymTagVectorType,
+    SymTagMatrixType,
+    SymTagHLSLType,
+    SymTagCaller,
+    SymTagCallee,
+    SymTagExport,
+    SymTagHeapAllocationSite,
+    SymTagCoffGroup,
+    SymTagInlinee,
+    SymTagTaggedUnionCase,
+};
+
+enum BasicType
+{
+    btNoType = 0,
+    btVoid = 1,
+    btChar = 2,
+    btWChar = 3,
+    btInt = 6,
+    btUInt = 7,
+    btFloat = 8,
+    btBCD = 9,
+    btBool = 10,
+    btLong = 13,
+    btULong = 14,
+    btCurrency = 25,
+    btDate = 26,
+    btVariant = 27,
+    btComplex = 28,
+    btBit = 29,
+    btBSTR = 30,
+    btHresult = 31
+};
+
+typedef struct
+{
+    HANDLE hProcess;
+    PVOID pContext;
+    char *p;
+    DWORD bx64win;
+    char Console;
+    char DataIsLocal;
+    char IsFirst;
+} USERCONTEXT, *PUSERCONTEXT;
+
 // https://github.com/microsoft/microsoft-pdb/blob/master/include/cvconst.h
 // https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code#showing-variables-using-the-windows-debugging-api
 // https://accu.org/journals/overload/29/165/orr
 // https://github.com/rogerorr/NtTrace/blob/main/src/SymbolEngine.cpp#L1185
 
-static
-BOOL
-CALLBACK
-EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, PVOID UserContext)
+static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, PVOID UserContext)
 {
     (void) SymbolSize;
 
-    USERCONTEXT* User = (USERCONTEXT*) UserContext;
+    PUSERCONTEXT User = (PUSERCONTEXT) UserContext;
 
     if ((User->DataIsLocal && !(pSymbol->Flags & SYMFLAG_PARAMETER)) ||
         (!User->DataIsLocal && pSymbol->Flags & SYMFLAG_PARAMETER))
