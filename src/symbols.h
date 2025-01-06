@@ -100,6 +100,16 @@ typedef struct
     char IsFirst;
 } USERCONTEXT, *PUSERCONTEXT;
 
+typedef union
+{
+    struct
+    {
+        ULARGE_INTEGER LowPart;
+        ULARGE_INTEGER HighPart;
+    } u;
+    long double QuadPart;
+} LONG_DOUBLE;
+
 // https://github.com/microsoft/microsoft-pdb/blob/master/include/cvconst.h
 // https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code#showing-variables-using-the-windows-debugging-api
 // https://accu.org/journals/overload/29/165/orr
@@ -219,7 +229,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
         }
 
         char* p;
-        long double value = 0;
+        LONG_DOUBLE value = {};
 
         *User->p++ = '=';
 
@@ -229,7 +239,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
         {
             *User->p++ = '0';
             *User->p++ = 'x';
-            value = pSymbol->Address + Offset;
+            value.u.LowPart.QuadPart = pSymbol->Address + Offset;
             p = "%Ix";
         } else
         {
@@ -262,7 +272,9 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
                         break;
                     case btFloat:
                         p = "%Lg";
-                        break;
+                        User->p += __builtin_snprintf(User->p, PAGESIZE, p, value.QuadPart);
+                        if (User->DataIsLocal) *User->p++ = '\n';
+                        return TRUE;
                     case btHresult:
                         p = "%IX";
                         break;
@@ -284,7 +296,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
 
         }
 
-        User->p += __builtin_snprintf(User->p, PAGESIZE, p, value);
+        User->p += __builtin_snprintf(User->p, PAGESIZE, p, value.u.LowPart);
 
         if (User->DataIsLocal) *User->p++ = '\n';
     }

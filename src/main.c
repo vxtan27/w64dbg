@@ -881,7 +881,7 @@ void __stdcall main(void)
                         }
 
                         // Skip %dir%/
-                        if (temp == wDirLen && !memcmp(Line.FileName, PATH, cDirLen))
+                        if (temp > wDirLen && !memcmp(Line.FileName, PATH, cDirLen))
                             p = FormatFileLine(Line.FileName + wDirLen + 1,
                                 Line.LineNumber, temp - wDirLen - 1, p, Console);
                         else p = FormatFileLine(Line.FileName,

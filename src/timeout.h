@@ -28,7 +28,8 @@ typedef struct
     long timeout;
 } THREAD_PARAMETER;
 
-static DWORD WINAPI WaitForInput(LPVOID lpParameter)
+__declspec(noreturn)
+static VOID WINAPI WaitForInput(LPVOID lpParameter)
 {
     DWORD dwRead;
     INPUT_RECORD InputRecord;
