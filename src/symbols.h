@@ -110,6 +110,15 @@ typedef union
     long double QuadPart;
 } LONG_DOUBLE;
 
+// Applies non-bold/bright cyan to foreground
+static const char CONSOLE_CYAN_FORMAT[5] = "\x1b[36m";
+
+static const char LOW_HEX_FORMAT[] = "%Ix";
+static const char LONGLONG_FORMAT[] = "%lld";
+static const char ULONGLONG_FORMAT[] = "%llu";
+static const char LONGDOUBLE_FORMAT[] = "%Lg";
+static const char UP_HEX_FORMAT[] = "%IX";
+
 // https://github.com/microsoft/microsoft-pdb/blob/master/include/cvconst.h
 // https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code#showing-variables-using-the-windows-debugging-api
 // https://accu.org/journals/overload/29/165/orr
@@ -212,7 +221,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
 
         if (User->Console)
         {
-            memcpy(User->p, "\x1b[36m", 5);
+            memcpy(User->p, CONSOLE_CYAN_FORMAT, 5);
             User->p += 5;
         }
 
@@ -240,7 +249,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
             *User->p++ = '0';
             *User->p++ = 'x';
             value.u.LowPart.QuadPart = pSymbol->Address + Offset;
-            p = "%Ix";
+            p = LOW_HEX_FORMAT;
         } else
         {
             ULONG64 Len;
@@ -252,7 +261,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
             {
                 *User->p++ = '0';
                 *User->p++ = 'x';
-                p = "%Ix";
+                p = LOW_HEX_FORMAT;
             } else
             {
                 DWORD BaseType;
@@ -263,20 +272,20 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
                     case btWChar:
                     case btInt:
                     case btLong:
-                        p = "%lld";
+                        p = LONGLONG_FORMAT;
                         break;
                     case btUInt:
                     case btBool:
                     case btULong:
-                        p = "%llu";
+                        p = ULONGLONG_FORMAT;
                         break;
                     case btFloat:
-                        p = "%Lg";
+                        p = LONGDOUBLE_FORMAT;
                         User->p += __builtin_snprintf(User->p, PAGESIZE, p, value.QuadPart);
                         if (User->DataIsLocal) *User->p++ = '\n';
                         return TRUE;
                     case btHresult:
-                        p = "%IX";
+                        p = UP_HEX_FORMAT;
                         break;
                     /*
                     case btNoType:
@@ -290,7 +299,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
                     case btBSTR:
                     */
                     default:
-                        p = "%Ix";
+                        p = LOW_HEX_FORMAT;
                 }
             }
 

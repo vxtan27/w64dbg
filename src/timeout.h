@@ -51,7 +51,8 @@ static VOID WINAPI WaitForInput(LPVOID lpParameter)
 }
 
 static const char InfiniteMessage[30] = "\nPress any key to continue ...";
-static const char FiniteMessage[42] = " seconds, press a key to continue ...\x1b[37D";
+static const char _FiniteMessage[13] = "\nWaiting for ";
+static const char FiniteMessage_[42] = " seconds, press a key to continue ...\x1b[37D";
 
 static __forceinline VOID WaitForInputOrTimeout(
     HANDLE     hStdin,
@@ -82,12 +83,13 @@ static __forceinline VOID WaitForInputOrTimeout(
     } else
     {
         char* p;
-        char buffer[64] = "\nWaiting for ";
+        char buffer[64];
 
-        p = _ltoa10(timeout, buffer + 13);
-        memcpy(p, FiniteMessage, sizeof(FiniteMessage));
+        memcpy(buffer, _FiniteMessage, sizeof(_FiniteMessage));
+        p = _ltoa10(timeout, buffer + sizeof(_FiniteMessage));
+        memcpy(p, FiniteMessage_, sizeof(FiniteMessage_));
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-            buffer, p - buffer + sizeof(FiniteMessage), NULL, NULL);
+            buffer, p - buffer + sizeof(FiniteMessage_), NULL, NULL);
 
         if (StdinConsole)
         {

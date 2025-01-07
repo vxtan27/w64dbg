@@ -72,7 +72,7 @@ void __stdcall main(void)
                     {
                         debug = MINGW;
                         pNext += 3;
-                    } else if (*(pNext + 2) == '-' && *(pNext + 3) == ' ')
+                    } else if (*(pNext + 2) == '+' && *(pNext + 3) == ' ')
                     {
                         debug = MINGW + 1;
                         pNext += 4;
@@ -205,8 +205,8 @@ void __stdcall main(void)
     DWORD cDirLen, wDirLen, PathLen;
     wchar_t PATH[WBUFLEN], ApplicationName[WBUFLEN];
 
-    Variable.Length = 8;
-    Variable.Buffer = L"PATH";
+    Variable.Length = sizeof(PATHENV);
+    Variable.Buffer = PATHENV;
     cDirLen = RtlGetCurrentDirectory_U(sizeof(PATH), PATH);
     Value.MaximumLength = sizeof(PATH) - cDirLen - 2;
     wDirLen = cDirLen >> 1;
@@ -221,7 +221,7 @@ void __stdcall main(void)
     *(pCmdLine + len) = '\0';
 
     // Check if executable exists
-    if (!(PathLen = RtlDosSearchPath_U(PATH, pNext, L".exe",
+    if (!(PathLen = RtlDosSearchPath_U(PATH, pNext, EXTENSION,
         sizeof(ApplicationName), ApplicationName, NULL)))
     {
         wchar_t Tmp[WBUFLEN];
@@ -297,8 +297,8 @@ void __stdcall main(void)
 
     if (verbose >= 2)
     {
-        memcpy(buffer, "CreateProcess ", 14);
-        p = _ultoa10(DebugEvent.dwProcessId, buffer + 14);
+        memcpy(buffer, CREATE_PROCESS, sizeof(CREATE_PROCESS));
+        p = _ultoa10(DebugEvent.dwProcessId, buffer + sizeof(CREATE_PROCESS));
         *p = 'x';
         p = _ultoa10(DebugEvent.dwThreadId, p + 1);
         *p = '\n';
@@ -332,15 +332,16 @@ void __stdcall main(void)
                 {
                     wchar_t Tmp[WBUFLEN];
 
-                    memcpy(buffer, "LoadDll ", 8);
+                    memcpy(buffer, LOAD_DLL, sizeof(LOAD_DLL));
                     len = GetFinalPathNameByHandleW(DebugEvent.u.LoadDll.hFile,
                         Tmp, WBUFLEN, FILE_NAME_OPENED);
-                    RtlUnicodeToUTF8N(buffer + 8, BUFLEN - 8, // Skip "\\?\"
-                        &UTF8StringActualByteCount, Tmp + 4, (len << 1) - 8);
-                    buffer[UTF8StringActualByteCount + 8] = '\n';
+                    RtlUnicodeToUTF8N(buffer + sizeof(LOAD_DLL),
+                        BUFLEN - sizeof(LOAD_DLL), &UTF8StringActualByteCount,
+                        Tmp + 4, (len << 1) - 8); /* Skip \\?\ */
+                    buffer[UTF8StringActualByteCount + sizeof(LOAD_DLL)] = '\n';
 
-                    NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-                        buffer, UTF8StringActualByteCount + 9, NULL, NULL);
+                    NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, buffer,
+                        UTF8StringActualByteCount + sizeof(LOAD_DLL) + 1, NULL, NULL);
                 }
 
                 // Find storage position
@@ -362,15 +363,16 @@ void __stdcall main(void)
                     {
                         wchar_t Tmp[WBUFLEN];
 
-                        memcpy(buffer, "UnloadDll ", 10);
-                        len = GetFinalPathNameByHandleW(DebugEvent.u.LoadDll.hFile,
+                        memcpy(buffer, UNLOAD_DLL, sizeof(UNLOAD_DLL));
+                        len = GetFinalPathNameByHandleW(hFile[i],
                             Tmp, WBUFLEN, FILE_NAME_OPENED);
-                        RtlUnicodeToUTF8N(buffer + 10, BUFLEN - 10, // Skip "\\?\"
-                            &UTF8StringActualByteCount, Tmp + 4, (len << 1) - 8);
-                        buffer[UTF8StringActualByteCount + 10] = '\n';
+                        RtlUnicodeToUTF8N(buffer + sizeof(UNLOAD_DLL),
+                            BUFLEN - sizeof(UNLOAD_DLL), &UTF8StringActualByteCount,
+                            Tmp + 4, (len << 1) - 8); /* Skip \\?\ */
+                        buffer[UTF8StringActualByteCount + sizeof(UNLOAD_DLL)] = '\n';
 
-                        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-                            buffer, UTF8StringActualByteCount + 11, NULL, NULL);
+                        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, buffer,
+                            UTF8StringActualByteCount + sizeof(UNLOAD_DLL) + 1, NULL, NULL);
                     }
 
                     NtClose(hFile[i]);
@@ -383,8 +385,8 @@ void __stdcall main(void)
             case CREATE_THREAD_DEBUG_EVENT:
                 if (verbose >= 2)
                 {
-                    memcpy(buffer, "CreateThread ", 13);
-                    p = _ultoa10(DebugEvent.dwProcessId, buffer + 13);
+                    memcpy(buffer, CREATE_THREAD, sizeof(CREATE_THREAD));
+                    p = _ultoa10(DebugEvent.dwProcessId, buffer + sizeof(CREATE_THREAD));
                     *p = 'x';
                     p = _ultoa10(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
@@ -405,8 +407,8 @@ void __stdcall main(void)
             case EXIT_THREAD_DEBUG_EVENT:
                 if (verbose >= 2)
                 {
-                    memcpy(buffer, "ExitThread ", 11);
-                    p = _ultoa10(DebugEvent.dwProcessId, buffer + 11);
+                    memcpy(buffer, EXIT_THREAD, sizeof(EXIT_THREAD));
+                    p = _ultoa10(DebugEvent.dwProcessId, buffer + sizeof(EXIT_THREAD));
                     *p = 'x';
                     p = _ultoa10(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
@@ -426,8 +428,8 @@ void __stdcall main(void)
             case EXIT_PROCESS_DEBUG_EVENT:
                 if (verbose >= 2)
                 {
-                    memcpy(buffer, "ExitProcess ", 12);
-                    p = _ultoa10(DebugEvent.dwProcessId, buffer + 12);
+                    memcpy(buffer, EXIT_PROCESS, sizeof(EXIT_PROCESS));
+                    p = _ultoa10(DebugEvent.dwProcessId, buffer + sizeof(EXIT_PROCESS));
                     *p = 'x';
                     p = _ultoa10(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
@@ -460,8 +462,8 @@ void __stdcall main(void)
             case OUTPUT_DEBUG_STRING_EVENT:
                 if (verbose >= 2)
                 {
-                    memcpy(buffer, "OutputDebugString ", 18);
-                    p = _ultoa10(DebugEvent.dwProcessId, buffer + 18);
+                    memcpy(buffer, OUTPUT_DEBUG, sizeof(OUTPUT_DEBUG));
+                    p = _ultoa10(DebugEvent.dwProcessId, buffer + sizeof(OUTPUT_DEBUG));
                     *p = 'x';
                     p = _ultoa10(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
@@ -498,21 +500,21 @@ void __stdcall main(void)
                 for (i = 0; i < MAX_THREAD; ++i) if (DebugEvent.dwThreadId == dwThreadId[i])
                     break;
 
-                memcpy(buffer, "Thread #", 8);
+                memcpy(buffer, THREAD_NUMBER, sizeof(THREAD_NUMBER));
                 if (DebugEvent.dwThreadId == dwThreadId[i])
                 {
-                    buffer[8] = '0' + (i + 1) / 10;
-                    buffer[9] = '0' + (i + 1) % 10;
-                    p = buffer + 10;
-                } else p = _ultoa10(DebugEvent.dwThreadId, buffer + 7);
-                memcpy(p, " caused ", 8);
-                p = FormatDebugException(&DebugEvent.u.Exception.ExceptionRecord, p + 8, bx64win);
+                    buffer[sizeof(THREAD_NUMBER)] = '0' + (i + 1) / 10;
+                    buffer[sizeof(THREAD_NUMBER) + 1] = '0' + (i + 1) % 10;
+                    p = buffer + sizeof(THREAD_NUMBER) + 2;
+                } else p = _ultoa10(DebugEvent.dwThreadId, buffer + sizeof(THREAD_NUMBER) - 1);
+                memcpy(p, THREAD_CAUSED, sizeof(THREAD_CAUSED));
+                p = FormatDebugException(&DebugEvent.u.Exception.ExceptionRecord, p + sizeof(THREAD_CAUSED), bx64win);
                 *p++ = '\n';
 
                 if (Console)
                 {
-                    memcpy(p, "\x1b[31m", 5);
-                    p += 5;
+                    memcpy(p, CONSOLE_RED_FORMAT, sizeof(CONSOLE_RED_FORMAT));
+                    p += sizeof(CONSOLE_RED_FORMAT);
                 }
 
                 char* pre = p;
@@ -522,8 +524,7 @@ void __stdcall main(void)
 
                 if (Console)
                 {
-                    memcpy(p, CONSOLE_DEFAULT_FORMAT,
-                        sizeof(CONSOLE_DEFAULT_FORMAT));
+                    memcpy(p, CONSOLE_DEFAULT_FORMAT, sizeof(CONSOLE_DEFAULT_FORMAT));
                     p += sizeof(CONSOLE_DEFAULT_FORMAT);
                 }
 
@@ -538,7 +539,7 @@ void __stdcall main(void)
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
                 else if (debug < MINGW)
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
-                else if (RtlDosSearchPath_U(PATH, L"gdb.exe", NULL, // Check if executable exists
+                else if (RtlDosSearchPath_U(PATH, GDB_EXE, NULL, // Check if executable exists
                     sizeof(ApplicationName), ApplicationName, NULL))
                 {
                     NtWriteFile(hStdout, NULL, NULL, NULL,
@@ -551,25 +552,26 @@ void __stdcall main(void)
                     UNICODE_STRING String;
                     LARGE_INTEGER ByteOffset;
                     OBJECT_ATTRIBUTES ObjectAttributes;
-                    wchar_t CommandLine[18 + MAX_PATH] = L"gdb.exe -q -x=\\??\\";
+                    wchar_t CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + MAX_PATH];
 
-                    Variable.Length = 6;
-                    Variable.Buffer = L"TMP";
-                    Value.MaximumLength = sizeof(CommandLine) - 18 * 2;
-                    Value.Buffer = &CommandLine[18];
+                    Variable.Length = sizeof(TMPENV);
+                    Variable.Buffer = TMPENV;
+                    memcpy(CommandLine, GDB_COMMAND_LINE, sizeof(GDB_COMMAND_LINE));
+                    Value.MaximumLength = sizeof(CommandLine) - sizeof(GDB_COMMAND_LINE);
+                    Value.Buffer = &CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1)];
                     RtlQueryEnvironmentVariable_U(NULL, &Variable, &Value);
                     Value.Length >>= 1;
 
                     // Ensure correct DOS path
-                    if (CommandLine[18 - 1 + Value.Length] != '\\')
+                    if (CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) - 1 + Value.Length] != '\\')
                     {
-                        CommandLine[18 + Value.Length] = '\\';
+                        CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + Value.Length] = '\\';
                         ++Value.Length;
                     }
 
-                    memcpy(&CommandLine[18 + Value.Length], L"w64dbg", 12);
-                    String.Length = (4 + Value.Length + 6) << 1;
-                    String.Buffer = &CommandLine[18 - 4];
+                    memcpy(&CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + Value.Length], W64DBG, sizeof(W64DBG));
+                    String.Length = 8 + sizeof(W64DBG) + (Value.Length << 1);
+                    String.Buffer = &CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) - 4];
                     InitializeObjectAttributes(&ObjectAttributes,
                         &String, OBJ_CASE_INSENSITIVE, NULL, NULL);
                     NtCreateFile(&hTemp, FILE_WRITE_DATA | SYNCHRONIZE, &ObjectAttributes,
@@ -578,53 +580,29 @@ void __stdcall main(void)
 
                     // First time run
                     if (IoStatusBlock.Information == FILE_CREATED)
-                        NtWriteFile(hTemp, NULL, NULL, NULL,
-                            &IoStatusBlock,
-                            "set bac l 100\n" // set backtrace limit 100
-                            "set con of\n" // set confirm off
-                            "set p th of\n" // set print thread-events off
-                            "set p i of\n" // set print inferior-events off
-                            "set p frame-i source-a\n" // set print frame-info source-and-location
-                            "set p en n\n" // set print entry-values no
-                            "set lo f NUL\n" // set logging file
-                            "set lo r\n" // set logging redirect
-                            "set lo d\n" // set logging debugredirect
-                            "set lo e\n" // set logging enabled
-                            "at " // attach
-                            , DEFAULT_LEN, NULL, NULL);
+                        NtWriteFile(hTemp, NULL, NULL, NULL, &IoStatusBlock,
+                            GDB_DEFAULT, sizeof(GDB_DEFAULT), NULL, NULL);
 
                     p = _ultoa10(DebugEvent.dwProcessId, buffer);
-                    *p++ = '\n';
 
                     if (debug == MINGW + 1)
                     {
-                        memcpy(p,
-                            "set pa of\n" // set pagination off
-                            "set wi 0" // set width 0
-                            , 18);
-                        p += 18;
+                        memcpy(p, GDB_PRESERVE, sizeof(GDB_PRESERVE));
+                        p += sizeof(GDB_PRESERVE);
                     } else
                     {
-                        // set style enabled
-                        memcpy(p, "set sty e", 9);
-                        p += 9;
+                        memcpy(p, GDB_STYLE, sizeof(GDB_STYLE));
+                        p += sizeof(GDB_STYLE);
                     }
-
-                    *p++ = '\n';
 
                     if (verbose >= 1)
                     {
-                        // set print frame-arguments all
-                        memcpy(p,
-                            "set p frame-a a\n"
-                            "set p pr\n"
-                            , 25);
-                        p += 25;
+                        memcpy(p, GDB_FRAME_ARG, sizeof(GDB_FRAME_ARG));
+                        p += sizeof(GDB_FRAME_ARG);
                     }
 
-                    // continue & set logging enabled off & backtrace
-                    memcpy(p, "c\nset lo e of\nbt", 16);
-                    p += 16;
+                    memcpy(p, GDB_CONTINUE, sizeof(GDB_CONTINUE));
+                    p += sizeof(GDB_CONTINUE);
 
                     if (verbose >= 1)
                     {
@@ -632,7 +610,7 @@ void __stdcall main(void)
                         *p++ = 'f';
                     }
 
-                    ByteOffset.QuadPart = DEFAULT_LEN;
+                    ByteOffset.QuadPart = sizeof(GDB_DEFAULT);
                     NtWriteFile(hTemp, NULL, NULL, NULL, &IoStatusBlock,
                         buffer, p - buffer, &ByteOffset, NULL);
                     ByteOffset.QuadPart +=  p - buffer;
@@ -641,7 +619,7 @@ void __stdcall main(void)
                     NtClose(hTemp);
 
                     if (debug == MINGW && !timeout)
-                        memcpy(&CommandLine[18 + Value.Length + 6], L" --batch", 16);
+                        memcpy(&CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + Value.Length + 6], GDB_BATCH, sizeof(GDB_BATCH));
 
                     DWORD_PTR ProcDbgPt;
                     LARGE_INTEGER DelayInterval;
@@ -696,7 +674,7 @@ void __stdcall main(void)
                             WriteConsoleInputW(hStdin,
                                 InputRecord, 2, &dwWriten);
                         } else NtWriteFile(hStdout, NULL, NULL, NULL,
-                            &IoStatusBlock, "q\n", 2, NULL, NULL);
+                            &IoStatusBlock, GDB_QUIT, sizeof(GDB_QUIT), NULL, NULL);
                     }
 
                     NtWaitForSingleObject(processInfo.hProcess, FALSE, NULL);
@@ -707,8 +685,8 @@ void __stdcall main(void)
 
                     if (verbose >= 2)
                     {
-                        memcpy(buffer, "ExitProcess ", 12);
-                        p = _ultoa10(DebugEvent.dwProcessId, buffer + 12);
+                        memcpy(buffer, EXIT_PROCESS, sizeof(EXIT_PROCESS));
+                        p = _ultoa10(DebugEvent.dwProcessId, buffer + sizeof(EXIT_PROCESS));
                         *p = 'x';
                         p = _ultoa10(DebugEvent.dwThreadId, p + 1);
                         *p = '\n';
@@ -821,22 +799,20 @@ void __stdcall main(void)
 
                     if (Console)
                     {
-                        memcpy(p, "\x1b[34m", 5);
-                        p += 5;
+                        memcpy(p, CONSOLE_BLUE_FORMAT, sizeof(CONSOLE_BLUE_FORMAT));
+                        p += sizeof(CONSOLE_BLUE_FORMAT);
                     }
 
                     p = _ui64toa16(StackFrame.AddrPC.Offset, p, bx64win);
 
                     if (Console)
                     {
-                        memcpy(p, "\x1b[m in \x1b[33m",
-                            strlen("\x1b[m in \x1b[33m"));
-                        p += strlen("\x1b[m in \x1b[33m");
+                        memcpy(p, EXCEPTION_IN, sizeof(EXCEPTION_IN));
+                        p += sizeof(EXCEPTION_IN);
                     } else
                     {
-                        memcpy(p, " in ",
-                            strlen(" in "));
-                        p += strlen(" in ");
+                        memcpy(p, EXCEPTION_IN + 3, 4);
+                        p += 4;
                     }
 
                     RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
@@ -870,14 +846,14 @@ void __stdcall main(void)
                     if (debug == TRUE && SymGetLineFromAddrW64(hProcess,
                         StackFrame.AddrPC.Offset, &Displacement, &Line))
                     {
-                        memcpy(p, "at ", strlen("at "));
+                        memcpy(p, EXCEPTION_AT, sizeof(EXCEPTION_AT));
                         temp = wcslen(Line.FileName);
-                        p += strlen("at ");
+                        p += sizeof(EXCEPTION_AT);
 
                         if (Console)
                         {
-                            memcpy(p, "\x1b[32m", strlen("\x1b[32m"));
-                            p += strlen("\x1b[32m");
+                            memcpy(p, CONSOLE_GREEN_FORMAT, sizeof(CONSOLE_GREEN_FORMAT));
+                            p += sizeof(CONSOLE_GREEN_FORMAT);
                         }
 
                         // Skip %dir%/
@@ -889,13 +865,13 @@ void __stdcall main(void)
                         if (verbose >= 1) p = FormatSourceCode(Line.FileName, Line.LineNumber, temp, buffer, p, verbose);
                     } else
                     {
-                        memcpy(p, "from ", strlen("from "));
-                        p += strlen("from ");
+                        memcpy(p, EXCEPTION_FROM, sizeof(EXCEPTION_FROM));
+                        p += sizeof(EXCEPTION_FROM);
 
                         if (Console)
                         {
-                            memcpy(p, "\x1b[32m", 5);
-                            p += 5;
+                            memcpy(p, CONSOLE_GREEN_FORMAT, sizeof(CONSOLE_GREEN_FORMAT));
+                            p += sizeof(CONSOLE_GREEN_FORMAT);
                         }
 
                         len = GetModuleFileNameExW(hProcess,
@@ -948,8 +924,8 @@ void __stdcall main(void)
             case RIP_EVENT:
                 if (verbose >= 2)
                 {
-                    memcpy(buffer, "RIP ", 4);
-                    p = _ultoa10(DebugEvent.dwProcessId, buffer + 4);
+                    memcpy(buffer, RIP, sizeof(RIP));
+                    p = _ultoa10(DebugEvent.dwProcessId, buffer + sizeof(RIP));
                     *p = 'x';
                     p = _ultoa10(DebugEvent.dwThreadId, p + 1);
                     *p = '\n';
