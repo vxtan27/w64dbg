@@ -201,18 +201,14 @@ void __stdcall main(void)
     }
 
     wchar_t* ptr;
-    UNICODE_STRING Variable, Value;
-    DWORD cDirLen, wDirLen, PathLen;
+    DWORD cDirLen, wDirLen;
     wchar_t PATH[WBUFLEN], ApplicationName[WBUFLEN];
 
-    Variable.Length = sizeof(PATHENV);
-    Variable.Buffer = PATHENV;
     cDirLen = RtlGetCurrentDirectory_U(sizeof(PATH), PATH);
-    Value.MaximumLength = sizeof(PATH) - cDirLen - 2;
     wDirLen = cDirLen >> 1;
     PATH[wDirLen] = ';';
-    Value.Buffer = PATH + (wDirLen) + 1;
-    RtlQueryEnvironmentVariable_U(NULL, &Variable, &Value);
+    RtlQueryEnvironmentVariable(NULL, PATHENV, sizeof(PATHENV) >> 1,
+        PATH + wDirLen + 1, WBUFLEN - wDirLen - 1, &temp);
 
     ptr = (wchar_t*) wmemchr(pNext, ' ',
         pCmdLine + len + 1 - pNext);
@@ -221,8 +217,8 @@ void __stdcall main(void)
     *(pCmdLine + len) = '\0';
 
     // Check if executable exists
-    if (!(PathLen = RtlDosSearchPath_U(PATH, pNext, EXTENSION,
-        sizeof(ApplicationName), ApplicationName, NULL)))
+    if (!RtlDosSearchPath_U(PATH, pNext, EXTENSION,
+        sizeof(ApplicationName), ApplicationName, NULL))
     {
         wchar_t Tmp[WBUFLEN];
 
@@ -507,20 +503,26 @@ void __stdcall main(void)
                     buffer[sizeof(THREAD_NUMBER) + 1] = '0' + (i + 1) % 10;
                     p = buffer + sizeof(THREAD_NUMBER) + 2;
                 } else p = _ultoa10(DebugEvent.dwThreadId, buffer + sizeof(THREAD_NUMBER) - 1);
-                memcpy(p, THREAD_CAUSED, sizeof(THREAD_CAUSED));
-                p = FormatDebugException(&DebugEvent.u.Exception.ExceptionRecord, p + sizeof(THREAD_CAUSED), bx64win);
-                *p++ = '\n';
+
+                wchar_t Tmp[WBUFLEN];
+
+                memcpy(p, THREAD_TRIGGERD, sizeof(THREAD_TRIGGERD));
+                p += sizeof(THREAD_TRIGGERD);
+                p = _ultoa16(DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, p);
 
                 if (Console)
                 {
-                    memcpy(p, CONSOLE_RED_FORMAT, sizeof(CONSOLE_RED_FORMAT));
-                    p += sizeof(CONSOLE_RED_FORMAT);
-                }
+                    memcpy(p, CONSOLE_NRED_FORMAT, sizeof(CONSOLE_NRED_FORMAT));
+                    p += sizeof(CONSOLE_NRED_FORMAT);
+                } else *p++ = '\n';
 
-                char* pre = p;
-
-                p = FormatVerboseDebugException(p,
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode);
+                len = FormatMessageW(FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_FROM_SYSTEM |
+                    FORMAT_MESSAGE_IGNORE_INSERTS, GetModuleHandleW(L"NTDLL.DLL"),
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), Tmp, WBUFLEN, NULL);
+                RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
+                    &UTF8StringActualByteCount, Tmp, len << 1);
+                p += UTF8StringActualByteCount;
 
                 if (Console)
                 {
@@ -528,7 +530,6 @@ void __stdcall main(void)
                     p += sizeof(CONSOLE_DEFAULT_FORMAT);
                 }
 
-                    if (p != pre) *p++ = '\n';
 
                 // Check if critical exception
                 if (!(DebugEvent.u.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE) &&
@@ -554,23 +555,19 @@ void __stdcall main(void)
                     OBJECT_ATTRIBUTES ObjectAttributes;
                     wchar_t CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + MAX_PATH];
 
-                    Variable.Length = sizeof(TMPENV);
-                    Variable.Buffer = TMPENV;
                     memcpy(CommandLine, GDB_COMMAND_LINE, sizeof(GDB_COMMAND_LINE));
-                    Value.MaximumLength = sizeof(CommandLine) - sizeof(GDB_COMMAND_LINE);
-                    Value.Buffer = &CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1)];
-                    RtlQueryEnvironmentVariable_U(NULL, &Variable, &Value);
-                    Value.Length >>= 1;
+                    RtlQueryEnvironmentVariable(NULL, TMPENV, sizeof(TMPENV) >> 1, &CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1)],
+                        (sizeof(CommandLine) >> 1) - (sizeof(GDB_COMMAND_LINE) >> 1), &temp);
 
                     // Ensure correct DOS path
-                    if (CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) - 1 + Value.Length] != '\\')
+                    if (CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) - 1 + temp] != '\\')
                     {
-                        CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + Value.Length] = '\\';
-                        ++Value.Length;
+                        CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + temp] = '\\';
+                        ++temp;
                     }
 
-                    memcpy(&CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + Value.Length], W64DBG, sizeof(W64DBG));
-                    String.Length = 8 + sizeof(W64DBG) + (Value.Length << 1);
+                    memcpy(&CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + temp], W64DBG, sizeof(W64DBG));
+                    String.Length = 8 + sizeof(W64DBG) + (temp << 1);
                     String.Buffer = &CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) - 4];
                     InitializeObjectAttributes(&ObjectAttributes,
                         &String, OBJ_CASE_INSENSITIVE, NULL, NULL);
@@ -579,7 +576,7 @@ void __stdcall main(void)
                         FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
 
                     // First time run
-                    if (IoStatusBlock.Information == FILE_CREATED)
+                    if (IoStatusBlock.Information == 2) // FILE_CREATED
                         NtWriteFile(hTemp, NULL, NULL, NULL, &IoStatusBlock,
                             GDB_DEFAULT, sizeof(GDB_DEFAULT), NULL, NULL);
 
@@ -619,7 +616,7 @@ void __stdcall main(void)
                     NtClose(hTemp);
 
                     if (debug == MINGW && !timeout)
-                        memcpy(&CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + Value.Length + 6], GDB_BATCH, sizeof(GDB_BATCH));
+                        memcpy(&CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + temp + 6], GDB_BATCH, sizeof(GDB_BATCH));
 
                     DWORD_PTR ProcDbgPt;
                     LARGE_INTEGER DelayInterval;
@@ -753,7 +750,6 @@ void __stdcall main(void)
                 PSYMBOL_INFOW pSymbol;
                 IMAGEHLP_LINEW64 Line;
                 DWORD64 Displacement64;
-                wchar_t Tmp[WBUFLEN];
                 USERCONTEXT UserContext;
 
                 count = 0;

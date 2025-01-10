@@ -106,11 +106,11 @@ static const char EXIT_THREAD[11] = "ExitThread ";
 static const char EXIT_PROCESS[12] = "ExitProcess ";
 static const char OUTPUT_DEBUG[18] = "OutputDebugString ";
 
+// Newline & Applies non-bold/bright red to foreground
+static const char CONSOLE_NRED_FORMAT[6] = "\n\x1b[31m";
+static const char THREAD_TRIGGERD[23] = " triggered exception 0x";
 static const char THREAD_NUMBER[8] = "Thread #";
-static const char THREAD_CAUSED[8] = " caused ";
 
-// Applies non-bold/bright red to foreground
-static const char CONSOLE_RED_FORMAT[5] = "\x1b[31m";
 static const wchar_t TMPENV[3] = L"TMP";
 static const wchar_t GDB_EXE[] = L"gdb.exe";
 static const wchar_t GDB_COMMAND_LINE[18] = L"gdb.exe -q -x=\\??\\";
