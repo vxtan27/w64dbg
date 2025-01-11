@@ -13,7 +13,7 @@ static int __builtin_snprintf(
     va_list _ArgList;
 
     __crt_va_start(_ArgList, _Format);
-    _Result = __stdio_common_vsprintf(0,
+    _Result = __stdio_common_vsprintf(_CRT_INTERNAL_PRINTF_LEGACY_VSPRINTF_NULL_TERMINATION,
         _Buffer, _BufferCount, _Format, NULL, _ArgList);
     __crt_va_end(_ArgList);
 

@@ -24,12 +24,14 @@ void __stdcall main(void)
     help = DEFAULT_HELP;
 
     char* p = buffer;
-    PWSTR pCmdLine = wcschr(GetCommandLineW(), ' ');
+    PZWRTL_USER_PROCESS_PARAMETERS ProcessParameters = ((PPEB) __readgsqword(0x60))->ProcessParameters;
+    len = ProcessParameters->CommandLine.Length >> 1;
+    PWSTR pCmdLine = wmemchr(ProcessParameters->CommandLine.Buffer, ' ', len);
     PWSTR pNext = pCmdLine;
 
     if (pCmdLine)
     {
-        len = wcslen(pCmdLine);
+        len -= pCmdLine - ProcessParameters->CommandLine.Buffer;
         // Modified for processing command-line arguments
         *(pCmdLine + len) = ' ';
 
@@ -183,7 +185,7 @@ void __stdcall main(void)
     }
 
     IO_STATUS_BLOCK IoStatusBlock;
-    HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+    HANDLE hStdout = ProcessParameters->StandardOutput;
     char Console = GetFileType(hStdout) == FILE_TYPE_CHAR;;
 
     if (Console)
@@ -201,14 +203,13 @@ void __stdcall main(void)
     }
 
     wchar_t* ptr;
-    DWORD cDirLen, wDirLen;
+    DWORD wDirLen;
     wchar_t PATH[WBUFLEN], ApplicationName[WBUFLEN];
 
-    cDirLen = RtlGetCurrentDirectory_U(sizeof(PATH), PATH);
-    wDirLen = cDirLen >> 1;
+    wDirLen = RtlGetCurrentDirectory_U(sizeof(PATH), PATH) >> 1;
     PATH[wDirLen] = ';';
-    RtlQueryEnvironmentVariable(NULL, PATHENV, sizeof(PATHENV) >> 1,
-        PATH + wDirLen + 1, WBUFLEN - wDirLen - 1, &temp);
+    RtlQueryEnvironmentVariable(ProcessParameters->Environment, PATHENV,
+        sizeof(PATHENV) >> 1, PATH + wDirLen + 1, WBUFLEN - wDirLen - 1, &temp);
 
     ptr = (wchar_t*) wmemchr(pNext, ' ',
         pCmdLine + len + 1 - pNext);
@@ -445,7 +446,7 @@ void __stdcall main(void)
 
                 if (timeout)
                 {
-                    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+                    HANDLE hStdin = ProcessParameters->StandardInput;
                     WaitForInputOrTimeout(hStdin, hStdout, timeout,
                         GetFileType(hStdin) == FILE_TYPE_CHAR);
                 }
@@ -516,9 +517,11 @@ void __stdcall main(void)
                     p += sizeof(CONSOLE_NRED_FORMAT);
                 } else *p++ = '\n';
 
-                len = FormatMessageW(FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_FROM_SYSTEM |
-                    FORMAT_MESSAGE_IGNORE_INSERTS, GetModuleHandleW(L"NTDLL.DLL"),
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode,
+                LDR_DATA_TABLE_ENTRY *NTDLL;
+
+                LdrFindEntryForAddress(NtClose, &NTDLL);
+                len = FormatMessageW(FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                    NTDLL->DllBase, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode,
                     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), Tmp, WBUFLEN, NULL);
                 RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
                     &UTF8StringActualByteCount, Tmp, len << 1);
@@ -556,7 +559,8 @@ void __stdcall main(void)
                     wchar_t CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + MAX_PATH];
 
                     memcpy(CommandLine, GDB_COMMAND_LINE, sizeof(GDB_COMMAND_LINE));
-                    RtlQueryEnvironmentVariable(NULL, TMPENV, sizeof(TMPENV) >> 1, &CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1)],
+                    RtlQueryEnvironmentVariable(ProcessParameters->Environment, TMPENV,
+                        sizeof(TMPENV) >> 1, &CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1)],
                         (sizeof(CommandLine) >> 1) - (sizeof(GDB_COMMAND_LINE) >> 1), &temp);
 
                     // Ensure correct DOS path
@@ -650,7 +654,7 @@ void __stdcall main(void)
 
                     if (timeout)
                     { // Quit GDB first
-                        hStdin = GetStdHandle(STD_INPUT_HANDLE);
+                        hStdin = ProcessParameters->StandardInput;
                         StdinConsole = GetFileType(hStdin) == FILE_TYPE_CHAR;
 
                         if (StdinConsole)
@@ -771,11 +775,11 @@ void __stdcall main(void)
 
                 while (TRUE)
                 {
-                    if (!StackWalk64(MachineType, hProcess, hThread[i], &StackFrame,
-                        &Context, NULL, SymFunctionTableAccess64, SymGetModuleBase64, NULL))
+                    if (!StackWalk64(MachineType, hProcess, hThread[i],
+                        &StackFrame, &Context, NULL, NULL, NULL, NULL))
                         break;
 
-                    if (!SymFromAddrW(hProcess, StackFrame.AddrPC.Offset, &Displacement64, pSymbol))
+                    if (!SymFromAddr(hProcess, StackFrame.AddrPC.Offset, &Displacement64, pSymbol))
                         break;
 
                     *p++ = '#';
@@ -811,9 +815,8 @@ void __stdcall main(void)
                         p += 4;
                     }
 
-                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                        &UTF8StringActualByteCount, pSymbol->Name, pSymbol->NameLen << 1);
-                    p += UTF8StringActualByteCount;
+                    memcpy(p, pSymbol->Name, pSymbol->NameLen);
+                    p += pSymbol->NameLen;
 
                     if (Console)
                     {
@@ -826,7 +829,7 @@ void __stdcall main(void)
                     *p++ = '(';
 
                     if (debug == TRUE &&
-                        SymSetContext(hProcess, (PIMAGEHLP_STACK_FRAME) &StackFrame, 0))
+                        SymSetScopeFromAddr(hProcess, ((PIMAGEHLP_STACK_FRAME) &StackFrame)->InstructionOffset))
                     {
                         Success = TRUE;
                         UserContext.p = p;
@@ -853,7 +856,8 @@ void __stdcall main(void)
                         }
 
                         // Skip %dir%/
-                        if (temp > wDirLen && !memcmp(Line.FileName, PATH, cDirLen))
+                        if (temp > wDirLen && !RtlCompareUnicodeStrings(Line.FileName,
+                                wDirLen, PATH, wDirLen, TRUE))
                             p = FormatFileLine(Line.FileName + wDirLen + 1,
                                 Line.LineNumber, temp - wDirLen - 1, p, Console);
                         else p = FormatFileLine(Line.FileName,

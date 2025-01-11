@@ -11,6 +11,65 @@
 
 #include <winternl.h>
 
+typedef struct _CURDIR
+{
+    UNICODE_STRING DosPath;
+    HANDLE Handle;
+} CURDIR, *PCURDIR;
+
+typedef struct _RTL_DRIVE_LETTER_CURDIR
+{
+    USHORT Flags;
+    USHORT Length;
+    ULONG TimeStamp;
+    UNICODE_STRING DosPath;
+} RTL_DRIVE_LETTER_CURDIR, *PRTL_DRIVE_LETTER_CURDIR;
+
+#define RTL_MAX_DRIVE_LETTERS 32
+
+typedef struct
+{
+    ULONG MaximumLength;
+    ULONG Length;
+
+    ULONG Flags;
+    ULONG DebugFlags;
+
+    HANDLE ConsoleHandle;
+    ULONG ConsoleFlags;
+    HANDLE StandardInput;
+    HANDLE StandardOutput;
+    HANDLE StandardError;
+
+    CURDIR CurrentDirectory;
+    UNICODE_STRING DllPath;
+    UNICODE_STRING ImagePathName;
+    UNICODE_STRING CommandLine;
+    PWCHAR Environment;
+
+    ULONG StartingX;
+    ULONG StartingY;
+    ULONG CountX;
+    ULONG CountY;
+    ULONG CountCharsX;
+    ULONG CountCharsY;
+    ULONG FillAttribute;
+
+    ULONG WindowFlags;
+    ULONG ShowWindowFlags;
+    UNICODE_STRING WindowTitle;
+    UNICODE_STRING DesktopInfo;
+    UNICODE_STRING ShellInfo;
+    UNICODE_STRING RuntimeData;
+    RTL_DRIVE_LETTER_CURDIR CurrentDirectories[RTL_MAX_DRIVE_LETTERS];
+
+    ULONG_PTR EnvironmentSize;
+    ULONG_PTR EnvironmentVersion;
+    PVOID PackageDependencyData;
+    ULONG ProcessGroupId;
+    ULONG LoaderThreads;
+} ZWRTL_USER_PROCESS_PARAMETERS, *PZWRTL_USER_PROCESS_PARAMETERS;
+
 typedef struct _FILE_STANDARD_INFORMATION
 {
     LARGE_INTEGER AllocationSize;
@@ -20,145 +79,19 @@ typedef struct _FILE_STANDARD_INFORMATION
     BOOLEAN Directory;
 } FILE_STANDARD_INFORMATION, *PFILE_STANDARD_INFORMATION;
 
-NTSYSAPI
-NTSTATUS
-NTAPI
-RtlUnicodeToUTF8N(
-  OUT PCHAR UTF8StringDestination,
-  IN ULONG UTF8StringMaxByteCount,
-  OUT PULONG UTF8StringActualByteCount,
-  IN PCWCH UnicodeStringSource,
-  IN ULONG UnicodeStringByteCount);
-
-NTSYSAPI
-ULONG
-NTAPI
-RtlGetCurrentDirectory_U(
-    _In_ ULONG BufferLength,
-    _Out_writes_bytes_(BufferLength) PWSTR Buffer
-);
-
-NTSYSAPI
-NTSTATUS
-NTAPI
-RtlQueryEnvironmentVariable(
-    _In_opt_ PVOID Environment,
-    _In_reads_(NameLength) PWSTR Name,
-    _In_ SIZE_T NameLength,
-    _Out_writes_(ValueLength) PWSTR Value,
-    _In_ SIZE_T ValueLength,
-    _Out_ PSIZE_T ReturnLength
-);
-
-NTSYSAPI
-ULONG
-NTAPI
-RtlDosSearchPath_U(
-    _In_ PWSTR Path,
-    _In_ PWSTR FileName,
-    _In_opt_ PWSTR Extension,
-    _In_ ULONG BufferLength,
-    _Out_writes_bytes_(BufferLength) PWSTR Buffer,
-    _Out_opt_ PWSTR* FilePart
-);
-
-NTSYSCALLAPI
-NTSTATUS
-NTAPI
-NtReadFile(
-    _In_ HANDLE FileHandle,
-    _In_opt_ HANDLE Event,
-    _In_opt_ PIO_APC_ROUTINE ApcRoutine,
-    _In_opt_ PVOID ApcContext,
-    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
-    _Out_writes_bytes_(Length) PVOID Buffer,
-    _In_ ULONG Length,
-    _In_opt_ PLARGE_INTEGER ByteOffset,
-    _In_opt_ PULONG Key
-);
-
-NTSYSCALLAPI
-NTSTATUS
-NTAPI
-NtWriteFile(
-    _In_ HANDLE FileHandle,
-    _In_opt_ HANDLE Event,
-    _In_opt_ PIO_APC_ROUTINE ApcRoutine,
-    _In_opt_ PVOID ApcContext,
-    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
-    _In_reads_bytes_(Length) PVOID Buffer,
-    _In_ ULONG Length,
-    _In_opt_ PLARGE_INTEGER ByteOffset,
-    _In_opt_ PULONG Key
-);
-
-NTSYSCALLAPI
-NTSTATUS
-NTAPI
-NtReadVirtualMemory(
-    _In_ HANDLE ProcessHandle,
-    _In_opt_ PVOID BaseAddress,
-    _Out_writes_bytes_(BufferSize) PVOID Buffer,
-    _In_ SIZE_T BufferSize,
-    _Out_opt_ PSIZE_T NumberOfBytesRead
-);
-
-NTSYSCALLAPI
-NTSTATUS
-NTAPI
-NtSuspendProcess(
-    _In_ HANDLE ProcessHandle
-);
-
-NTSYSCALLAPI
-NTSTATUS
-NTAPI
-NtResumeProcess(
-    _In_ HANDLE ProcessHandle
-);
-
-NTSYSCALLAPI
-NTSTATUS
-NTAPI
-NtDelayExecution(
-    _In_ BOOLEAN Alertable,
-    _In_opt_ PLARGE_INTEGER DelayInterval
-);
-
-NTSYSCALLAPI
-NTSTATUS
-NTAPI
-NtTerminateProcess(
-    _In_opt_ HANDLE ProcessHandle,
-    _In_ NTSTATUS ExitStatus
-);
-
-NTSYSCALLAPI
-NTSTATUS
-NTAPI
-NtQueryInformationFile(
-    _In_ HANDLE FileHandle,
-    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
-    _Out_writes_bytes_(Length) PVOID FileInformation,
-    _In_ ULONG Length,
-    _In_ FILE_INFORMATION_CLASS FileInformationClass
-);
-
-NTSYSCALLAPI
-NTSTATUS
-NTAPI
-NtSetInformationFile(
-    _In_ HANDLE FileHandle,
-    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
-    _In_reads_bytes_(Length) PVOID FileInformation,
-    _In_ ULONG Length,
-    _In_ FILE_INFORMATION_CLASS FileInformationClass
-);
-
-NTSYSCALLAPI
-NTSTATUS
-NTAPI
-NtGetContextThread(
-    _In_ HANDLE ThreadHandle,
-    _Inout_ PCONTEXT ThreadContext
-);
+NTSYSAPI NTSTATUS  WINAPI LdrFindEntryForAddress(const void*, PLDR_DATA_TABLE_ENTRY*);
+NTSYSAPI NTSTATUS  WINAPI NtDelayExecution(BOOLEAN,const LARGE_INTEGER*);
+NTSYSAPI NTSTATUS  WINAPI NtGetContextThread(HANDLE,CONTEXT*);
+NTSYSAPI NTSTATUS  WINAPI NtQueryInformationFile(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,FILE_INFORMATION_CLASS);
+NTSYSAPI NTSTATUS  WINAPI NtReadFile(HANDLE,HANDLE,PIO_APC_ROUTINE,PVOID,PIO_STATUS_BLOCK,PVOID,ULONG,PLARGE_INTEGER,PULONG);
+NTSYSAPI NTSTATUS  WINAPI NtReadVirtualMemory(HANDLE,const void*,void*,SIZE_T,SIZE_T*);
+NTSYSAPI NTSTATUS  WINAPI NtResumeProcess(HANDLE);
+NTSYSAPI NTSTATUS  WINAPI NtSetInformationFile(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,FILE_INFORMATION_CLASS);
+NTSYSAPI NTSTATUS  WINAPI NtSuspendProcess(HANDLE);
+NTSYSAPI NTSTATUS  WINAPI NtTerminateProcess(HANDLE,LONG);
+NTSYSAPI LONG      WINAPI RtlCompareUnicodeStrings(const WCHAR*,SIZE_T,const WCHAR*,SIZE_T,BOOLEAN);
+NTSYSAPI ULONG     WINAPI RtlDosSearchPath_U(LPCWSTR, LPCWSTR, LPCWSTR, ULONG, LPWSTR, LPWSTR*);
+NTSYSAPI ULONG     WINAPI RtlGetCurrentDirectory_U(ULONG, LPWSTR);
+NTSYSAPI NTSTATUS  WINAPI RtlQueryEnvironmentVariable(WCHAR*,const WCHAR*,SIZE_T,WCHAR*,SIZE_T,SIZE_T*);
+NTSYSAPI NTSTATUS  WINAPI RtlUnicodeToUTF8N(LPSTR,DWORD,LPDWORD,LPCWSTR,DWORD);
+NTSYSAPI NTSTATUS  WINAPI NtWriteFile(HANDLE,HANDLE,PIO_APC_ROUTINE,PVOID,PIO_STATUS_BLOCK,const void*,ULONG,PLARGE_INTEGER,PULONG);
