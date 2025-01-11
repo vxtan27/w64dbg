@@ -3,6 +3,14 @@
     Licensed under the BSD-3-Clause.
 */
 
+__declspec(noreturn)
+static __forceinline void CleanExit(UINT uExitCode)
+{
+    NtTerminateProcess(0, uExitCode);
+    LdrShutdownProcess();
+    while (TRUE) NtTerminateProcess((HANDLE) -1, uExitCode);
+}
+
 #define SecToUnits(lSeconds) ((lSeconds) * 10000000LL)
 
 #define IsInputInvalidate(InputRecord) ( \
@@ -42,12 +50,12 @@ static VOID WINAPI WaitForInput(LPVOID lpParameter)
 
     do
     { // Wait for either timeout or input
-        if (NtWaitForSingleObject(Parameter->hStdin, FALSE,
-            &DelayInterval) == STATUS_TIMEOUT) break;
+        if (NtWaitForMultipleObjects(1, &Parameter->hStdin, WaitAll,
+            FALSE, &DelayInterval) == STATUS_TIMEOUT) break;
         ReadConsoleInputW(Parameter->hStdin, &InputRecord, 1, &dwRead);
     } while (IsInputInvalidate(InputRecord));
 
-    ExitProcess(0);
+    CleanExit(0);
 }
 
 static const char InfiniteMessage[30] = "\nPress any key to continue ...";
@@ -78,8 +86,7 @@ static __forceinline VOID WaitForInputOrTimeout(
             { // Infinite loop waiting for valid input
                 ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
             } while (IsInputInvalidate(InputRecord));
-        } else NtWaitForSingleObject(hStdin, FALSE, // Relative time
-            &(LARGE_INTEGER){.QuadPart=MAXLONGLONG});
+        } else NtWaitForMultipleObjects(1, &hStdin, WaitAll, FALSE, NULL);
     } else
     {
         char* p;
@@ -88,8 +95,6 @@ static __forceinline VOID WaitForInputOrTimeout(
         memcpy(buffer, _FiniteMessage, sizeof(_FiniteMessage));
         p = _ltoa10(timeout, buffer + sizeof(_FiniteMessage));
         memcpy(p, FiniteMessage_, sizeof(FiniteMessage_));
-        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-            buffer, p - buffer + sizeof(FiniteMessage_), NULL, NULL);
 
         if (StdinConsole)
         {
@@ -97,8 +102,10 @@ static __forceinline VOID WaitForInputOrTimeout(
             ULONG Length;
             char Count, Recursive;
 
-            CreateThread(NULL, 0, WaitForInput,
-                &(THREAD_PARAMETER){hStdin, timeout}, 0, NULL);
+            NtClose(CreateThread(NULL, 0, WaitForInput,
+                &(THREAD_PARAMETER){hStdin, timeout}, 0, NULL));
+            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+                buffer, p - buffer + sizeof(FiniteMessage_), NULL, NULL);
             buffer[0] = '\b';
 
             while (TRUE)
@@ -134,8 +141,13 @@ static __forceinline VOID WaitForInputOrTimeout(
                 NtWriteFile(hStdout, NULL, NULL, NULL,
                     &IoStatusBlock, buffer, Length, NULL, NULL);
             }
-        } else NtWaitForSingleObject(hStdin, FALSE, // Relative time
-            &(LARGE_INTEGER){.QuadPart=-SecToUnits(timeout)});
+        } else
+        {
+            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+                buffer, p - buffer + sizeof(FiniteMessage_) - 5, NULL, NULL);
+            NtWaitForMultipleObjects(1, &hStdin, WaitAll, // Relative time
+                FALSE, &(LARGE_INTEGER){.QuadPart=-SecToUnits(timeout)});
+        }
     }
 
     // Simulate normal behavior

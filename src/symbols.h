@@ -3,23 +3,6 @@
     Licensed under the BSD-3-Clause.
 */
 
-static int __builtin_snprintf(
-    char*       const _Buffer,
-    size_t      const _BufferCount,
-    char const* const _Format,
-    ...)
-{
-    int _Result;
-    va_list _ArgList;
-
-    __crt_va_start(_ArgList, _Format);
-    _Result = __stdio_common_vsprintf(_CRT_INTERNAL_PRINTF_LEGACY_VSPRINTF_NULL_TERMINATION,
-        _Buffer, _BufferCount, _Format, NULL, _ArgList);
-    __crt_va_end(_ArgList);
-
-    return _Result;
-}
-
 enum SymTagEnum {
     SymTagNull,
     SymTagExe,
@@ -281,7 +264,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
                         break;
                     case btFloat:
                         p = LONGDOUBLE_FORMAT;
-                        User->p += __builtin_snprintf(User->p, PAGESIZE, p, value.QuadPart);
+                        User->p += sprintf(User->p, p, value.QuadPart);
                         if (User->DataIsLocal) *User->p++ = '\n';
                         return TRUE;
                     case btHresult:
@@ -305,7 +288,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
 
         }
 
-        User->p += __builtin_snprintf(User->p, PAGESIZE, p, value.u.LowPart);
+        User->p += sprintf(User->p, p, value.u.LowPart);
 
         if (User->DataIsLocal) *User->p++ = '\n';
     }

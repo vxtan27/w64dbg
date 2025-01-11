@@ -26,7 +26,6 @@ static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
 #define WIN32_LEAN_AND_MEAN
 
 #include <wchar.h>
-#include <stdio.h>
 #include <windows.h>
 #include <dbghelp.h>
 #include <psapi.h>

@@ -186,7 +186,7 @@ void __stdcall main(void)
 
     IO_STATUS_BLOCK IoStatusBlock;
     HANDLE hStdout = ProcessParameters->StandardOutput;
-    char Console = GetFileType(hStdout) == FILE_TYPE_CHAR;;
+    char Console = GetFileType(hStdout) == FILE_TYPE_CHAR;
 
     if (Console)
     {
@@ -199,7 +199,7 @@ void __stdcall main(void)
     {
         NtWriteFile(hStdout, NULL, NULL, NULL,
             &IoStatusBlock, buffer, p - buffer, NULL, NULL);
-        ExitProcess(1);
+        CleanExit(1);
     }
 
     wchar_t* ptr;
@@ -229,7 +229,7 @@ void __stdcall main(void)
             &UTF8StringActualByteCount, Tmp, len << 1);
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, UTF8StringActualByteCount, NULL, NULL);
-        ExitProcess(1);
+        CleanExit(1);
     }
 
     DWORD bx64win; // Is 64-bit application
@@ -245,7 +245,7 @@ void __stdcall main(void)
             &UTF8StringActualByteCount, Tmp, len << 1);
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, UTF8StringActualByteCount, NULL, NULL);
-        ExitProcess(1);
+        CleanExit(1);
     }
 
     HANDLE hProcess;
@@ -451,9 +451,8 @@ void __stdcall main(void)
                         GetFileType(hStdin) == FILE_TYPE_CHAR);
                 }
 
-                NtTerminateProcess(hProcess, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode);
                 ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
-                ExitProcess(0);
+                CleanExit(0);
 
             [[fallthrough]];
             case OUTPUT_DEBUG_STRING_EVENT:
@@ -678,11 +677,8 @@ void __stdcall main(void)
                             &IoStatusBlock, GDB_QUIT, sizeof(GDB_QUIT), NULL, NULL);
                     }
 
-                    NtWaitForSingleObject(processInfo.hProcess, FALSE, NULL);
+                    NtWaitForMultipleObjects(1, &processInfo.hProcess, WaitAll, FALSE, NULL);
                     NtClose(processInfo.hProcess);
-
-                    if (timeout) WaitForInputOrTimeout(hStdin,
-                        hStdout, timeout, StdinConsole);
 
                     if (verbose >= 2)
                     {
@@ -695,7 +691,10 @@ void __stdcall main(void)
                             &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
                     }
 
-                    ExitProcess(0);
+                    if (timeout) WaitForInputOrTimeout(hStdin,
+                        hStdout, timeout, StdinConsole);
+
+                    CleanExit(0);
                 } else ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
 
                 if (DebugEvent.dwThreadId != dwThreadId[i])
