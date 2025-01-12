@@ -3,14 +3,6 @@
     Licensed under the BSD-3-Clause.
 */
 
-__declspec(noreturn)
-static __forceinline void CleanExit(UINT uExitCode)
-{
-    NtTerminateProcess(0, uExitCode);
-    LdrShutdownProcess();
-    while (TRUE) NtTerminateProcess((HANDLE) -1, uExitCode);
-}
-
 #define SecToUnits(lSeconds) ((lSeconds) * 10000000LL)
 
 #define IsInputInvalidate(InputRecord) ( \
@@ -32,30 +24,57 @@ static __forceinline void CleanExit(UINT uExitCode)
 
 typedef struct
 {
-    HANDLE hStdin;
+    HANDLE hStdout;
     long timeout;
 } THREAD_PARAMETER;
 
 __declspec(noreturn)
 static VOID WINAPI WaitForInput(LPVOID lpParameter)
 {
-    DWORD dwRead;
-    INPUT_RECORD InputRecord;
-    LARGE_INTEGER DelayInterval;
+    long temp;
+    ULONG Length;
+    char buffer[8];
+    char Count, Recursive;
+    IO_STATUS_BLOCK IoStatusBlock;
     THREAD_PARAMETER* Parameter = (THREAD_PARAMETER*) lpParameter;
 
-    NtQuerySystemTime(&DelayInterval);
-    // Positive value for Absolute timeout
-    DelayInterval.QuadPart += SecToUnits(Parameter->timeout);
+    buffer[0] = '\b';
 
-    do
-    { // Wait for either timeout or input
-        if (NtWaitForMultipleObjects(1, &Parameter->hStdin, WaitAll,
-            FALSE, &DelayInterval) == STATUS_TIMEOUT) break;
-        ReadConsoleInputW(Parameter->hStdin, &InputRecord, 1, &dwRead);
-    } while (IsInputInvalidate(InputRecord));
+    while (TRUE)
+    {
+        NtDelayExecution(FALSE,
+            &(LARGE_INTEGER){.QuadPart=-(999 * 10000LL)});
+        temp = --Parameter->timeout;
+        Count = 1;
 
-    CleanExit(0);
+        while (temp % 10 + '0' == '9')
+        {
+            buffer[Count++] = '\b';
+            temp /= 10;
+        }
+
+        Recursive = Count;
+
+        if (!temp)
+        {
+            buffer[Count++] = '0';
+            --Recursive;
+        }
+
+        temp = Parameter->timeout;
+        Length = Count + Recursive;
+
+        while (Recursive)
+        {
+            buffer[Count + --Recursive] = temp % 10 + '0';
+            temp /= 10;
+        }
+
+        NtWriteFile(Parameter->hStdout, NULL, NULL, NULL,
+            &IoStatusBlock, buffer, Length, NULL, NULL);
+    }
+
+    CleanThread(0);
 }
 
 static const char InfiniteMessage[30] = "\nPress any key to continue ...";
@@ -98,49 +117,26 @@ static __forceinline VOID WaitForInputOrTimeout(
 
         if (StdinConsole)
         {
-            long temp;
-            ULONG Length;
-            char Count, Recursive;
+            DWORD dwRead;
+            INPUT_RECORD InputRecord;
+            LARGE_INTEGER DelayInterval;
+            HANDLE Handles[2] = {CreateThread(NULL, 0, WaitForInput,
+                &(THREAD_PARAMETER){hStdout, timeout}, 0, NULL), hStdin};
 
-            NtClose(CreateThread(NULL, 0, WaitForInput,
-                &(THREAD_PARAMETER){hStdin, timeout}, 0, NULL));
             NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
                 buffer, p - buffer + sizeof(FiniteMessage_), NULL, NULL);
-            buffer[0] = '\b';
+            NtQuerySystemTime(&DelayInterval);
+            // Positive value for Absolute timeout
+            DelayInterval.QuadPart += SecToUnits(timeout);
 
-            while (TRUE)
-            {
-                NtDelayExecution(FALSE,
-                    &(LARGE_INTEGER){.QuadPart=-(999 * 10000LL)});
-                temp = --timeout;
-                Count = 1;
+            do
+            { // Wait for either timeout or input
+                if (NtWaitForMultipleObjects(2, Handles, WaitAny,
+                    FALSE, &DelayInterval) == STATUS_TIMEOUT) break;
+                ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
+            } while (IsInputInvalidate(InputRecord));
 
-                while (temp % 10 + '0' == '9')
-                {
-                    buffer[Count++] = '\b';
-                    temp /= 10;
-                }
-
-                Recursive = Count;
-
-                if (!temp)
-                {
-                    buffer[Count++] = ' ';
-                    --Recursive;
-                }
-
-                temp = timeout;
-                Length = Count + Recursive;
-
-                while (Recursive)
-                {
-                    buffer[Count + --Recursive] = temp % 10 + '0';
-                    temp /= 10;
-                }
-
-                NtWriteFile(hStdout, NULL, NULL, NULL,
-                    &IoStatusBlock, buffer, Length, NULL, NULL);
-            }
+            NtClose(Handles[0]);
         } else
         {
             NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,

@@ -30,7 +30,6 @@ static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
 #include <dbghelp.h>
 #include <psapi.h>
 
-#include "legal.h"
 #include "ntdll.h"
 #include "string\conversion.h"
 #include "string\format.h"

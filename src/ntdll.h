@@ -87,6 +87,7 @@ typedef struct _FILE_STANDARD_INFORMATION
 
 NTSYSAPI NTSTATUS  WINAPI LdrFindEntryForAddress(const void*, PLDR_DATA_TABLE_ENTRY*);
 NTSYSAPI void      WINAPI LdrShutdownProcess(void);
+NTSYSAPI void      WINAPI LdrShutdownThread(void);
 NTSYSAPI NTSTATUS  WINAPI NtDelayExecution(BOOLEAN,const LARGE_INTEGER*);
 NTSYSAPI NTSTATUS  WINAPI NtGetContextThread(HANDLE,CONTEXT*);
 NTSYSAPI NTSTATUS  WINAPI NtQueryInformationFile(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,FILE_INFORMATION_CLASS);
@@ -96,6 +97,7 @@ NTSYSAPI NTSTATUS  WINAPI NtResumeProcess(HANDLE);
 NTSYSAPI NTSTATUS  WINAPI NtSetInformationFile(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,FILE_INFORMATION_CLASS);
 NTSYSAPI NTSTATUS  WINAPI NtSuspendProcess(HANDLE);
 NTSYSAPI NTSTATUS  WINAPI NtTerminateProcess(HANDLE,LONG);
+NTSYSAPI NTSTATUS  WINAPI NtTerminateThread(HANDLE,LONG);
 NTSYSAPI NTSTATUS  WINAPI NtWaitForMultipleObjects(ULONG,const HANDLE*,BOOLEAN,BOOLEAN,const LARGE_INTEGER*);
 NTSYSAPI LONG      WINAPI RtlCompareUnicodeStrings(const WCHAR*,SIZE_T,const WCHAR*,SIZE_T,BOOLEAN);
 NTSYSAPI ULONG     WINAPI RtlDosSearchPath_U(LPCWSTR, LPCWSTR, LPCWSTR, ULONG, LPWSTR, LPWSTR*);
@@ -104,3 +106,18 @@ NTSYSAPI NTSTATUS  WINAPI RtlQueryEnvironmentVariable(WCHAR*,const WCHAR*,SIZE_T
 NTSYSAPI NTSTATUS  WINAPI RtlUnicodeToUTF8N(LPSTR,DWORD,LPDWORD,LPCWSTR,DWORD);
 NTSYSAPI NTSTATUS  WINAPI NtWriteFile(HANDLE,HANDLE,PIO_APC_ROUTINE,PVOID,PIO_STATUS_BLOCK,const void*,ULONG,PLARGE_INTEGER,PULONG);
 int                WINAPI sprintf( char *str, const char *format, ... );
+
+__declspec(noreturn)
+static __forceinline void CleanProcess(UINT uExitCode)
+{
+    NtTerminateProcess(0, uExitCode);
+    LdrShutdownProcess();
+    while (TRUE) NtTerminateProcess((HANDLE) -1, uExitCode);
+}
+
+__declspec(noreturn)
+static __forceinline void CleanThread(UINT uExitCode)
+{
+    LdrShutdownThread();
+    while (TRUE) NtTerminateThread((HANDLE) -1, uExitCode);
+}

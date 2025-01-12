@@ -3,7 +3,7 @@
     Licensed under the BSD-3-Clause.
 */
 
-#include "main.h"
+#include "core.h"
 
 // https://hero.handmade.network/forums/code-discussion/t/94-guide_-_how_to_avoid_c_c++_runtime_on_windows
 
@@ -190,7 +190,7 @@ void __stdcall main(void)
 
     if (Console)
     {
-        SetConsoleOutputCP(65001);
+        SetConsoleOutputCP(CP_UTF8);
         SetConsoleMode(hStdout, ENABLE_PROCESSED_OUTPUT |
             ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     }
@@ -199,7 +199,7 @@ void __stdcall main(void)
     {
         NtWriteFile(hStdout, NULL, NULL, NULL,
             &IoStatusBlock, buffer, p - buffer, NULL, NULL);
-        CleanExit(1);
+        CleanProcess(1);
     }
 
     wchar_t* ptr;
@@ -229,7 +229,7 @@ void __stdcall main(void)
             &UTF8StringActualByteCount, Tmp, len << 1);
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, UTF8StringActualByteCount, NULL, NULL);
-        CleanExit(1);
+        CleanProcess(1);
     }
 
     DWORD bx64win; // Is 64-bit application
@@ -245,7 +245,7 @@ void __stdcall main(void)
             &UTF8StringActualByteCount, Tmp, len << 1);
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, UTF8StringActualByteCount, NULL, NULL);
-        CleanExit(1);
+        CleanProcess(1);
     }
 
     HANDLE hProcess;
@@ -452,7 +452,7 @@ void __stdcall main(void)
                 }
 
                 ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
-                CleanExit(0);
+                CleanProcess(0);
 
             [[fallthrough]];
             case OUTPUT_DEBUG_STRING_EVENT:
@@ -694,7 +694,7 @@ void __stdcall main(void)
                     if (timeout) WaitForInputOrTimeout(hStdin,
                         hStdout, timeout, StdinConsole);
 
-                    CleanExit(0);
+                    CleanProcess(0);
                 } else ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
 
                 if (DebugEvent.dwThreadId != dwThreadId[i])
