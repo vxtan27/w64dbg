@@ -1,9 +1,8 @@
-*.exe
 *.obj
-*.xml
+*.res
+*.exe
 *.pdb
 *.ilk
 *.asm
-*.pgd
-*.pgc
-*.zip
+*.orig
+*.xml
