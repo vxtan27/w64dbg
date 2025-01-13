@@ -28,23 +28,24 @@ static __forceinline char* FormatFileLine(PWSTR FileName, DWORD LineNumber, ULON
 }
 
 // static const wchar_t OBJECT_MANAGER_NAMESPACE[4] = L"\\??\\";
-static const char OBJECT_MANAGER_NAMESPACE[] = "\\\0?\0?\0\\";
+// static const char OBJECT_MANAGER_NAMESPACE[] = "\\\0?\0?\0\\";
+
+#define OBJECT_MANAGER_NAMESPACE GDB_COMMAND_LINE + 14
+#define OBJECT_MANAGER_NAMESPACE_LEN 8
 
 static __forceinline char* FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t _len, char* _buffer, char* p, char verbose)
 {
     HANDLE hFile;
     UNICODE_STRING String;
     IO_STATUS_BLOCK IoStatusBlock;
-    OBJECT_ATTRIBUTES ObjectAttributes;
 
     // Windows Object Manager namespace
     memcpy(FileName - 4, OBJECT_MANAGER_NAMESPACE,
-        sizeof(OBJECT_MANAGER_NAMESPACE));
-    String.Length = (_len << 1) + sizeof(OBJECT_MANAGER_NAMESPACE);
+        OBJECT_MANAGER_NAMESPACE_LEN);
+    String.Length = (_len << 1) + OBJECT_MANAGER_NAMESPACE_LEN;
     String.Buffer = FileName - 4;
-    InitializeObjectAttributes(&ObjectAttributes,
-        &String, OBJ_CASE_INSENSITIVE, NULL, NULL);
-    NtCreateFile(&hFile, FILE_READ_DATA | SYNCHRONIZE, &ObjectAttributes,
+    NtCreateFile(&hFile, FILE_READ_DATA | SYNCHRONIZE,
+        &(OBJECT_ATTRIBUTES) {sizeof(OBJECT_ATTRIBUTES), NULL, &String, OBJ_CASE_INSENSITIVE, NULL, NULL},
         &IoStatusBlock, NULL, FILE_ATTRIBUTE_NORMAL, 0, FILE_OPEN,
         FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
 

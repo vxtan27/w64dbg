@@ -18,9 +18,6 @@
 #define BUFLEN      8192
 #define WBUFLEN     4096
 
-// Returns all attributes to the default state prior to modification
-static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
-
 // Faster Builds
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
@@ -29,6 +26,11 @@ static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
 #include <windows.h>
 #include <dbghelp.h>
 #include <psapi.h>
+
+// GDB command line arguments
+static const wchar_t GDB_COMMAND_LINE[18] = L"gdb.exe -q -x=\\??\\";
+// Returns all attributes to the default state prior to modification
+static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
 
 #include "ntdll.h"
 #include "string\conversion.h"
@@ -111,7 +113,6 @@ static const char THREAD_NUMBER[8] = "Thread #";
 
 static const wchar_t TMPENV[3] = L"TMP";
 static const wchar_t GDB_EXE[] = L"gdb.exe";
-static const wchar_t GDB_COMMAND_LINE[18] = L"gdb.exe -q -x=\\??\\";
 static const wchar_t W64DBG[6] = L"w64dbg";
 static const char GDB_DEFAULT[125] =
     "set bac l 100\n" // set backtrace limit 100
