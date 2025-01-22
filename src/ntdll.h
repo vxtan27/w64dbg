@@ -85,9 +85,33 @@ typedef struct _FILE_STANDARD_INFORMATION
     BOOLEAN Directory;
 } FILE_STANDARD_INFORMATION, *PFILE_STANDARD_INFORMATION;
 
+typedef void (CALLBACK *PUSER_THREAD_START_ROUTINE)(LPVOID);
+
+typedef struct _PS_ATTRIBUTE
+{
+    ULONG_PTR Attribute;
+    SIZE_T    Size;
+    union
+    {
+        ULONG_PTR Value;
+        void     *ValuePtr;
+    };
+    SIZE_T *ReturnLength;
+} PS_ATTRIBUTE;
+
+typedef struct _PS_ATTRIBUTE_LIST
+{
+    SIZE_T       TotalLength;
+    PS_ATTRIBUTE Attributes[1];
+} PS_ATTRIBUTE_LIST, *PPS_ATTRIBUTE_LIST;
+
+#define THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH      0x00000002
+#define THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER      0x00000004
+
 NTSYSAPI NTSTATUS  WINAPI LdrFindEntryForAddress(const void*, PLDR_DATA_TABLE_ENTRY*);
 NTSYSAPI void      WINAPI LdrShutdownProcess(void);
 NTSYSAPI void      WINAPI LdrShutdownThread(void);
+NTSYSAPI NTSTATUS  WINAPI NtCreateThreadEx(HANDLE*,ACCESS_MASK,OBJECT_ATTRIBUTES*,HANDLE,PUSER_THREAD_START_ROUTINE,void*,ULONG,ULONG_PTR,SIZE_T,SIZE_T,PS_ATTRIBUTE_LIST*);
 NTSYSAPI NTSTATUS  WINAPI NtDelayExecution(BOOLEAN,const LARGE_INTEGER*);
 NTSYSAPI NTSTATUS  WINAPI NtGetContextThread(HANDLE,CONTEXT*);
 NTSYSAPI NTSTATUS  WINAPI NtQueryInformationFile(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,FILE_INFORMATION_CLASS);
@@ -108,7 +132,9 @@ NTSYSAPI NTSTATUS  WINAPI NtWriteFile(HANDLE,HANDLE,PIO_APC_ROUTINE,PVOID,PIO_ST
 int                WINAPI sprintf( char *str, const char *format, ... );
 
 __declspec(noreturn)
-static __forceinline void CleanProcess(UINT uExitCode)
+static
+__forceinline
+void CleanProcess(UINT uExitCode)
 {
     NtTerminateProcess(0, uExitCode);
     LdrShutdownProcess();
@@ -116,7 +142,9 @@ static __forceinline void CleanProcess(UINT uExitCode)
 }
 
 __declspec(noreturn)
-static __forceinline void CleanThread(UINT uExitCode)
+static
+__forceinline
+void CleanThread(UINT uExitCode)
 {
     LdrShutdownThread();
     while (TRUE) NtTerminateThread((HANDLE) -1, uExitCode);

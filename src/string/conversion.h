@@ -5,31 +5,45 @@
 
 #pragma once
 
-static __forceinline long _wtol_timeout(wchar_t* p)
+static
+__forceinline
+long process_timeout(wchar_t* str, wchar_t **p, size_t len)
 {
-    if (*p == '-')
+    if (*str == '-')
     {
-        if (*(p + 1) <= '1' && *(p + 2) == ' ')
-            return -(*(p + 1) - '1');
+        if (*(str + 1) <= '1' && *(str + 2) == ' ')
+        {
+            *p = str + 2 + 1;
+            return -(*(str + 1) - '0');
+        }
+
+        *p = (wchar_t*) wmemchr(str + 1, ' ', len) + 1;
         return 100000;
     }
 
-    if (*p == '+') ++p;
+    if (*str == '+') ++str;
 
     unsigned char c;
     long value = 0;
 
     do
     {
-        c = *p - '0';
-        if (c > 9) return 100000;
+        c = *str - '0';
+        if (c > 9)
+        {
+            *p = (wchar_t*) wmemchr(str + 1, ' ', len) + 1;
+            return 100000;
+        }
         value = value * 10 + c;
-    } while (*++p != ' ');
+    } while (*++str != ' ');
 
+    *p = str + 1;
     return value;
 }
 
-static __forceinline char* _ltoa10(long value, char* p)
+static
+__forceinline
+char* _ltoa10(long value, char* p)
 {
     long num = value;
 
@@ -44,7 +58,9 @@ static __forceinline char* _ltoa10(long value, char* p)
     return p + 1;
 }
 
-static __forceinline char* _ultoa10(unsigned long value, char* p)
+static
+__forceinline
+char* _ultoa10(unsigned long value, char* p)
 {
     unsigned long num = value;
 
@@ -61,7 +77,9 @@ static __forceinline char* _ultoa10(unsigned long value, char* p)
 
 static const char hex_table[16] = "0123456789abcdef";
 
-static __forceinline char* _ultoa16(unsigned long value, char* p)
+static
+__forceinline
+char* _ultoa16(unsigned long value, char* p)
 {
     unsigned long num = value;
 
@@ -76,7 +94,10 @@ static __forceinline char* _ultoa16(unsigned long value, char* p)
     return p + 1;
 }
 
-static __forceinline char* _ui64toa16(unsigned long long value, char* p, unsigned long bx64win) {
+static
+__forceinline
+char* _ui64toa16(unsigned long long value, char* p, unsigned long bx64win)
+{
     *p++ = '0';
     *p++ = 'x';
 

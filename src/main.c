@@ -120,15 +120,13 @@ void __stdcall main(void)
                         *p++ = '\n';
                     } else
                     {
-                        if ((timeout = _wtol_timeout(pNext)) > 99999)
+                        if ((timeout = process_timeout(pNext, &pNext, temp)) > 99999)
                         {
                             memcpy(p, INVALID_TIMEOUT, sizeof(INVALID_TIMEOUT));
                             p += sizeof(INVALID_TIMEOUT);
                             *(p - 43) = *cmd;
                             *(p - 42) = *(cmd + 1);
                         }
-
-                        pNext = (wchar_t*) wmemchr(pNext, ' ', temp) + 1;
                     }
 
                     continue;

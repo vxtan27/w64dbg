@@ -5,7 +5,9 @@
 
 #pragma once
 
-static __forceinline char* FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG len, char* p, char Color)
+static
+__forceinline
+char* FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG len, char* p, char Color)
 {
     ULONG UTF8StringActualByteCount;
 
@@ -33,7 +35,9 @@ static __forceinline char* FormatFileLine(PWSTR FileName, DWORD LineNumber, ULON
 #define OBJECT_MANAGER_NAMESPACE GDB_COMMAND_LINE + 14
 #define OBJECT_MANAGER_NAMESPACE_LEN 8
 
-static __forceinline char* FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t _len, char* _buffer, char* p, char verbose)
+static
+__forceinline
+char* FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t _len, char* _buffer, char* p, char verbose)
 {
     HANDLE hFile;
     UNICODE_STRING String;

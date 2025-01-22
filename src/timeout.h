@@ -81,7 +81,9 @@ static const char InfiniteMessage[30] = "\nPress any key to continue ...";
 static const char _FiniteMessage[13] = "\nWaiting for ";
 static const char FiniteMessage_[42] = " seconds, press a key to continue ...\x1b[37D";
 
-static __forceinline VOID WaitForInputOrTimeout(
+static
+__forceinline
+VOID WaitForInputOrTimeout(
     HANDLE     hStdin,
     HANDLE    hStdout,
     long      timeout,
@@ -118,13 +120,17 @@ static __forceinline VOID WaitForInputOrTimeout(
         if (StdinConsole)
         {
             DWORD dwRead;
+            HANDLE Handles[2];
             INPUT_RECORD InputRecord;
             LARGE_INTEGER DelayInterval;
-            HANDLE Handles[2] = {CreateThread(NULL, 0, WaitForInput,
-                &(THREAD_PARAMETER){hStdout, timeout}, 0, NULL), hStdin};
 
             NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
                 buffer, p - buffer + sizeof(FiniteMessage_), NULL, NULL);
+            NtCreateThreadEx(&Handles[0], THREAD_ALL_ACCESS, NULL,
+                (HANDLE) -1, WaitForInput, &(THREAD_PARAMETER){hStdout, timeout},
+                THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH | THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER,
+                0, 0, 0, NULL);
+            Handles[1] = hStdin;
             NtQuerySystemTime(&DelayInterval);
             // Positive value for Absolute timeout
             DelayInterval.QuadPart += SecToUnits(timeout);
