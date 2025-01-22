@@ -13,6 +13,9 @@
 #define DEFAULT_START         FALSE
 #define DEFAULT_HELP          FALSE
 
+#define VALID_TIMEOUT 99999
+#define INVALID_TIMEOUT (VALID_TIMEOUT + 1)
+
 // Debugger buffer length
 #define PAGESIZE    4096
 #define BUFLEN      8192
@@ -31,6 +34,12 @@
 static const wchar_t GDB_COMMAND_LINE[18] = L"gdb.exe -q -x=\\??\\";
 // Returns all attributes to the default state prior to modification
 static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
+
+// static const wchar_t OBJECT_MANAGER_NAMESPACE[4] = L"\\??\\";
+// static const char OBJECT_MANAGER_NAMESPACE[] = "\\\0?\0?\0\\";
+
+#define OBJECT_MANAGER_NAMESPACE GDB_COMMAND_LINE + 14
+#define OBJECT_MANAGER_NAMESPACE_LEN 8
 
 #include "ntdll.h"
 #include "string\conversion.h"
@@ -90,7 +99,7 @@ static const char HELP[589] =
 
 static const char VALUE_EXPECTED[20] =
 "Value expected for '";
-static const char INVALID_TIMEOUT[70] =
+static const char TIMEOUT_INVALID[70] =
 "Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n";
 static const char _INVALID_ARGUMENT[27] = "Invalid argument/option - '";
 static const char INVALID_ARGUMENT_[3] = "'.\n";

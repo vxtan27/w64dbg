@@ -120,10 +120,10 @@ void __stdcall main(void)
                         *p++ = '\n';
                     } else
                     {
-                        if ((timeout = process_timeout(pNext, &pNext, temp)) > 99999)
+                        if ((timeout = process_timeout(pNext, &pNext, temp)) > VALID_TIMEOUT)
                         {
-                            memcpy(p, INVALID_TIMEOUT, sizeof(INVALID_TIMEOUT));
-                            p += sizeof(INVALID_TIMEOUT);
+                            memcpy(p, TIMEOUT_INVALID, sizeof(TIMEOUT_INVALID));
+                            p += sizeof(TIMEOUT_INVALID);
                             *(p - 43) = *cmd;
                             *(p - 42) = *(cmd + 1);
                         }
