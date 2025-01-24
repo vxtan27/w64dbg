@@ -197,7 +197,7 @@ void __stdcall main(void)
     {
         NtWriteFile(hStdout, NULL, NULL, NULL,
             &IoStatusBlock, buffer, p - buffer, NULL, NULL);
-        CleanProcess(1);
+        RtlExitUserProcess(1);
     }
 
     wchar_t* ptr;
@@ -215,19 +215,18 @@ void __stdcall main(void)
 
     *(pCmdLine + len) = '\0';
 
-    // Check if executable exists
     if (!RtlDosSearchPath_U(PATH, pNext, EXTENSION,
         sizeof(ApplicationName), ApplicationName, NULL))
-    {
-        wchar_t Tmp[WBUFLEN];
+    { // Check if executable exists
+        MESSAGE_RESOURCE_ENTRY *Entry;
 
-        len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-            ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), Tmp, WBUFLEN, NULL);
+        FindSystemMessage(ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+        // Convert error message to UTF-8
         RtlUnicodeToUTF8N(buffer, BUFLEN,
-            &UTF8StringActualByteCount, Tmp, len << 1);
+            &UTF8StringActualByteCount, Entry->Text, Entry->Length - 8);
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, UTF8StringActualByteCount, NULL, NULL);
-        CleanProcess(1);
+        RtlExitUserProcess(1);
     }
 
     DWORD bx64win; // Is 64-bit application
@@ -235,15 +234,40 @@ void __stdcall main(void)
     if (!GetBinaryTypeW(ApplicationName, &bx64win) ||
         (bx64win != SCS_32BIT_BINARY && bx64win != SCS_64BIT_BINARY))
     { // Check if executable format (x86-64)
-        wchar_t Tmp[WBUFLEN];
+        wchar_t* pos;
+        MESSAGE_RESOURCE_ENTRY *Entry;
 
-        len = FormatMessageW(FORMAT_MESSAGE_ARGUMENT_ARRAY | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
-            ERROR_BAD_EXE_FORMAT, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), Tmp, WBUFLEN, &pNext);
-        RtlUnicodeToUTF8N(buffer, BUFLEN,
-            &UTF8StringActualByteCount, Tmp, len << 1);
+        FindSystemMessage(ERROR_BAD_EXE_FORMAT, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+
+        // Convert error message to UTF-8
+        if (*Entry->Text == '%')
+        {
+            pos = Entry->Text;
+            p = buffer;
+        }
+        else
+        {
+            // Should - 8 and () >> 1
+            pos = (wchar_t*) wmemchr(Entry->Text, '%', Entry->Length);
+            RtlUnicodeToUTF8N(buffer, BUFLEN, &UTF8StringActualByteCount,
+                Entry->Text, pos - Entry->Text);
+            p = buffer + UTF8StringActualByteCount;
+        }
+
+        // Convert filename to UTF-8
+        RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &UTF8StringActualByteCount,
+            pNext, (ptr - pNext) << 1);
+        p += UTF8StringActualByteCount;
+
+        pos = (wchar_t*) wmemchr(pos + 1, '1', Entry->Length) + 1;
+        // Convert error message to UTF-8
+        RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &UTF8StringActualByteCount,
+            pos, Entry->Length - 8 - ((pos - Entry->Text) << 1));
+        p += UTF8StringActualByteCount;
+
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-            buffer, UTF8StringActualByteCount, NULL, NULL);
-        CleanProcess(1);
+            buffer, p - buffer, NULL, NULL);
+        RtlExitUserProcess(1);
     }
 
     HANDLE hProcess;
@@ -450,7 +474,7 @@ void __stdcall main(void)
                 }
 
                 ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
-                CleanProcess(0);
+                RtlExitUserProcess(0);
 
             [[fallthrough]];
             case OUTPUT_DEBUG_STRING_EVENT:
@@ -486,6 +510,7 @@ void __stdcall main(void)
                 // Check if not first-chance
                 if (!DebugEvent.u.Exception.dwFirstChance)
                 {
+                    NtTerminateProcess(hProcess, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode);
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
                     continue;
                 }
@@ -515,13 +540,14 @@ void __stdcall main(void)
                 } else *p++ = '\n';
 
                 LDR_DATA_TABLE_ENTRY *NTDLL;
+                MESSAGE_RESOURCE_ENTRY *Entry;
 
-                LdrFindEntryForAddress(NtClose, &NTDLL);
-                len = FormatMessageW(FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                    NTDLL->DllBase, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode,
-                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), Tmp, WBUFLEN, NULL);
+                LdrFindEntryForAddress(LdrFindEntryForAddress, &NTDLL);
+                FindModuleMessage(NTDLL->DllBase, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+                // Convert error message to UTF-8
                 RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                    &UTF8StringActualByteCount, Tmp, len << 1);
+                    &UTF8StringActualByteCount, Entry->Text, Entry->Length - 8);
                 p += UTF8StringActualByteCount;
 
                 if (Console)
@@ -538,11 +564,9 @@ void __stdcall main(void)
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE06D7363 || // STATUS_CPP_EH_EXCEPTION
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE0434f4D)) // STATUS_CLR_EXCEPTION
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
-                else if (debug < MINGW)
-                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
-                else if (RtlDosSearchPath_U(PATH, GDB_EXE, NULL, // Check if executable exists
+                else if (debug >= MINGW && RtlDosSearchPath_U(PATH, GDB_EXE, NULL,
                     sizeof(ApplicationName), ApplicationName, NULL))
-                {
+                { // Check if executable exists
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer, NULL, NULL);
                     NtSuspendProcess(hProcess);
@@ -692,7 +716,7 @@ void __stdcall main(void)
                     if (timeout) WaitForInputOrTimeout(hStdin,
                         hStdout, timeout, StdinConsole);
 
-                    CleanProcess(0);
+                    RtlExitUserProcess(0);
                 } else ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
 
                 if (DebugEvent.dwThreadId != dwThreadId[i])
@@ -921,16 +945,18 @@ void __stdcall main(void)
             case RIP_EVENT:
                 if (verbose >= 2)
                 {
+                    MESSAGE_RESOURCE_ENTRY *Entry;
+
                     memcpy(buffer, RIP, sizeof(RIP));
                     p = _ultoa10(DebugEvent.dwProcessId, buffer + sizeof(RIP));
                     *p = 'x';
                     p = _ultoa10(DebugEvent.dwThreadId, p + 1);
-                    *p = '\n';
+                    *p++ = '\n';
 
-                    len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-                        DebugEvent.u.RipInfo.dwError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), Tmp, WBUFLEN, NULL);
-                    RtlUnicodeToUTF8N(p + 1, buffer + BUFLEN - p - 1,
-                        &UTF8StringActualByteCount, Tmp, len << 1);
+                    FindSystemMessage(DebugEvent.u.RipInfo.dwError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+                    // Convert error message to UTF-8
+                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
+                        &UTF8StringActualByteCount, Entry->Text, Entry->Length - 8);
                     p += UTF8StringActualByteCount;
 
                     if (DebugEvent.u.RipInfo.dwType == 1)

@@ -7,40 +7,6 @@
 
 static
 __forceinline
-long process_timeout(wchar_t* str, wchar_t **p, size_t len)
-{
-    char is_signed = FALSE; // Tracks if the value is negative
-
-    // Handle optional sign at the start
-    while (*str == '-' || *str == '+')
-    {
-        is_signed = *str == '-';
-        ++str;
-    }
-
-    long value = 0;
-    unsigned char c;
-
-    do
-    { // Parse numeric characters until a space is encountered
-        c = *str - '0'; // Normalize to numeric range
-        if (c > 9)
-        { // Non-numeric character validation
-            *p = (wchar_t*) wmemchr(str, ' ', len) + 1;
-            return INVALID_TIMEOUT;
-        }
-        value = value * 10 + c;
-    } while (*++str != ' ');
-
-    *p = str + 1; // Update pointer to next position after the space
-
-    if (is_signed) value = -value;
-
-    return value;
-}
-
-static
-__forceinline
 char* _ltoa10(long value, char* p)
 {
     long num = value;

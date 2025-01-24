@@ -104,15 +104,15 @@ char* FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t _len, char* _buf
         NtClose(hFile); // Close the file handle
     } else if (verbose >= 3)
     {  // Handle file not found error in verbose mode
-        wchar_t temp[WBUFLEN];
+        DWORD len;
+        wchar_t Tmp[WBUFLEN];
+        MESSAGE_RESOURCE_ENTRY *Entry;
         ULONG UTF8StringActualByteCount;
 
-        DWORD len = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-            ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), temp, WBUFLEN, NULL);
-
+        FindSystemMessage(ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(p, _buffer + BUFLEN - p,
-            &UTF8StringActualByteCount, temp, len << 1);
+            &UTF8StringActualByteCount, Entry->Text, Entry->Length - 8);
         p += UTF8StringActualByteCount;
     }
 

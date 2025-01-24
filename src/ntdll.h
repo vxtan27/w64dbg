@@ -5,10 +5,6 @@
 
 #pragma once
 
-#if WINVER < 0x0601
-#error "Unsupported Windows version"
-#endif
-
 #include <winternl.h>
 
 typedef enum _WAIT_TYPE {
@@ -105,47 +101,269 @@ typedef struct _PS_ATTRIBUTE_LIST
     PS_ATTRIBUTE Attributes[1];
 } PS_ATTRIBUTE_LIST, *PPS_ATTRIBUTE_LIST;
 
-#define THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH      0x00000002
-#define THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER      0x00000004
+#define THREAD_CREATE_FLAGS_NONE 0x00000000
+#define THREAD_CREATE_FLAGS_CREATE_SUSPENDED 0x00000001 // NtCreateUserProcess & NtCreateThreadEx
+#define THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH 0x00000002 // NtCreateThreadEx only
+#define THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER 0x00000004 // NtCreateThreadEx only
+#define THREAD_CREATE_FLAGS_LOADER_WORKER 0x00000010 // NtCreateThreadEx only // since THRESHOLD
+#define THREAD_CREATE_FLAGS_SKIP_LOADER_INIT 0x00000020 // NtCreateThreadEx only // since REDSTONE2
+#define THREAD_CREATE_FLAGS_BYPASS_PROCESS_FREEZE 0x00000040 // NtCreateThreadEx only // since 19H1
 
-NTSYSAPI NTSTATUS  WINAPI LdrFindEntryForAddress(const void*, PLDR_DATA_TABLE_ENTRY*);
-NTSYSAPI void      WINAPI LdrShutdownProcess(void);
-NTSYSAPI void      WINAPI LdrShutdownThread(void);
-NTSYSAPI NTSTATUS  WINAPI NtCreateThreadEx(HANDLE*,ACCESS_MASK,OBJECT_ATTRIBUTES*,HANDLE,PUSER_THREAD_START_ROUTINE,void*,ULONG,ULONG_PTR,SIZE_T,SIZE_T,PS_ATTRIBUTE_LIST*);
-NTSYSAPI NTSTATUS  WINAPI NtDelayExecution(BOOLEAN,const LARGE_INTEGER*);
-NTSYSAPI NTSTATUS  WINAPI NtGetContextThread(HANDLE,CONTEXT*);
-NTSYSAPI NTSTATUS  WINAPI NtQueryInformationFile(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,FILE_INFORMATION_CLASS);
-NTSYSAPI NTSTATUS  WINAPI NtReadFile(HANDLE,HANDLE,PIO_APC_ROUTINE,PVOID,PIO_STATUS_BLOCK,PVOID,ULONG,PLARGE_INTEGER,PULONG);
-NTSYSAPI NTSTATUS  WINAPI NtReadVirtualMemory(HANDLE,const void*,void*,SIZE_T,SIZE_T*);
-NTSYSAPI NTSTATUS  WINAPI NtResumeProcess(HANDLE);
-NTSYSAPI NTSTATUS  WINAPI NtSetInformationFile(HANDLE,PIO_STATUS_BLOCK,PVOID,ULONG,FILE_INFORMATION_CLASS);
-NTSYSAPI NTSTATUS  WINAPI NtSuspendProcess(HANDLE);
-NTSYSAPI NTSTATUS  WINAPI NtTerminateProcess(HANDLE,LONG);
-NTSYSAPI NTSTATUS  WINAPI NtTerminateThread(HANDLE,LONG);
-NTSYSAPI NTSTATUS  WINAPI NtWaitForMultipleObjects(ULONG,const HANDLE*,BOOLEAN,BOOLEAN,const LARGE_INTEGER*);
-NTSYSAPI LONG      WINAPI RtlCompareUnicodeStrings(const WCHAR*,SIZE_T,const WCHAR*,SIZE_T,BOOLEAN);
-NTSYSAPI ULONG     WINAPI RtlDosSearchPath_U(LPCWSTR, LPCWSTR, LPCWSTR, ULONG, LPWSTR, LPWSTR*);
-NTSYSAPI ULONG     WINAPI RtlGetCurrentDirectory_U(ULONG, LPWSTR);
-NTSYSAPI NTSTATUS  WINAPI RtlQueryEnvironmentVariable(WCHAR*,const WCHAR*,SIZE_T,WCHAR*,SIZE_T,SIZE_T*);
-NTSYSAPI NTSTATUS  WINAPI RtlUnicodeToUTF8N(LPSTR,DWORD,LPDWORD,LPCWSTR,DWORD);
-NTSYSAPI NTSTATUS  WINAPI NtWriteFile(HANDLE,HANDLE,PIO_APC_ROUTINE,PVOID,PIO_STATUS_BLOCK,const void*,ULONG,PLARGE_INTEGER,PULONG);
-int                WINAPI sprintf( char *str, const char *format, ... );
+NTSYSAPI
+NTSTATUS
+NTAPI
+LdrFindEntryForAddress(
+    _In_ PVOID DllHandle,
+    _Out_ PLDR_DATA_TABLE_ENTRY *Entry
+    );
 
-__declspec(noreturn)
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtCreateThreadEx(
+    _Out_ PHANDLE ThreadHandle,
+    _In_ ACCESS_MASK DesiredAccess,
+    _In_opt_ POBJECT_ATTRIBUTES ObjectAttributes,
+    _In_ HANDLE ProcessHandle,
+    _In_ PUSER_THREAD_START_ROUTINE StartRoutine,
+    _In_opt_ PVOID Argument,
+    _In_ ULONG CreateFlags, // THREAD_CREATE_FLAGS_*
+    _In_ SIZE_T ZeroBits,
+    _In_ SIZE_T StackSize,
+    _In_ SIZE_T MaximumStackSize,
+    _In_opt_ PPS_ATTRIBUTE_LIST AttributeList
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtDelayExecution(
+    _In_ BOOLEAN Alertable,
+    _In_ PLARGE_INTEGER DelayInterval
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtGetContextThread(
+    _In_ HANDLE ThreadHandle,
+    _Inout_ PCONTEXT ThreadContext
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtQueryInformationFile(
+    _In_ HANDLE FileHandle,
+    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
+    _Out_writes_bytes_(Length) PVOID FileInformation,
+    _In_ ULONG Length,
+    _In_ FILE_INFORMATION_CLASS FileInformationClass
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtReadFile(
+    _In_ HANDLE FileHandle,
+    _In_opt_ HANDLE Event,
+    _In_opt_ PIO_APC_ROUTINE ApcRoutine,
+    _In_opt_ PVOID ApcContext,
+    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
+    _Out_writes_bytes_(Length) PVOID Buffer,
+    _In_ ULONG Length,
+    _In_opt_ PLARGE_INTEGER ByteOffset,
+    _In_opt_ PULONG Key
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtReadVirtualMemory(
+    _In_ HANDLE ProcessHandle,
+    _In_opt_ PVOID BaseAddress,
+    _Out_writes_bytes_to_(NumberOfBytesToRead, *NumberOfBytesRead) PVOID Buffer,
+    _In_ SIZE_T NumberOfBytesToRead,
+    _Out_opt_ PSIZE_T NumberOfBytesRead
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtResumeProcess(
+    _In_ HANDLE ProcessHandle
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtSetInformationFile(
+    _In_ HANDLE FileHandle,
+    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
+    _In_reads_bytes_(Length) PVOID FileInformation,
+    _In_ ULONG Length,
+    _In_ FILE_INFORMATION_CLASS FileInformationClass
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtSuspendProcess(
+    _In_ HANDLE ProcessHandle
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtTerminateProcess(
+    _In_opt_ HANDLE ProcessHandle,
+    _In_ NTSTATUS ExitStatus
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtWaitForMultipleObjects(
+    _In_ ULONG Count,
+    _In_reads_(Count) HANDLE Handles[],
+    _In_ WAIT_TYPE WaitType,
+    _In_ BOOLEAN Alertable,
+    _In_opt_ PLARGE_INTEGER Timeout
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtWriteFile(
+    _In_ HANDLE FileHandle,
+    _In_opt_ HANDLE Event,
+    _In_opt_ PIO_APC_ROUTINE ApcRoutine,
+    _In_opt_ PVOID ApcContext,
+    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
+    _In_reads_bytes_(Length) PVOID Buffer,
+    _In_ ULONG Length,
+    _In_opt_ PLARGE_INTEGER ByteOffset,
+    _In_opt_ PULONG Key
+    );
+
+#if (PHNT_VERSION >= PHNT_VISTA)
+_Must_inspect_result_
+NTSYSAPI
+LONG
+NTAPI
+RtlCompareUnicodeStrings(
+    _In_reads_(String1Length) PCWCH String1,
+    _In_ SIZE_T String1Length,
+    _In_reads_(String2Length) PCWCH String2,
+    _In_ SIZE_T String2Length,
+    _In_ BOOLEAN CaseInSensitive
+    );
+#endif
+
+NTSYSAPI
+ULONG
+NTAPI
+RtlDosSearchPath_U(
+    _In_ PCWSTR Path,
+    _In_ PCWSTR FileName,
+    _In_opt_ PCWSTR Extension,
+    _In_ ULONG BufferLength,
+    _Out_writes_bytes_(BufferLength) PWSTR Buffer,
+    _Out_opt_ PWSTR *FilePart
+    );
+
+#if (PHNT_VERSION >= PHNT_WINXP)
+_Analysis_noreturn_
+DECLSPEC_NORETURN
+NTSYSAPI
+VOID
+NTAPI
+RtlExitUserThread(
+    _In_ NTSTATUS ExitStatus
+    );
+#endif
+
+#if (PHNT_VERSION >= PHNT_VISTA)
+_Analysis_noreturn_
+DECLSPEC_NORETURN
+NTSYSAPI
+VOID
+NTAPI
+RtlExitUserProcess(
+    _In_ NTSTATUS ExitStatus
+    );
+#endif
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+RtlFindMessage(
+    _In_ PVOID DllHandle,
+    _In_ ULONG MessageTableId,
+    _In_ ULONG MessageLanguageId,
+    _In_ ULONG MessageId,
+    _Out_ PMESSAGE_RESOURCE_ENTRY *MessageEntry
+    );
+
+NTSYSAPI
+ULONG
+NTAPI
+RtlGetCurrentDirectory_U(
+    _In_ ULONG BufferLength,
+    _Out_writes_bytes_(BufferLength) PWSTR Buffer
+    );
+
+#if (PHNT_VERSION >= PHNT_VISTA)
+// private
+NTSYSAPI
+NTSTATUS
+NTAPI
+RtlQueryEnvironmentVariable(
+    _In_opt_ PVOID Environment,
+    _In_reads_(NameLength) PCWSTR Name,
+    _In_ SIZE_T NameLength,
+    _Out_writes_opt_(ValueLength) PWSTR Value,
+    _In_opt_ SIZE_T ValueLength,
+    _Out_ PSIZE_T ReturnLength
+    );
+#endif
+
+#if (PHNT_VERSION >= PHNT_WIN7)
+NTSYSAPI
+NTSTATUS
+NTAPI
+RtlUnicodeToUTF8N(
+    _Out_writes_bytes_to_(UTF8StringMaxByteCount, *UTF8StringActualByteCount) PCHAR UTF8StringDestination,
+    _In_ ULONG UTF8StringMaxByteCount,
+    _Out_opt_ PULONG UTF8StringActualByteCount,
+    _In_reads_bytes_(UnicodeStringByteCount) PCWCH UnicodeStringSource,
+    _In_ ULONG UnicodeStringByteCount
+    );
+#endif
+
+int
+WINAPI
+sprintf(
+    _Out_ char *str,
+    _In_ const char *format,
+    ...
+    );
+
+#define KERNEL32API ContinueDebugEvent
+
 static
 __forceinline
-void CleanProcess(UINT uExitCode)
+VOID FindSystemMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *Entry)
 {
-    NtTerminateProcess(0, uExitCode);
-    LdrShutdownProcess();
-    while (TRUE) NtTerminateProcess((HANDLE) -1, uExitCode);
+    LDR_DATA_TABLE_ENTRY *KERNEL32;
+
+    LdrFindEntryForAddress(KERNEL32API, &KERNEL32);
+    RtlFindMessage(KERNEL32->DllBase, RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
 }
 
-__declspec(noreturn)
 static
 __forceinline
-void CleanThread(UINT uExitCode)
+VOID FindModuleMessage(PVOID DllHandle, DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *Entry)
 {
-    LdrShutdownThread();
-    while (TRUE) NtTerminateThread((HANDLE) -1, uExitCode);
+    RtlFindMessage(DllHandle, RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
 }

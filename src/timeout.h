@@ -3,6 +3,40 @@
     Licensed under the BSD-3-Clause.
 */
 
+static
+__forceinline
+long process_timeout(wchar_t* str, wchar_t **p, size_t len)
+{
+    char is_signed = FALSE; // Tracks if the value is negative
+
+    // Handle optional sign at the start
+    while (*str == '-' || *str == '+')
+    {
+        is_signed = *str == '-';
+        ++str;
+    }
+
+    long value = 0;
+    unsigned char c;
+
+    do
+    { // Parse numeric characters until a space is encountered
+        c = *str - '0'; // Normalize to numeric range
+        if (c > 9)
+        { // Non-numeric character validation
+            *p = (wchar_t*) wmemchr(str, ' ', len) + 1;
+            return INVALID_TIMEOUT;
+        }
+        value = value * 10 + c;
+    } while (*++str != ' ');
+
+    *p = str + 1; // Update pointer to next position after the space
+
+    if (is_signed) value = -value;
+
+    return value;
+}
+
 #define SecToUnits(lSeconds) ((lSeconds) * 10000000LL)
 
 #define IsInputInvalidate(InputRecord) ( \
@@ -74,7 +108,7 @@ static VOID WINAPI WaitForInput(LPVOID lpParameter)
             &IoStatusBlock, buffer, Length, NULL, NULL);
     }
 
-    CleanThread(0);
+    RtlExitUserThread(0);
 }
 
 static const char InfiniteMessage[30] = "\nPress any key to continue ...";
@@ -128,7 +162,8 @@ VOID WaitForInputOrTimeout(
                 buffer, p - buffer + sizeof(FiniteMessage_), NULL, NULL);
             NtCreateThreadEx(&Handles[0], THREAD_ALL_ACCESS, NULL,
                 (HANDLE) -1, WaitForInput, &(THREAD_PARAMETER){hStdout, timeout},
-                THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH | THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER,
+                THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH | THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER |
+                THREAD_CREATE_FLAGS_SKIP_LOADER_INIT | THREAD_CREATE_FLAGS_BYPASS_PROCESS_FREEZE,
                 0, 0, 0, NULL);
             Handles[1] = hStdin;
             NtQuerySystemTime(&DelayInterval);
