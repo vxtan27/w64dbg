@@ -760,7 +760,8 @@ void __stdcall main(void)
                 } else
                 {
                     ((PWOW64_CONTEXT) &Context)->ContextFlags = WOW64_CONTEXT_ALL;
-                    Wow64GetThreadContext(hThread[i], (PWOW64_CONTEXT) &Context);
+                    NtQueryInformationThread(hThread[i], 29, // ThreadWow64Context
+                        &Context, sizeof(WOW64_CONTEXT), NULL);
                     // Find no replacable NTAPI
                     MachineType = IMAGE_FILE_MACHINE_I386;
                     StackFrame.AddrPC.Offset = ((PWOW64_CONTEXT) &Context)->Eip;

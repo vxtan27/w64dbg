@@ -341,14 +341,6 @@ RtlUnicodeToUTF8N(
     );
 #endif
 
-int
-WINAPI
-sprintf(
-    _Out_ char *str,
-    _In_ const char *format,
-    ...
-    );
-
 #define KERNEL32API ContinueDebugEvent
 
 static
