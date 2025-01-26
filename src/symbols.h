@@ -134,57 +134,34 @@ DWORD64 GetSymbolOffset(PSYMBOL_INFOW pSymbol, PVOID ContextRecord, DWORD bx64wi
         switch (pSymbol->Register)
         { // 64-bit regular registers
             case 1: // CV_AMD64_AL
-                return pContext->Rax & 0xFF;
             case 2: // CV_AMD64_CL
-                return pContext->Rcx & 0xFF;
             case 3: // CV_AMD64_DL
-                return pContext->Rdx & 0xFF;
             case 4: // CV_AMD64_BL
-                return pContext->Rbx & 0xFF;
+                return (&pContext->Rax)[pSymbol->Register - 1] & 0xFF;
             case 5: // CV_AMD64_AH
-                return (pContext->Rax >> 8) & 0xFF;
             case 6: // CV_AMD64_CH
-                return (pContext->Rcx >> 8) & 0xFF;
             case 7: // CV_AMD64_DH
-                return (pContext->Rdx >> 8) & 0xFF;
             case 8: // CV_AMD64_BH
-                return (pContext->Rbx >> 8) & 0xFF;
+                return ((&pContext->Rax)[pSymbol->Register - 5] >> 8) & 0xFF;
             case 9: // CV_AMD64_AX
-                return pContext->Rax & 0xFFFF;
             case 10: // CV_AMD64_CX
-                return pContext->Rcx & 0xFFFF;
             case 11: // CV_AMD64_DX
-                return pContext->Rdx & 0xFFFF;
             case 12: // CV_AMD64_BX
-                return pContext->Rbx & 0xFFFF;
+                return (&pContext->Rax)[pSymbol->Register - 9] & 0xFFFF;
             case 13: // CV_AMD64_SP
-            case 335: // CV_AMD64_RSP
-                return pContext->Rsp;
             case 14: // CV_AMD64_BP
-            case 334: // CV_AMD64_RBP
-                return pContext->Rbp;
             case 15: // CV_AMD64_SI
-            case 332: // CV_AMD64_RSI
-                return pContext->Rsi;
             case 16: // CV_AMD64_DI
-            case 333: // CV_AMD64_RDI
-                return pContext->Rdi;
+                return (&pContext->Rsp)[pSymbol->Register - 13];
             case 17: // CV_AMD64_EAX
-                return pContext->Rax & 0xFFFFFFFF;
             case 18: // CV_AMD64_ECX
-                return pContext->Rcx & 0xFFFFFFFF;
             case 19: // CV_AMD64_EDX
-                return pContext->Rdx & 0xFFFFFFFF;
             case 20: // CV_AMD64_EBX
-                return pContext->Rbx & 0xFFFFFFFF;
             case 21: // CV_AMD64_ESP
-                return pContext->Rsp & 0xFFFFFFFF;
             case 22: // CV_AMD64_EBP
-                return pContext->Rbp & 0xFFFFFFFF;
             case 23: // CV_AMD64_ESI
-                return pContext->Rsi & 0xFFFFFFFF;
             case 24: // CV_AMD64_EDI
-                return pContext->Rdi & 0xFFFFFFFF;
+                return (&pContext->Rax)[pSymbol->Register - 17] & 0xFFFFFFFF;
             case 25: // CV_AMD64_ES
                 return pContext->SegEs;
             case 26: // CV_AMD64_CS
@@ -203,80 +180,24 @@ DWORD64 GetSymbolOffset(PSYMBOL_INFOW pSymbol, PVOID ContextRecord, DWORD bx64wi
                 return pContext->Rip;
             case 34: // CV_AMD64_EFLAGS
                 return pContext->EFlags;
-            // case 80: // CV_AMD64_CR0
-            // case 81: // CV_AMD64_CR1
-            // case 82: // CV_AMD64_CR2
-            // case 83: // CV_AMD64_CR3
-            // case 84: // CV_AMD64_CR4
-            // case 88: // CV_AMD64_CR8
             case 90: // CV_AMD64_DR0
-            case 236: // CV_AMD64_MM00
-                return pContext->Dr0;
             case 91: // CV_AMD64_DR1
-            case 237: // CV_AMD64_MM01
-                return pContext->Dr1;
             case 92: // CV_AMD64_DR2
-            case 238: // CV_AMD64_MM10
-                return pContext->Dr2;
             case 93: // CV_AMD64_DR3
-            case 239: // CV_AMD64_MM11
-                return pContext->Dr3;
-            // case 94: // CV_AMD64_DR4
-            // case 240: // CV_AMD64_MM20
-            // case 95: // CV_AMD64_DR5
-            // case 241: // CV_AMD64_MM21
+                return (&pContext->Dr0)[pSymbol->Register - 90];
             case 96: // CV_AMD64_DR6
-            case 242: // CV_AMD64_MM30
                 return pContext->Dr6;
             case 97: // CV_AMD64_DR7
-            case 243: // CV_AMD64_MM31
                 return pContext->Dr7;
-            // case 98: // CV_AMD64_DR8
-            // case 244: // CV_AMD64_MM40
-            // case 99: // CV_AMD64_DR9
-            // case 245: // CV_AMD64_MM41
-            // case 100: // CV_AMD64_DR10
-            // case 246: // CV_AMD64_MM50
-            // case 101: // CV_AMD64_DR11
-            // case 247: // CV_AMD64_MM51
-            // case 102: // CV_AMD64_DR12
-            // case 248: // CV_AMD64_MM60
-            // case 103: // CV_AMD64_DR13
-            // case 249: // CV_AMD64_MM61
-            // case 104: // CV_AMD64_DR14
-            // case 250: // CV_AMD64_MM70
-            // case 105: // CV_AMD64_DR15
-            // case 251: // CV_AMD64_MM71
-            // case 110: // CV_AMD64_GDTR
-            // case 111: // CV_AMD64_GDTL
-            // case 112: // CV_AMD64_IDTR
-            // case 113: // CV_AMD64_IDTL
-            // case 114: // CV_AMD64_LDTR
-            // case 115: //  CV_AMD64_TR
             case 128: // CV_AMD64_ST0
-            case 146: // CV_AMD64_MM0
-                return pContext->FltSave.FloatRegisters[0].Low;
             case 129: // CV_AMD64_ST1
-            case 147: // CV_AMD64_MM1
-                return pContext->FltSave.FloatRegisters[1].Low;
             case 130: // CV_AMD64_ST2
-            case 148: // CV_AMD64_MM2
-                return pContext->FltSave.FloatRegisters[2].Low;
             case 131: // CV_AMD64_ST3
-            case 149: // CV_AMD64_MM3
-                return pContext->FltSave.FloatRegisters[3].Low;
             case 132: // CV_AMD64_ST4
-            case 150: // CV_AMD64_MM4
-                return pContext->FltSave.FloatRegisters[4].Low;
             case 133: // CV_AMD64_ST5
-            case 151: // CV_AMD64_MM5
-                return pContext->FltSave.FloatRegisters[5].Low;
             case 134: // CV_AMD64_ST6
-            case 152: // CV_AMD64_MM6
-                return pContext->FltSave.FloatRegisters[6].Low;
             case 135: // CV_AMD64_ST7
-            case 153: // CV_AMD64_MM7
-                return pContext->FltSave.FloatRegisters[7].Low;
+                return (&pContext->Legacy[0])[pSymbol->Register - 128].Low;
             case 136: // CV_AMD64_CTRL
                 return pContext->FltSave.ControlWord;
             case 137: // CV_AMD64_STAT
@@ -284,157 +205,214 @@ DWORD64 GetSymbolOffset(PSYMBOL_INFOW pSymbol, PVOID ContextRecord, DWORD bx64wi
             case 138: // CV_AMD64_TAG
                 return pContext->FltSave.TagWord;
             case 139: // CV_AMD64_FPIP
-                return pContext->FltSave.ErrorOpcode;
+            case 144: // CV_AMD64_FPEIP
+                return pContext->FltSave.ErrorOffset;
             case 140: // CV_AMD64_FPCS
                 return pContext->FltSave.ErrorSelector;
             case 141: // CV_AMD64_FPDO
+            case 145: // CV_AMD64_FPEDO
                 return pContext->FltSave.DataOffset;
             case 142: // CV_AMD64_FPDS
                 return pContext->FltSave.DataSelector;
             case 143: // CV_AMD64_ISEM
                 return pContext->FltSave.MxCsr;
-            case 144: // CV_AMD64_FPEIP
-                return pContext->LastBranchToRip;
-            case 145: // CV_AMD64_FPEDO
-                return pContext->LastExceptionToRip;
+            case 146: // CV_AMD64_MM0
+            case 147: // CV_AMD64_MM1
+            case 148: // CV_AMD64_MM2
+            case 149: // CV_AMD64_MM3
+            case 150: // CV_AMD64_MM4
+            case 151: // CV_AMD64_MM5
+            case 152: // CV_AMD64_MM6
+            case 153: // CV_AMD64_MM7
             case 154: // CV_AMD64_XMM0
-            case 194: // CV_AMD64_XMM0L
-            case 220: // CV_AMD64_EMM0L
-                return pContext->FltSave.XmmRegisters[0].Low;
             case 155: // CV_AMD64_XMM1
-            case 195: // CV_AMD64_XMM1L
-            case 221: // CV_AMD64_EMM1L
-                return pContext->FltSave.XmmRegisters[1].Low;
             case 156: // CV_AMD64_XMM2
-            case 196: // CV_AMD64_XMM2L
-            case 222: // CV_AMD64_EMM2L
-                return pContext->FltSave.XmmRegisters[2].Low;
             case 157: // CV_AMD64_XMM3
-            case 197: // CV_AMD64_XMM3L
-            case 223: // CV_AMD64_EMM3L
-                return pContext->FltSave.XmmRegisters[3].Low;
             case 158: // CV_AMD64_XMM4
-            case 198: // CV_AMD64_XMM4L
-            case 224: // CV_AMD64_EMM4L
-                return pContext->FltSave.XmmRegisters[4].Low;
             case 159: // CV_AMD64_XMM5
-            case 199: // CV_AMD64_XMM5L
-            case 225: // CV_AMD64_EMM5L
-                return pContext->FltSave.XmmRegisters[5].Low;
             case 160: // CV_AMD64_XMM6
-            case 200: // CV_AMD64_XMM6L
-            case 226: // CV_AMD64_EMM6L
-                return pContext->FltSave.XmmRegisters[6].Low;
             case 161: // CV_AMD64_XMM7
-            case 201: // CV_AMD64_XMM7L
-            case 227: // CV_AMD64_EMM7
-                return pContext->FltSave.XmmRegisters[7].Low;
+                return (&pContext->Legacy[0])[pSymbol->Register - 146].Low;
             case 162: // CV_AMD64_XMM0_0
-                return pContext->FltSave.XmmRegisters[0].Low & 0xFFFFFFFF;
-            case 163: // CV_AMD64_XMM0_1
-                return (pContext->FltSave.XmmRegisters[0].Low >> 32) & 0xFFFFFFFF;
-            case 164: // CV_AMD64_XMM0_2
-                return pContext->FltSave.XmmRegisters[0].High & 0xFFFFFFFF;
-            case 165: // CV_AMD64_XMM0_3
-                return (pContext->FltSave.XmmRegisters[0].High >> 32) & 0xFFFFFFFF;
             case 166: // CV_AMD64_XMM1_0
-                return pContext->FltSave.XmmRegisters[1].Low & 0xFFFFFFFF;
-            case 167: // CV_AMD64_XMM1_1
-                return (pContext->FltSave.XmmRegisters[1].Low >> 32) & 0xFFFFFFFF;
-            case 168: // CV_AMD64_XMM1_2
-                return pContext->FltSave.XmmRegisters[1].High & 0xFFFFFFFF;
-            case 169: // CV_AMD64_XMM1_3
-                return (pContext->FltSave.XmmRegisters[1].High >> 32) & 0xFFFFFFFF;
             case 170: // CV_AMD64_XMM2_0
-                return pContext->FltSave.XmmRegisters[2].Low & 0xFFFFFFFF;
-            case 171: // CV_AMD64_XMM2_1
-                return (pContext->FltSave.XmmRegisters[2].Low >> 32) & 0xFFFFFFFF;
-            case 172: // CV_AMD64_XMM2_2
-                return pContext->FltSave.XmmRegisters[2].High & 0xFFFFFFFF;
-            case 173: // CV_AMD64_XMM2_3
-                return (pContext->FltSave.XmmRegisters[2].High >> 32) & 0xFFFFFFFF;
             case 174: // CV_AMD64_XMM3_0
-                return pContext->FltSave.XmmRegisters[3].Low & 0xFFFFFFFF;
-            case 175: // CV_AMD64_XMM3_1
-                return (pContext->FltSave.XmmRegisters[3].Low >> 32) & 0xFFFFFFFF;
-            case 176: // CV_AMD64_XMM3_2
-                return pContext->FltSave.XmmRegisters[3].High & 0xFFFFFFFF;
-            case 177: // CV_AMD64_XMM3_3
-                return (pContext->FltSave.XmmRegisters[3].High >> 32) & 0xFFFFFFFF;
             case 178: // CV_AMD64_XMM4_0
-                return pContext->FltSave.XmmRegisters[4].Low & 0xFFFFFFFF;
-            case 179: // CV_AMD64_XMM4_1
-                return (pContext->FltSave.XmmRegisters[4].Low >> 32) & 0xFFFFFFFF;
-            case 180: // CV_AMD64_XMM4_2
-                return pContext->FltSave.XmmRegisters[4].High & 0xFFFFFFFF;
-            case 181: // CV_AMD64_XMM4_3
-                return (pContext->FltSave.XmmRegisters[4].High >> 32) & 0xFFFFFFFF;
             case 182: // CV_AMD64_XMM5_0
-                return pContext->FltSave.XmmRegisters[5].Low & 0xFFFFFFFF;
-            case 183: // CV_AMD64_XMM5_1
-                return (pContext->FltSave.XmmRegisters[5].Low >> 32) & 0xFFFFFFFF;
-            case 184: // CV_AMD64_XMM5_2
-                return pContext->FltSave.XmmRegisters[5].High & 0xFFFFFFFF;
-            case 185: // CV_AMD64_XMM5_3
-                return (pContext->FltSave.XmmRegisters[5].High >> 32) & 0xFFFFFFFF;
             case 186: // CV_AMD64_XMM6_0
-                return pContext->FltSave.XmmRegisters[6].Low & 0xFFFFFFFF;
-            case 187: // CV_AMD64_XMM6_1
-                return (pContext->FltSave.XmmRegisters[6].Low >> 32) & 0xFFFFFFFF;
-            case 188: // CV_AMD64_XMM6_2
-                return pContext->FltSave.XmmRegisters[6].High & 0xFFFFFFFF;
-            case 189: // CV_AMD64_XMM6_3
-                return (pContext->FltSave.XmmRegisters[6].High >> 32) & 0xFFFFFFFF;
             case 190: // CV_AMD64_XMM7_0
-                return pContext->FltSave.XmmRegisters[7].Low & 0xFFFFFFFF;
+                return (&pContext->Xmm0)[(pSymbol->Register - 162) >> 2].Low & 0xFFFFFFFF;
+            case 163: // CV_AMD64_XMM0_1
+            case 167: // CV_AMD64_XMM1_1
+            case 171: // CV_AMD64_XMM2_1
+            case 175: // CV_AMD64_XMM3_1
+            case 179: // CV_AMD64_XMM4_1
+            case 183: // CV_AMD64_XMM5_1
+            case 187: // CV_AMD64_XMM6_1
             case 191: // CV_AMD64_XMM7_1
-                return (pContext->FltSave.XmmRegisters[7].Low >> 32) & 0xFFFFFFFF;
+                return ((&pContext->Xmm0)[(pSymbol->Register - 163) >> 2].Low >> 32) & 0xFFFFFFFF;
+            case 164: // CV_AMD64_XMM0_2
+            case 168: // CV_AMD64_XMM1_2
+            case 172: // CV_AMD64_XMM2_2
+            case 176: // CV_AMD64_XMM3_2
+            case 180: // CV_AMD64_XMM4_2
+            case 184: // CV_AMD64_XMM5_2
+            case 188: // CV_AMD64_XMM6_2
             case 192: // CV_AMD64_XMM7_2
-                return pContext->FltSave.XmmRegisters[7].High & 0xFFFFFFFF;
+                return (&pContext->Xmm0)[(pSymbol->Register - 164) >> 2].High & 0xFFFFFFFF;
+            case 165: // CV_AMD64_XMM0_3
+            case 169: // CV_AMD64_XMM1_3
+            case 173: // CV_AMD64_XMM2_3
+            case 177: // CV_AMD64_XMM3_3
+            case 181: // CV_AMD64_XMM4_3
+            case 185: // CV_AMD64_XMM5_3
+            case 189: // CV_AMD64_XMM6_3
             case 193: // CV_AMD64_XMM7_3
-                return (pContext->FltSave.XmmRegisters[7].High >> 32) & 0xFFFFFFFF;
+                return ((&pContext->Xmm0)[(pSymbol->Register - 165) >> 2].High >> 32) & 0xFFFFFFFF;
+            case 194: // CV_AMD64_XMM0L
+            case 195: // CV_AMD64_XMM1L
+            case 196: // CV_AMD64_XMM2L
+            case 197: // CV_AMD64_XMM3L
+            case 198: // CV_AMD64_XMM4L
+            case 199: // CV_AMD64_XMM5L
+            case 200: // CV_AMD64_XMM6L
+            case 201: // CV_AMD64_XMM7L
+                return (&pContext->Xmm0)[pSymbol->Register - 194].Low;
             case 202: // CV_AMD64_XMM0H
-            case 228: // CV_AMD64_EMM0H
-                return pContext->FltSave.XmmRegisters[0].High;
             case 203: // CV_AMD64_XMM1H
-            case 229: // CV_AMD64_EMM1H
-                return pContext->FltSave.XmmRegisters[1].High;
             case 204: // CV_AMD64_XMM2H
-            case 230: // CV_AMD64_EMM2H
-                return pContext->FltSave.XmmRegisters[2].High;
             case 205: // CV_AMD64_XMM3H
-            case 231: // CV_AMD64_EMM3H
-                return pContext->FltSave.XmmRegisters[3].High;
             case 206: // CV_AMD64_XMM4H
-            case 232: // CV_AMD64_EMM4H
-                return pContext->FltSave.XmmRegisters[4].High;
             case 207: // CV_AMD64_XMM5H
-            case 233: // CV_AMD64_EMM5H
-                return pContext->FltSave.XmmRegisters[5].High;
             case 208: // CV_AMD64_XMM6H
-            case 234: // CV_AMD64_EMM6H
-                return pContext->FltSave.XmmRegisters[6].High;
             case 209: // CV_AMD64_XMM7H
-            case 235: // CV_AMD64_EMM7H
-                return pContext->FltSave.XmmRegisters[7].High;
+                return (&pContext->Xmm0)[pSymbol->Register - 202].High;
             case 211: // CV_AMD64_MXCSR
                 return pContext->MxCsr;
+            case 220: // CV_AMD64_EMM0L
+            case 221: // CV_AMD64_EMM1L
+            case 222: // CV_AMD64_EMM2L
+            case 223: // CV_AMD64_EMM3L
+            case 224: // CV_AMD64_EMM4L
+            case 225: // CV_AMD64_EMM5L
+            case 226: // CV_AMD64_EMM6L
+            case 227: // CV_AMD64_EMM7
+                return (&pContext->Xmm0)[pSymbol->Register - 220].Low;
+            case 228: // CV_AMD64_EMM0H
+            case 229: // CV_AMD64_EMM1H
+            case 230: // CV_AMD64_EMM2H
+            case 231: // CV_AMD64_EMM3H
+            case 232: // CV_AMD64_EMM4H
+            case 233: // CV_AMD64_EMM5H
+            case 234: // CV_AMD64_EMM6H
+            case 235: // CV_AMD64_EMM7H
+                return (&pContext->Xmm0)[pSymbol->Register - 228].High;
+            case 236: // CV_AMD64_MM00
+            case 238: // CV_AMD64_MM10
+            case 240: // CV_AMD64_MM20
+            case 242: // CV_AMD64_MM30
+            case 244: // CV_AMD64_MM40
+            case 246: // CV_AMD64_MM50
+            case 248: // CV_AMD64_MM60
+            case 250: // CV_AMD64_MM70
+                return (&pContext->Legacy[0])[(pSymbol->Register - 236) >> 1].Low;
+            case 237: // CV_AMD64_MM01
+            case 239: // CV_AMD64_MM11
+            case 241: // CV_AMD64_MM21
+            case 243: // CV_AMD64_MM31
+            case 245: // CV_AMD64_MM41
+            case 247: // CV_AMD64_MM51
+            case 249: // CV_AMD64_MM61
+            case 251: // CV_AMD64_MM71
+                return (&pContext->Legacy[0])[(pSymbol->Register - 237) >> 1].High;
             case 252: // CV_AMD64_XMM8
-                return pContext->FltSave.XmmRegisters[8].Low;
             case 253: // CV_AMD64_XMM9
-                return pContext->FltSave.XmmRegisters[9].Low;
             case 254: // CV_AMD64_XMM10
-                return pContext->FltSave.XmmRegisters[10].Low;
             case 255: // CV_AMD64_XMM11
-                return pContext->FltSave.XmmRegisters[11].Low;
             case 256: // CV_AMD64_XMM12
-                return pContext->FltSave.XmmRegisters[12].Low;
             case 257: // CV_AMD64_XMM13
-                return pContext->FltSave.XmmRegisters[13].Low;
             case 258: // CV_AMD64_XMM14
-                return pContext->FltSave.XmmRegisters[14].Low;
             case 259: // CV_AMD64_XMM15
-                return pContext->FltSave.XmmRegisters[15].Low;
+                return (&pContext->Xmm8)[pSymbol->Register - 252].Low;
+            case 260: // CV_AMD64_XMM8_0
+            case 264: // CV_AMD64_XMM9_0
+            case 268: // CV_AMD64_XMM10_0
+            case 272: // CV_AMD64_XMM11_0
+            case 276: // CV_AMD64_XMM12_0
+            case 280: // CV_AMD64_XMM13_0
+            case 284: // CV_AMD64_XMM14_0
+            case 288: // CV_AMD64_XMM15_0
+                return (&pContext->Xmm8)[(pSymbol->Register - 260) >> 2].Low & 0xFFFFFFFF;
+            case 261: // CV_AMD64_XMM8_1
+            case 265: // CV_AMD64_XMM9_1
+            case 269: // CV_AMD64_XMM10_1
+            case 273: // CV_AMD64_XMM11_1
+            case 277: // CV_AMD64_XMM12_1
+            case 281: // CV_AMD64_XMM13_1
+            case 285: // CV_AMD64_XMM14_1
+            case 289: // CV_AMD64_XMM15_1
+                return ((&pContext->Xmm8)[(pSymbol->Register - 261) >> 2].Low >> 32) & 0xFFFFFFFF;
+            case 262: // CV_AMD64_XMM8_2
+            case 266: // CV_AMD64_XMM9_2
+            case 270: // CV_AMD64_XMM10_2
+            case 274: // CV_AMD64_XMM11_2
+            case 278: // CV_AMD64_XMM12_2
+            case 282: // CV_AMD64_XMM13_2
+            case 286: // CV_AMD64_XMM14_2
+            case 290: // CV_AMD64_XMM15_2
+                return (&pContext->Xmm8)[(pSymbol->Register - 262) >> 2].High & 0xFFFFFFFF;
+            case 263: // CV_AMD64_XMM8_3
+            case 267: // CV_AMD64_XMM9_3
+            case 271: // CV_AMD64_XMM10_3
+            case 275: // CV_AMD64_XMM11_3
+            case 279: // CV_AMD64_XMM12_3
+            case 283: // CV_AMD64_XMM13_3
+            case 291: // CV_AMD64_XMM15_3
+                return ((&pContext->Xmm8)[(pSymbol->Register - 263) >> 2].High >> 32) & 0xFFFFFFFF;
+            case 292: // CV_AMD64_XMM8L
+            case 293: // CV_AMD64_XMM9L
+            case 294: // CV_AMD64_XMM10L
+            case 295: // CV_AMD64_XMM11L
+            case 296: // CV_AMD64_XMM12L
+            case 297: // CV_AMD64_XMM13L
+            case 298: // CV_AMD64_XMM14L
+            case 299: // CV_AMD64_XMM15L
+                return (&pContext->Xmm8)[pSymbol->Register - 292].Low;
+            case 300: // CV_AMD64_XMM8H
+            case 301: // CV_AMD64_XMM9H
+            case 302: // CV_AMD64_XMM10H
+            case 303: // CV_AMD64_XMM11H
+            case 304: // CV_AMD64_XMM12H
+            case 305: // CV_AMD64_XMM13H
+            case 306: // CV_AMD64_XMM14H
+            case 307: // CV_AMD64_XMM15H
+                return (&pContext->Xmm8)[pSymbol->Register - 300].High;
+            case 308: // CV_AMD64_EMM8L
+            case 309: // CV_AMD64_EMM9L
+            case 310: // CV_AMD64_EMM10L
+            case 311: // CV_AMD64_EMM11L
+            case 312: // CV_AMD64_EMM12L
+            case 313: // CV_AMD64_EMM13L
+            case 314: // CV_AMD64_EMM14L
+            case 315: // CV_AMD64_EMM15L
+                return (&pContext->Xmm8)[pSymbol->Register - 308].Low;
+            case 316: // CV_AMD64_EMM8H
+            case 317: // CV_AMD64_EMM9H
+            case 318: // CV_AMD64_EMM10H
+            case 319: // CV_AMD64_EMM11H
+            case 320: // CV_AMD64_EMM12H
+            case 321: // CV_AMD64_EMM13H
+            case 322: // CV_AMD64_EMM14H
+            case 323: // CV_AMD64_EMM15H
+                return (&pContext->Xmm8)[pSymbol->Register - 316].High;
+            case 324: // CV_AMD64_SIL
+                return pContext->Rsi & 0xFF;
+            case 325: // CV_AMD64_DIL
+                return pContext->Rdi & 0xFF;
+            case 326: // CV_AMD64_BPL
+                return pContext->Rbp & 0xFF;
+            case 327: // CV_AMD64_SPL
+                return pContext->Rsp & 0xFF;
             case 328: // CV_AMD64_RAX
                 return pContext->Rax;
             case 329: // CV_AMD64_RBX
@@ -443,6 +421,118 @@ DWORD64 GetSymbolOffset(PSYMBOL_INFOW pSymbol, PVOID ContextRecord, DWORD bx64wi
                 return pContext->Rcx;
             case 331: // CV_AMD64_RDX
                 return pContext->Rdx;
+            case 332: // CV_AMD64_RSI
+                return pContext->Rsi;
+            case 333: // CV_AMD64_RDI
+                return pContext->Rdi;
+            case 334: // CV_AMD64_RBP
+                return pContext->Rbp;
+            case 335: // CV_AMD64_RSP
+                return pContext->Rsp;
+            case 336: // CV_AMD64_R8
+            case 337: // CV_AMD64_R9
+            case 338: // CV_AMD64_R10
+            case 339: // CV_AMD64_R11
+            case 340: // CV_AMD64_R12
+            case 341: // CV_AMD64_R13
+            case 342: // CV_AMD64_R14
+            case 343: // CV_AMD64_R15
+                return (&pContext->R8)[pSymbol->Register - 336];
+            case 344: // CV_AMD64_R8B
+            case 345: // CV_AMD64_R9B
+            case 346: // CV_AMD64_R10B
+            case 347: // CV_AMD64_R11B
+            case 348: // CV_AMD64_R12B
+            case 349: // CV_AMD64_R13B
+            case 350: // CV_AMD64_R14B
+            case 351: // CV_AMD64_R15B
+                return (&pContext->R8)[pSymbol->Register - 344] & 0xFF;
+            case 352: // CV_AMD64_R8W
+            case 353: // CV_AMD64_R9W
+            case 354: // CV_AMD64_R10W
+            case 355: // CV_AMD64_R11W
+            case 356: // CV_AMD64_R12W
+            case 357: // CV_AMD64_R13W
+            case 358: // CV_AMD64_R14W
+            case 359: // CV_AMD64_R15W
+                return (&pContext->R8)[pSymbol->Register - 352] & 0xFFFF;
+            case 360: // CV_AMD64_R8D
+            case 361: // CV_AMD64_R9D
+            case 362: // CV_AMD64_R10D
+            case 363: // CV_AMD64_R11D
+            case 364: // CV_AMD64_R12D
+            case 365: // CV_AMD64_R13D
+            case 366: // CV_AMD64_R14D
+            case 367: // CV_AMD64_R15D
+                return (&pContext->R8)[pSymbol->Register - 360] & 0xFFFFFFFF;
+            case 368: // CV_AMD64_YMM0
+            case 369: // CV_AMD64_YMM1
+            case 370: // CV_AMD64_YMM2
+            case 371: // CV_AMD64_YMM3
+            case 372: // CV_AMD64_YMM4
+            case 373: // CV_AMD64_YMM5
+            case 374: // CV_AMD64_YMM6
+            case 375: // CV_AMD64_YMM7
+            case 376: // CV_AMD64_YMM8
+            case 377: // CV_AMD64_YMM9
+            case 378: // CV_AMD64_YMM10
+            case 379: // CV_AMD64_YMM11
+            case 380: // CV_AMD64_YMM12
+            case 381: // CV_AMD64_YMM13
+            case 382: // CV_AMD64_YMM14
+            case 383: // CV_AMD64_YMM15
+                return (&pContext->Xmm0)[pSymbol->Register - 368].Low;
+            case 384: // CV_AMD64_YMM0H
+            case 385: // CV_AMD64_YMM1H
+            case 386: // CV_AMD64_YMM2H
+            case 387: // CV_AMD64_YMM3H
+            case 388: // CV_AMD64_YMM4H
+            case 389: // CV_AMD64_YMM5H
+            case 390: // CV_AMD64_YMM6H
+            case 391: // CV_AMD64_YMM7H
+            case 392: // CV_AMD64_YMM8H
+            case 393: // CV_AMD64_YMM9H
+            case 394: // CV_AMD64_YMM10H
+            case 395: // CV_AMD64_YMM11H
+            case 396: // CV_AMD64_YMM12H
+            case 397: // CV_AMD64_YMM13H
+            case 398: // CV_AMD64_YMM14H
+            case 399: // CV_AMD64_YMM15H
+                return (&pContext->Xmm0)[pSymbol->Register - 384].High;
+            case 400: // CV_AMD64_XMM0IL
+            case 401: // CV_AMD64_XMM1IL
+            case 402: // CV_AMD64_XMM2IL
+            case 403: // CV_AMD64_XMM3IL
+            case 404: // CV_AMD64_XMM4IL
+            case 405: // CV_AMD64_XMM5IL
+            case 406: // CV_AMD64_XMM6IL
+            case 407: // CV_AMD64_XMM7IL
+            case 408: // CV_AMD64_XMM8IL
+            case 409: // CV_AMD64_XMM9IL
+            case 410: // CV_AMD64_XMM10IL
+            case 411: // CV_AMD64_XMM11IL
+            case 412: // CV_AMD64_XMM12IL
+            case 413: // CV_AMD64_XMM13IL
+            case 414: // CV_AMD64_XMM14IL
+            case 415: // CV_AMD64_XMM15IL
+                return (&pContext->Xmm0)[pSymbol->Register - 400].Low;
+            case 416: // CV_AMD64_XMM0IH
+            case 417: // CV_AMD64_XMM1IH
+            case 418: // CV_AMD64_XMM2IH
+            case 419: // CV_AMD64_XMM3IH
+            case 420: // CV_AMD64_XMM4IH
+            case 421: // CV_AMD64_XMM5IH
+            case 422: // CV_AMD64_XMM6IH
+            case 423: // CV_AMD64_XMM7IH
+            case 424: // CV_AMD64_XMM8IH
+            case 425: // CV_AMD64_XMM9IH
+            case 426: // CV_AMD64_XMM10IH
+            case 427: // CV_AMD64_XMM11IH
+            case 428: // CV_AMD64_XMM12IH
+            case 429: // CV_AMD64_XMM13IH
+            case 430: // CV_AMD64_XMM14IH
+            case 431: // CV_AMD64_XMM15IH
+                return (&pContext->Xmm0)[pSymbol->Register - 416].High;
             default:
                 printf("%ws %u\n\n\n\n", pSymbol->Name, pSymbol->Register);
                 return 0;
@@ -581,17 +671,6 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymbol, ULONG SymbolSize, P
                     case btHresult:
                         p = UP_HEX_FORMAT;
                         break;
-                    /*
-                    case btNoType:
-                    case btVoid:
-                    case btBCD:
-                    case btCurrency:
-                    case btDate:
-                    case btVariant:
-                    case btComplex:
-                    case btBit:
-                    case btBSTR:
-                    */
                     default:
                         p = LOW_HEX_FORMAT;
                 }
