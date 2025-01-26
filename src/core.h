@@ -4,12 +4,12 @@
 */
 
 // Debugger's default configuration
-#define DEFAULT_TIMEOUT       0
-#define DEFAULT_DEBUG         FALSE
+#define DEFAULT_DEBUG_DWARF   FALSE
 #define DEFAULT_BREAKPOINT    TRUE
 #define DEFAULT_FIRSTBREAK    FALSE
-#define DEFAULT_OUTPUT        TRUE
+#define DEFAULT_TIMEOUT       0
 #define DEFAULT_VERBOSE       FALSE
+#define DEFAULT_OUTPUT        TRUE
 #define DEFAULT_START         FALSE
 #define DEFAULT_HELP          FALSE
 
@@ -50,31 +50,36 @@ static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
 
 #define MAX_THREAD 32
 #define MAX_DLL 16
-#define MINGW 2
+#define MINGW_KEEP 1
+#define MINGW_NOKEEP 2
 #define LATENCY 25
 
 #define CreationFlags \
+    CREATE_UNICODE_ENVIRONMENT | \
+    INHERIT_PARENT_AFFINITY | \
     CREATE_BREAKAWAY_FROM_JOB | \
-    CREATE_DEFAULT_ERROR_MODE | \
     CREATE_PRESERVE_CODE_AUTHZ_LEVEL | \
-    INHERIT_PARENT_AFFINITY
+    CREATE_DEFAULT_ERROR_MODE
 
 #define SymOptions \
     SYMOPT_DEFERRED_LOADS | \
-    SYMOPT_INCLUDE_32BIT_MODULES | \
+    SYMOPT_OMAP_FIND_NEAREST | \
+    SYMOPT_NO_UNQUALIFIED_LOADS | \
+    SYMOPT_FAIL_CRITICAL_ERRORS | \
     SYMOPT_NO_PUBLICS | \
-    SYMOPT_NO_UNQUALIFIED_LOADS
+    SYMOPT_NO_PROMPTS
 
 #define NDebugSymOptions \
     SymOptions | \
+    SYMOPT_IGNORE_CVREC | \
     SYMOPT_NO_IMAGE_SEARCH | \
     SYMOPT_DISABLE_SYMSRV_AUTODETECT | \
     SYMOPT_IGNORE_NT_SYMPATH
 
 #define _DebugSymOptions \
     SymOptions | \
+    SYMOPT_EXACT_SYMBOLS | \
     SYMOPT_AUTO_PUBLICS | \
-    SYMOPT_LOAD_ANYTHING | \
     SYMOPT_LOAD_LINES
 
 static const char HELP[589] =

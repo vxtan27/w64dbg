@@ -17,9 +17,9 @@ void __stdcall main(void)
     long timeout = DEFAULT_TIMEOUT;
     char breakpoint = DEFAULT_BREAKPOINT,
     firstbreak = DEFAULT_FIRSTBREAK,
+    dwarf = DEFAULT_DEBUG_DWARF,
     verbose = DEFAULT_VERBOSE,
     output = DEFAULT_OUTPUT,
-    debug = DEFAULT_DEBUG,
     start = DEFAULT_START,
     help = DEFAULT_HELP;
 
@@ -63,7 +63,7 @@ void __stdcall main(void)
                 case 'd':
                     if (*(pNext + 2) == ' ')
                     {
-                        debug = TRUE;
+                        dwarf = FALSE;
                         pNext += 3;
                         continue;
                     }
@@ -72,11 +72,11 @@ void __stdcall main(void)
                 case 'g':
                     if (*(pNext + 2) == ' ')
                     {
-                        debug = MINGW;
+                        dwarf = MINGW_KEEP;
                         pNext += 3;
                     } else if (*(pNext + 2) == '+' && *(pNext + 3) == ' ')
                     {
-                        debug = MINGW + 1;
+                        dwarf = MINGW_NOKEEP;
                         pNext += 4;
                     } else break;
 
@@ -280,23 +280,20 @@ void __stdcall main(void)
 
     if (pCmdLine + len != ptr) *ptr = ' ';
 
-    if (debug < MINGW)
+    if (!dwarf)
     {
         // The system closes the handles to the process and thread
         // when the debugger calls the ContinueDebugEvent function
         CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
-            start ? CreationFlags | CREATE_NEW_CONSOLE |
-            DEBUG_ONLY_THIS_PROCESS : CreationFlags | DEBUG_ONLY_THIS_PROCESS,
-            NULL, NULL, &startupInfo, &processInfo);
+            start ? CreationFlags | CREATE_NEW_CONSOLE | DEBUG_ONLY_THIS_PROCESS
+                  : CreationFlags | DEBUG_ONLY_THIS_PROCESS, ProcessParameters->Environment,
+            ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
 
         NtClose(processInfo.hThread);
         NtClose(processInfo.hProcess);
         WaitForDebugEvent(&DebugEvent, INFINITE);
-        if (debug == TRUE)
-        {
-            hFile[0] = DebugEvent.u.CreateProcessInfo.hFile;
-            BaseOfDll[0] = DebugEvent.u.CreateProcessInfo.lpBaseOfImage;
-        } else NtClose(DebugEvent.u.CreateProcessInfo.hFile);
+        hFile[0] = DebugEvent.u.CreateProcessInfo.hFile;
+        BaseOfDll[0] = DebugEvent.u.CreateProcessInfo.lpBaseOfImage;
         hProcess = DebugEvent.u.CreateProcessInfo.hProcess;
         hThread[0] = DebugEvent.u.CreateProcessInfo.hThread;
     } else
@@ -304,8 +301,9 @@ void __stdcall main(void)
         // The system closes the handles to the process and thread
         // when the debugger calls the DebugActiveProcessStop function
         CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
-            start ? CreationFlags | CREATE_NEW_CONSOLE : CreationFlags,
-            NULL, NULL, &startupInfo, &processInfo);
+            start ? CreationFlags | CREATE_NEW_CONSOLE
+                  : CreationFlags, ProcessParameters->Environment,
+            ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
 
         DebugActiveProcess(processInfo.dwProcessId);
         WaitForDebugEvent(&DebugEvent, INFINITE);
@@ -331,7 +329,7 @@ void __stdcall main(void)
 
     // x86 process / MinGW64 G++ trigger
     // more than one breakpoints at start-up
-    if ((bx64win && debug >= MINGW) || !bx64win) --firstbreak;
+    if ((bx64win && dwarf) || !bx64win) --firstbreak;
 
     unsigned char i;
     DWORD dwThreadId[MAX_THREAD] = {};
@@ -457,7 +455,7 @@ void __stdcall main(void)
                 }
 
                 // Cleanup
-                if (debug >= MINGW)
+                if (dwarf)
                 {
                     NtClose(hProcess);
                     NtClose(hThread[0]);
@@ -564,7 +562,7 @@ void __stdcall main(void)
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE06D7363 || // STATUS_CPP_EH_EXCEPTION
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE0434f4D)) // STATUS_CLR_EXCEPTION
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
-                else if (debug >= MINGW && RtlDosSearchPath_U(PATH, GDB_EXE, NULL,
+                else if (dwarf && RtlDosSearchPath_U(PATH, GDB_EXE, NULL,
                     sizeof(ApplicationName), ApplicationName, NULL))
                 { // Check if executable exists
                     NtWriteFile(hStdout, NULL, NULL, NULL,
@@ -607,7 +605,7 @@ void __stdcall main(void)
 
                     p = _ultoa10(DebugEvent.dwProcessId, buffer);
 
-                    if (debug == MINGW + 1)
+                    if (dwarf == MINGW_NOKEEP)
                     {
                         memcpy(p, GDB_PRESERVE, sizeof(GDB_PRESERVE));
                         p += sizeof(GDB_PRESERVE);
@@ -640,14 +638,15 @@ void __stdcall main(void)
                         sizeof(LARGE_INTEGER), 20); // FileEndOfFileInformation
                     NtClose(hTemp);
 
-                    if (debug == MINGW && !timeout)
+                    if (dwarf == MINGW_KEEP && !timeout)
                         memcpy(&CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + temp + 6], GDB_BATCH, sizeof(GDB_BATCH));
 
                     DWORD_PTR ProcDbgPt;
                     LARGE_INTEGER DelayInterval;
 
-                    CreateProcessW(ApplicationName, CommandLine, NULL, NULL, FALSE,
-                        CreationFlags, NULL, NULL, &startupInfo, &processInfo);
+                    CreateProcessW(ApplicationName, CommandLine, NULL, NULL,
+                        FALSE, CreationFlags, ProcessParameters->Environment,
+                        ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
                     NtClose(processInfo.hThread);
                     NtClose(hThread[0]);
 
@@ -730,7 +729,7 @@ void __stdcall main(void)
                 STACKFRAME64 StackFrame;
                 FILE_STANDARD_INFORMATION FileInfo;
 
-                SymSetOptions(debug == TRUE ? _DebugSymOptions : NDebugSymOptions);
+                SymSetOptions(bx64win ? SymOptions : SymOptions | SYMOPT_INCLUDE_32BIT_MODULES);
                 SymInitializeW(hProcess, NULL, FALSE);
 
                 for (unsigned char j = 0; j < MAX_DLL; ++j) if (BaseOfDll[j])
@@ -777,7 +776,6 @@ void __stdcall main(void)
                 IMAGEHLP_LINEW64 Line;
                 USERCONTEXT UserContext;
 
-                count = 0;
                 pSymbol = (PSYMBOL_INFOW) Symbol;
                 Line.SizeOfStruct = sizeof(Line);
                 StackFrame.AddrPC.Mode = AddrModeFlat;
@@ -786,14 +784,12 @@ void __stdcall main(void)
                 pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
                 pSymbol->MaxNameLen = (BUFLEN - sizeof(SYMBOL_INFO)) >> 1;
 
-                if (debug == TRUE)
-                {
-                    UserContext.hProcess = hProcess;
-                    UserContext.pContext = &Context;
-                    UserContext.Offset = &StackFrame.AddrFrame.Offset;
-                    UserContext.bx64win = bx64win;
-                    UserContext.Console = Console;
-                }
+                count = 0;
+                UserContext.hProcess = hProcess;
+                UserContext.pContext = &Context;
+                UserContext.pBase = &StackFrame.AddrFrame.Offset;
+                UserContext.bx64win = bx64win;
+                UserContext.Console = Console;
 
                 while (TRUE)
                 {
@@ -850,8 +846,7 @@ void __stdcall main(void)
                     *p++ = ' ';
                     *p++ = '(';
 
-                    if (debug == TRUE &&
-                        SymSetScopeFromIndex(hProcess, pSymbol->ModBase, pSymbol->Index))
+                    if (SymSetScopeFromIndex(hProcess, pSymbol->ModBase, pSymbol->Index))
                     {
                         Success = TRUE;
                         UserContext.p = p;
@@ -864,7 +859,7 @@ void __stdcall main(void)
                     *p++ = ')';
                     *p++ = ' ';
 
-                    if (debug == TRUE && SymGetLineFromAddrW64(hProcess,
+                    if (SymGetLineFromAddrW64(hProcess,
                         StackFrame.AddrPC.Offset, &Displacement, &Line))
                     {
                         memcpy(p, EXCEPTION_AT, sizeof(EXCEPTION_AT));
