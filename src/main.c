@@ -775,7 +775,6 @@ void __stdcall main(void)
                 unsigned char count;
                 PSYMBOL_INFOW pSymbol;
                 IMAGEHLP_LINEW64 Line;
-                DWORD64 Displacement64;
                 USERCONTEXT UserContext;
 
                 count = 0;
@@ -791,6 +790,7 @@ void __stdcall main(void)
                 {
                     UserContext.hProcess = hProcess;
                     UserContext.pContext = &Context;
+                    UserContext.Offset = &StackFrame.AddrFrame.Offset;
                     UserContext.bx64win = bx64win;
                     UserContext.Console = Console;
                 }
@@ -801,7 +801,7 @@ void __stdcall main(void)
                         &StackFrame, &Context, NULL, NULL, NULL, NULL))
                         break;
 
-                    if (!SymFromAddr(hProcess, StackFrame.AddrPC.Offset, &Displacement64, pSymbol))
+                    if (!SymFromAddr(hProcess, StackFrame.AddrPC.Offset, NULL, pSymbol))
                         break;
 
                     *p++ = '#';
@@ -851,7 +851,7 @@ void __stdcall main(void)
                     *p++ = '(';
 
                     if (debug == TRUE &&
-                        SymSetScopeFromAddr(hProcess, ((PIMAGEHLP_STACK_FRAME) &StackFrame)->InstructionOffset))
+                        SymSetScopeFromIndex(hProcess, pSymbol->ModBase, pSymbol->Index))
                     {
                         Success = TRUE;
                         UserContext.p = p;
@@ -935,9 +935,11 @@ void __stdcall main(void)
                 NtWriteFile(hStdout, NULL, NULL, NULL,
                     &IoStatusBlock, buffer, p - buffer, NULL, NULL);
 
+                /*
                 for (i = 0; i < MAX_DLL; ++i) if (BaseOfDll[i])
                     SymUnloadModule64(hProcess,
                         (DWORD64) BaseOfDll[i]);
+                */
 
                 SymCleanup(hProcess);
 
