@@ -16,6 +16,12 @@
 #define VALID_TIMEOUT 99999
 #define INVALID_TIMEOUT (VALID_TIMEOUT + 1)
 
+#define MAX_THREAD 32
+#define MAX_DLL 16
+#define MINGW_KEEP 1
+#define MINGW_NOKEEP 2
+#define LATENCY 25
+
 // Debugger buffer length
 #define PAGESIZE    4096
 #define BUFLEN      8192
@@ -48,39 +54,25 @@ static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
 #include "symbols.h"
 #include "timeout.h"
 
-#define MAX_THREAD 32
-#define MAX_DLL 16
-#define MINGW_KEEP 1
-#define MINGW_NOKEEP 2
-#define LATENCY 25
-
 #define CreationFlags \
     CREATE_UNICODE_ENVIRONMENT | \
-    INHERIT_PARENT_AFFINITY | \
     CREATE_BREAKAWAY_FROM_JOB | \
     CREATE_PRESERVE_CODE_AUTHZ_LEVEL | \
     CREATE_DEFAULT_ERROR_MODE
 
 #define SymOptions \
+    SYMOPT_UNDNAME | \
     SYMOPT_DEFERRED_LOADS | \
+    SYMOPT_LOAD_LINES | \
     SYMOPT_OMAP_FIND_NEAREST | \
     SYMOPT_NO_UNQUALIFIED_LOADS | \
     SYMOPT_FAIL_CRITICAL_ERRORS | \
-    SYMOPT_NO_PUBLICS | \
-    SYMOPT_NO_PROMPTS
-
-#define NDebugSymOptions \
-    SymOptions | \
-    SYMOPT_IGNORE_CVREC | \
-    SYMOPT_NO_IMAGE_SEARCH | \
-    SYMOPT_DISABLE_SYMSRV_AUTODETECT | \
-    SYMOPT_IGNORE_NT_SYMPATH
-
-#define _DebugSymOptions \
-    SymOptions | \
     SYMOPT_EXACT_SYMBOLS | \
     SYMOPT_AUTO_PUBLICS | \
-    SYMOPT_LOAD_LINES
+    SYMOPT_NO_IMAGE_SEARCH | \
+    SYMOPT_NO_PROMPTS | \
+    SYMOPT_DISABLE_SYMSRV_AUTODETECT | \
+    SYMOPT_SYMPATH_LAST
 
 static const char HELP[589] =
 "Invalid syntax.\n"

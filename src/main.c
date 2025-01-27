@@ -285,9 +285,9 @@ void __stdcall main(void)
         // The system closes the handles to the process and thread
         // when the debugger calls the ContinueDebugEvent function
         CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
-            start ? CreationFlags | CREATE_NEW_CONSOLE | DEBUG_ONLY_THIS_PROCESS
-                  : CreationFlags | DEBUG_ONLY_THIS_PROCESS, ProcessParameters->Environment,
-            ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
+            start ? CreationFlags | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE
+                  : CreationFlags | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
+            ProcessParameters->Environment, ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
 
         NtClose(processInfo.hThread);
         NtClose(processInfo.hProcess);
@@ -301,11 +301,12 @@ void __stdcall main(void)
         // The system closes the handles to the process and thread
         // when the debugger calls the DebugActiveProcessStop function
         CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
-            start ? CreationFlags | CREATE_NEW_CONSOLE
-                  : CreationFlags, ProcessParameters->Environment,
-            ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
+            start ? CreationFlags | CREATE_SUSPENDED | CREATE_NEW_CONSOLE
+                  : CreationFlags | CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP,
+            ProcessParameters->Environment, ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
 
         DebugActiveProcess(processInfo.dwProcessId);
+        NtResumeProcess(processInfo.hProcess);
         WaitForDebugEvent(&DebugEvent, INFINITE);
         NtClose(DebugEvent.u.CreateProcessInfo.hFile);
         hThread[0] = processInfo.hThread;
@@ -594,9 +595,9 @@ void __stdcall main(void)
                     String.Buffer = &CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) - 4];
                     InitializeObjectAttributes(&ObjectAttributes,
                         &String, OBJ_CASE_INSENSITIVE, NULL, NULL);
-                    NtCreateFile(&hTemp, FILE_WRITE_DATA | SYNCHRONIZE, &ObjectAttributes,
-                        &IoStatusBlock, NULL, FILE_ATTRIBUTE_NORMAL, 0, FILE_OPEN_IF,
-                        FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
+                    NtCreateFile(&hTemp, FILE_WRITE_DATA | SYNCHRONIZE,
+                        &ObjectAttributes, &IoStatusBlock, NULL, FILE_ATTRIBUTE_NOT_CONTENT_INDEXED,
+                        0, FILE_OPEN_IF, FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
 
                     // First time run
                     if (IoStatusBlock.Information == 2) // FILE_CREATED
@@ -633,6 +634,7 @@ void __stdcall main(void)
                     ByteOffset.QuadPart = sizeof(GDB_DEFAULT);
                     NtWriteFile(hTemp, NULL, NULL, NULL, &IoStatusBlock,
                         buffer, p - buffer, &ByteOffset, NULL);
+
                     ByteOffset.QuadPart +=  p - buffer;
                     NtSetInformationFile(hTemp, &IoStatusBlock, &ByteOffset,
                         sizeof(LARGE_INTEGER), 20); // FileEndOfFileInformation
