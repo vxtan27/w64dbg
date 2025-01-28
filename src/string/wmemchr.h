@@ -1,3 +1,8 @@
+/*
+    Copyright (c) 2024, vxtan27, all rights reserved.
+    Licensed under the BSD-3-Clause.
+*/
+
 _Post_writable_byte_size_(sizeof(wchar_t))
 static
 __forceinline

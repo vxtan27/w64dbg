@@ -7,12 +7,6 @@
 
 #include <winternl.h>
 
-typedef enum _WAIT_TYPE {
-    WaitAll,
-    WaitAny,
-    WaitNotification
-} WAIT_TYPE;
-
 typedef struct _CURDIR
 {
     UNICODE_STRING DosPath;
@@ -72,16 +66,32 @@ typedef struct
     ULONG LoaderThreads;
 } ZWRTL_USER_PROCESS_PARAMETERS, *PZWRTL_USER_PROCESS_PARAMETERS;
 
-typedef struct _FILE_STANDARD_INFORMATION
+typedef struct _FILE_FS_DEVICE_INFORMATION
 {
-    LARGE_INTEGER AllocationSize;
-    LARGE_INTEGER EndOfFile;
-    ULONG NumberOfLinks;
-    BOOLEAN DeletePending;
-    BOOLEAN Directory;
-} FILE_STANDARD_INFORMATION, *PFILE_STANDARD_INFORMATION;
+    DEVICE_TYPE DeviceType;
+    ULONG Characteristics;
+} FILE_FS_DEVICE_INFORMATION, *PFILE_FS_DEVICE_INFORMATION;
 
-typedef void (CALLBACK *PUSER_THREAD_START_ROUTINE)(LPVOID);
+typedef enum _FSINFOCLASS
+{
+    FileFsVolumeInformation = 1, // q: FILE_FS_VOLUME_INFORMATION
+    FileFsLabelInformation, // s: FILE_FS_LABEL_INFORMATION (requires FILE_WRITE_DATA to volume)
+    FileFsSizeInformation, // q: FILE_FS_SIZE_INFORMATION
+    FileFsDeviceInformation, // q: FILE_FS_DEVICE_INFORMATION
+    FileFsAttributeInformation, // q: FILE_FS_ATTRIBUTE_INFORMATION
+    FileFsControlInformation, // q, s: FILE_FS_CONTROL_INFORMATION  (q: requires FILE_READ_DATA; s: requires FILE_WRITE_DATA to volume)
+    FileFsFullSizeInformation, // q: FILE_FS_FULL_SIZE_INFORMATION
+    FileFsObjectIdInformation, // q; s: FILE_FS_OBJECTID_INFORMATION (s: requires FILE_WRITE_DATA to volume)
+    FileFsDriverPathInformation, // q: FILE_FS_DRIVER_PATH_INFORMATION
+    FileFsVolumeFlagsInformation, // q; s: FILE_FS_VOLUME_FLAGS_INFORMATION (q: requires FILE_READ_ATTRIBUTES; s: requires FILE_WRITE_ATTRIBUTES to volume) // 10
+    FileFsSectorSizeInformation, // q: FILE_FS_SECTOR_SIZE_INFORMATION // since WIN8
+    FileFsDataCopyInformation, // q: FILE_FS_DATA_COPY_INFORMATION
+    FileFsMetadataSizeInformation, // q: FILE_FS_METADATA_SIZE_INFORMATION // since THRESHOLD
+    FileFsFullSizeInformationEx, // q: FILE_FS_FULL_SIZE_INFORMATION_EX // since REDSTONE5
+    FileFsGuidInformation, // q: FILE_FS_GUID_INFORMATION // since 23H2
+    FileFsMaximumInformation
+} FSINFOCLASS, *PFSINFOCLASS;
+typedef enum _FSINFOCLASS FS_INFORMATION_CLASS;
 
 typedef struct _PS_ATTRIBUTE
 {
@@ -108,6 +118,26 @@ typedef struct _PS_ATTRIBUTE_LIST
 #define THREAD_CREATE_FLAGS_LOADER_WORKER 0x00000010 // NtCreateThreadEx only // since THRESHOLD
 #define THREAD_CREATE_FLAGS_SKIP_LOADER_INIT 0x00000020 // NtCreateThreadEx only // since REDSTONE2
 #define THREAD_CREATE_FLAGS_BYPASS_PROCESS_FREEZE 0x00000040 // NtCreateThreadEx only // since 19H1
+
+typedef void (CALLBACK *PUSER_THREAD_START_ROUTINE)(LPVOID);
+
+typedef enum _WAIT_TYPE
+{
+    WaitAll,
+    WaitAny,
+    WaitNotification,
+    WaitDequeue,
+    WaitDpc,
+} WAIT_TYPE;
+
+typedef struct _FILE_STANDARD_INFORMATION
+{
+    LARGE_INTEGER AllocationSize;
+    LARGE_INTEGER EndOfFile;
+    ULONG NumberOfLinks;
+    BOOLEAN DeletePending;
+    BOOLEAN Directory;
+} FILE_STANDARD_INFORMATION, *PFILE_STANDARD_INFORMATION;
 
 NTSYSAPI
 NTSTATUS
@@ -159,6 +189,17 @@ NtQueryInformationFile(
     _Out_writes_bytes_(Length) PVOID FileInformation,
     _In_ ULONG Length,
     _In_ FILE_INFORMATION_CLASS FileInformationClass
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtQueryVolumeInformationFile(
+    _In_ HANDLE FileHandle,
+    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
+    _Out_writes_bytes_(Length) PVOID FsInformation,
+    _In_ ULONG Length,
+    _In_ FSINFOCLASS FsInformationClass
     );
 
 NTSYSCALLAPI

@@ -34,6 +34,8 @@
 #include <stdio.h>
 #include <wchar.h>
 #include <windows.h>
+#include <devioctl.h>
+#include <ntstatus.h>
 #include <dbghelp.h>
 #include <psapi.h>
 

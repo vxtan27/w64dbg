@@ -50,7 +50,7 @@ char *FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t _len, char *_buf
         &(OBJECT_ATTRIBUTES) {sizeof(OBJECT_ATTRIBUTES), NULL, &String, OBJ_CASE_INSENSITIVE, NULL, NULL},
         &IoStatusBlock, 0, FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT);
 
-    if (IoStatusBlock.Information == 1) // FILE_OPENED
+    if (IoStatusBlock.Information == FILE_OPENED)
     {
         char *ptr;
         char buffer[PAGESIZE];

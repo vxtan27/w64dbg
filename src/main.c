@@ -182,9 +182,13 @@ void __stdcall main(void)
         p += 65;
     }
 
+    char Console;
     IO_STATUS_BLOCK IoStatusBlock;
+    FILE_FS_DEVICE_INFORMATION FFDI;
     HANDLE hStdout = ProcessParameters->StandardOutput;
-    char Console = GetFileType(hStdout) == FILE_TYPE_CHAR;
+
+    NtQueryVolumeInformationFile(hStdout, &IoStatusBlock, &FFDI, sizeof(FFDI), FileFsDeviceInformation);
+    Console = FFDI.DeviceType == FILE_DEVICE_CONSOLE;
 
     if (Console)
     {
@@ -324,8 +328,6 @@ void __stdcall main(void)
             &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
     }
 
-    // DBG_EXCEPTION_NOT_HANDLED
-    // https://learn.microsoft.com/windows/win32/api/debugapi/nf-debugapi-continuedebugevent
     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
 
     // x86 process / MinGW64 G++ trigger
@@ -515,8 +517,8 @@ void __stdcall main(void)
 
             case EXCEPTION_DEBUG_EVENT:
                 // Skip first-chance breakpoints
-                if ((DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x80000003 || // EXCEPTION_BREAKPOINT
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x4000001F) && // STATUS_WX86_BREAKPOINT
+                if ((DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == STATUS_BREAKPOINT ||
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == STATUS_WX86_BREAKPOINT) &&
                     ((breakpoint == FALSE) || (breakpoint == TRUE && ++firstbreak <= 1)))
                     break;
 
@@ -614,7 +616,7 @@ void __stdcall main(void)
                         0, FILE_OPEN_IF, FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
 
                     // First time run
-                    if (IoStatusBlock.Information == 2) // FILE_CREATED
+                    if (IoStatusBlock.Information == FILE_CREATED)
                         NtWriteFile(hTemp, NULL, NULL, NULL, &IoStatusBlock,
                             GDB_DEFAULT, sizeof(GDB_DEFAULT), NULL, NULL);
 
@@ -777,7 +779,6 @@ void __stdcall main(void)
                     ((PWOW64_CONTEXT) &Context)->ContextFlags = WOW64_CONTEXT_ALL;
                     NtQueryInformationThread(hThread[i], 29, // ThreadWow64Context
                         &Context, sizeof(WOW64_CONTEXT), NULL);
-                    // Find no replacable NTAPI
                     MachineType = IMAGE_FILE_MACHINE_I386;
                     StackFrame.AddrPC.Offset = ((PWOW64_CONTEXT) &Context)->Eip;
                     StackFrame.AddrStack.Offset = ((PWOW64_CONTEXT) &Context)->Esp;

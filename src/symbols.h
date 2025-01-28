@@ -3,75 +3,6 @@
     Licensed under the BSD-3-Clause.
 */
 
-enum SymTagEnum {
-    SymTagNull,
-    SymTagExe,
-    SymTagCompiland,
-    SymTagCompilandDetails,
-    SymTagCompilandEnv,
-    SymTagFunction,
-    SymTagBlock,
-    SymTagData,
-    SymTagAnnotation,
-    SymTagLabel,
-    SymTagPublicSymbol,
-    SymTagUDT,
-    SymTagEnum,
-    SymTagFunctionType,
-    SymTagPointerType,
-    SymTagArrayType,
-    SymTagBaseType,
-    SymTagTypedef,
-    SymTagBaseClass,
-    SymTagFriend,
-    SymTagFunctionArgType,
-    SymTagFuncDebugStart,
-    SymTagFuncDebugEnd,
-    SymTagUsingNamespace,
-    SymTagVTableShape,
-    SymTagVTable,
-    SymTagCustom,
-    SymTagThunk,
-    SymTagCustomType,
-    SymTagManagedType,
-    SymTagDimension,
-    SymTagCallSite,
-    SymTagInlineSite,
-    SymTagBaseInterface,
-    SymTagVectorType,
-    SymTagMatrixType,
-    SymTagHLSLType,
-    SymTagCaller,
-    SymTagCallee,
-    SymTagExport,
-    SymTagHeapAllocationSite,
-    SymTagCoffGroup,
-    SymTagInlinee,
-    SymTagTaggedUnionCase,
-};
-
-enum BasicType
-{
-    btNoType = 0,
-    btVoid = 1,
-    btChar = 2,
-    btWChar = 3,
-    btInt = 6,
-    btUInt = 7,
-    btFloat = 8,
-    btBCD = 9,
-    btBool = 10,
-    btLong = 13,
-    btULong = 14,
-    btCurrency = 25,
-    btDate = 26,
-    btVariant = 27,
-    btComplex = 28,
-    btBit = 29,
-    btBSTR = 30,
-    btHresult = 31
-};
-
 typedef struct
 {
     char *p;
@@ -122,6 +53,8 @@ int __builtin_sprintf(
     return _Result;
 }
 
+#include "cvconst.h"
+
 [[deprecated]]
 static
 __forceinline
@@ -129,59 +62,59 @@ DWORD64 _GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext)
 {
     switch (pSymInfo->Register)
     {
-        case 5: // CV_REG_AH
-        case 6: // CV_REG_CH
-        case 7: // CV_REG_DH
-        case 8: // CV_REG_BH
+        case CV_REG_AH:
+        case CV_REG_CH:
+        case CV_REG_DH:
+        case CV_REG_BH:
             return ((&pContext->Ebx)[8 - pSymInfo->Register] >> 8) & 0xFF;
 
-        case 25: // CV_REG_ES
+        case CV_REG_ES:
             return pContext->SegEs;
-        case 26: // CV_REG_CS
+        case CV_REG_CS:
             return pContext->SegCs;
-        case 27: // CV_REG_SS
+        case CV_REG_SS:
             return pContext->SegSs;
-        case 28: // CV_REG_DS
+        case CV_REG_DS:
             return pContext->SegDs;
-        case 29: // CV_REG_FS
+        case CV_REG_FS:
             return pContext->SegFs;
-        case 30: // CV_REG_GS
+        case CV_REG_GS:
             return pContext->SegGs;
-        case 32: // CV_REG_FLAGS
+        case CV_REG_FLAGS:
             return pContext->EFlags & 0xFFFF;
-        case 33: // CV_REG_EIP
+        case CV_REG_EIP:
             return pContext->Eip;
-        case 34: // CV_REG_EFLAGS
+        case CV_REG_EFLAGS:
             return pContext->EFlags;
 
-        case 90: // CV_REG_DR0
-        case 91: // CV_REG_DR1
-        case 92: // CV_REG_DR2
-        case 93: // CV_REG_DR3
+        case CV_REG_DR0:
+        case CV_REG_DR1:
+        case CV_REG_DR2:
+        case CV_REG_DR3:
             return (&pContext->Dr0)[pSymInfo->Register - 90];
 
-        case 96: // CV_REG_DR6
+        case CV_REG_DR6:
             return pContext->Dr6;
-        case 97: // CV_REG_DR7
+        case CV_REG_DR7:
             return pContext->Dr7;
 
-        case 136: // CV_REG_CTRL
+        case CV_REG_CTRL:
             return pContext->FloatSave.ControlWord;
-        case 137: // CV_REG_STAT
+        case CV_REG_STAT:
             return pContext->FloatSave.StatusWord;
-        case 138: // CV_REG_TAG
+        case CV_REG_TAG:
             return pContext->FloatSave.TagWord;
-        case 139: // CV_REG_FPIP
-        case 144: // CV_REG_FPEIP
+        case CV_REG_FPIP:
+        case CV_REG_FPEIP:
             return pContext->FloatSave.ErrorOffset;
-        case 140: // CV_REG_FPCS
+        case CV_REG_FPCS:
             return pContext->FloatSave.ErrorSelector;
-        case 141: // CV_REG_FPDO
-        case 145: // CV_REG_FPEDO
+        case CV_REG_FPDO:
+        case CV_REG_FPEDO:
             return pContext->FloatSave.DataOffset;
-        case 142: // CV_REG_FPDS
+        case CV_REG_FPDS:
             return pContext->FloatSave.DataSelector;
-        case 143: // CV_REG_ISEM
+        case CV_REG_ISEM:
             return pContext->FloatSave.Cr0NpxState;
 
         default:
@@ -196,59 +129,59 @@ DWORD64 _GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext)
 {
     switch (pSymInfo->Register)
     {
-        case 5: // CV_AMD64_AH
-        case 6: // CV_AMD64_CH
-        case 7: // CV_AMD64_DH
-        case 8: // CV_AMD64_BH
+        case CV_AMD64_AH:
+        case CV_AMD64_CH:
+        case CV_AMD64_DH:
+        case CV_AMD64_BH:
             return ((&pContext->Rax)[pSymInfo->Register - 5] >> 8) & 0xFF;
 
-        case 25: // CV_AMD64_ES
+        case CV_AMD64_ES:
             return pContext->SegEs;
-        case 26: // CV_AMD64_CS
+        case CV_AMD64_CS:
             return pContext->SegCs;
-        case 27: // CV_AMD64_SS
+        case CV_AMD64_SS:
             return pContext->SegSs;
-        case 28: // CV_AMD64_DS
+        case CV_AMD64_DS:
             return pContext->SegDs;
-        case 29: // CV_AMD64_FS
+        case CV_AMD64_FS:
             return pContext->SegFs;
-        case 30: // CV_AMD64_GS
+        case CV_AMD64_GS:
             return pContext->SegGs;
-        case 32: // CV_AMD64_FLAGS
+        case CV_AMD64_FLAGS:
             return pContext->EFlags & 0xFFFF;
-        case 33: // CV_AMD64_RIP
+        case CV_AMD64_RIP:
             return pContext->Rip;
-        case 34: // CV_AMD64_EFLAGS
+        case CV_AMD64_EFLAGS:
             return pContext->EFlags;
 
-        case 90: // CV_AMD64_DR0
-        case 91: // CV_AMD64_DR1
-        case 92: // CV_AMD64_DR2
-        case 93: // CV_AMD64_DR3
+        case CV_AMD64_DR0:
+        case CV_AMD64_DR1:
+        case CV_AMD64_DR2:
+        case CV_AMD64_DR3:
             return (&pContext->Dr0)[pSymInfo->Register - 90];
 
-        case 96: // CV_AMD64_DR6
+        case CV_AMD64_DR6:
             return pContext->Dr6;
-        case 97: // CV_AMD64_DR7
+        case CV_AMD64_DR7:
             return pContext->Dr7;
 
-        case 136: // CV_AMD64_CTRL
+        case CV_AMD64_CTRL:
             return pContext->FltSave.ControlWord;
-        case 137: // CV_AMD64_STAT
+        case CV_AMD64_STAT:
             return pContext->FltSave.StatusWord;
-        case 138: // CV_AMD64_TAG
+        case CV_AMD64_TAG:
             return pContext->FltSave.TagWord;
-        case 139: // CV_AMD64_FPIP
-        case 144: // CV_AMD64_FPEIP
+        case CV_AMD64_FPIP:
+        case CV_AMD64_FPEIP:
             return pContext->FltSave.ErrorOffset;
-        case 140: // CV_AMD64_FPCS
+        case CV_AMD64_FPCS:
             return pContext->FltSave.ErrorSelector;
-        case 141: // CV_AMD64_FPDO
-        case 145: // CV_AMD64_FPEDO
+        case CV_AMD64_FPDO:
+        case CV_AMD64_FPEDO:
             return pContext->FltSave.DataOffset;
-        case 142: // CV_AMD64_FPDS
+        case CV_AMD64_FPDS:
             return pContext->FltSave.DataSelector;
-        case 143: // CV_AMD64_ISEM
+        case CV_AMD64_ISEM:
             return pContext->FltSave.MxCsr;
 
         default:
@@ -261,42 +194,42 @@ __forceinline
 DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext)
 {
     switch (pSymInfo->Register)
-    { // AMD64 registers
-        case 1: // CV_REG_AL
-        case 2: // CV_REG_CL
-        case 3: // CV_REG_DL
-        case 4: // CV_REG_BL
+    {
+        case CV_REG_AL:
+        case CV_REG_CL:
+        case CV_REG_DL:
+        case CV_REG_BL:
             return (&pContext->Ebx)[4 - pSymInfo->Register] & 0xFF;
 
-        case 9: // CV_REG_AX
-        case 10: // CV_REG_CX
-        case 11: // CV_REG_DX
-        case 12: // CV_REG_BX
+        case CV_REG_AX:
+        case CV_REG_CX:
+        case CV_REG_DX:
+        case CV_REG_BX:
             return (&pContext->Ebx)[12 - pSymInfo->Register] & 0xFFFF;
 
-        case 13: // CV_REG_SP
+        case CV_REG_SP:
             return pContext->Esp & 0xFFFF;
-        case 14: // CV_REG_BP
+        case CV_REG_BP:
             return pContext->Ebp & 0xFFFF;
-        case 15: // CV_REG_SI
+        case CV_REG_SI:
             return pContext->Esi & 0xFFFF;
-        case 16: // CV_REG_DI
+        case CV_REG_DI:
             return pContext->Edi & 0xFFFF;
 
-        case 17: // CV_REG_EAX
-        case 18: // CV_REG_ECX
-        case 19: // CV_REG_EDX
-        case 20: // CV_REG_EBX
+        case CV_REG_EAX:
+        case CV_REG_ECX:
+        case CV_REG_EDX:
+        case CV_REG_EBX:
             return (&pContext->Ebx)[20 - pSymInfo->Register];
 
-        case 21: // CV_REG_ESP
+        case CV_REG_ESP:
             return pContext->Esp;
-        case 22: // CV_REG_EBP
-        case 30006: // CV_ALLREG_VFRAME
+        case CV_REG_EBP:
+        case CV_ALLREG_VFRAME:
             return pContext->Ebp;
-        case 23: // CV_REG_ESI
+        case CV_REG_ESI:
             return pContext->Esi;
-        case 24: // CV_REG_EDI
+        case CV_REG_EDI:
             return pContext->Edi;
 
         default:
@@ -310,88 +243,88 @@ __forceinline
 DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext)
 {
     switch (pSymInfo->Register)
-    { // 64-bit regular registers
-        case 1: // CV_AMD64_AL
-        case 2: // CV_AMD64_CL
-        case 3: // CV_AMD64_DL
-        case 4: // CV_AMD64_BL
+    {
+        case CV_AMD64_AL:
+        case CV_AMD64_CL:
+        case CV_AMD64_DL:
+        case CV_AMD64_BL:
             return (&pContext->Rax)[pSymInfo->Register - 1] & 0xFF;
 
-        case 9: // CV_AMD64_AX
-        case 10: // CV_AMD64_CX
-        case 11: // CV_AMD64_DX
-        case 12: // CV_AMD64_BX
-        case 13: // CV_AMD64_SP
-        case 14: // CV_AMD64_BP
-        case 15: // CV_AMD64_SI
-        case 16: // CV_AMD64_DI
+        case CV_AMD64_AX:
+        case CV_AMD64_CX:
+        case CV_AMD64_DX:
+        case CV_AMD64_BX:
+        case CV_AMD64_SP:
+        case CV_AMD64_BP:
+        case CV_AMD64_SI:
+        case CV_AMD64_DI:
             return (&pContext->Rax)[pSymInfo->Register - 9] & 0xFFFF;
 
-        case 17: // CV_AMD64_EAX
-        case 18: // CV_AMD64_ECX
-        case 19: // CV_AMD64_EDX
-        case 20: // CV_AMD64_EBX
-        case 21: // CV_AMD64_ESP
-        case 22: // CV_AMD64_EBP
-        case 23: // CV_AMD64_ESI
-        case 24: // CV_AMD64_EDI
+        case CV_AMD64_EAX:
+        case CV_AMD64_ECX:
+        case CV_AMD64_EDX:
+        case CV_AMD64_EBX:
+        case CV_AMD64_ESP:
+        case CV_AMD64_EBP:
+        case CV_AMD64_ESI:
+        case CV_AMD64_EDI:
             return (&pContext->Rax)[pSymInfo->Register - 17];
 
-        case 328: // CV_AMD64_RAX
+        case CV_AMD64_RAX:
             return pContext->Rax;
-        case 329: // CV_AMD64_RBX
+        case CV_AMD64_RBX:
             return pContext->Rbx;
-        case 330: // CV_AMD64_RCX
+        case CV_AMD64_RCX:
             return pContext->Rcx;
-        case 331: // CV_AMD64_RDX
+        case CV_AMD64_RDX:
             return pContext->Rdx;
-        case 332: // CV_AMD64_RSI
+        case CV_AMD64_RSI:
             return pContext->Rsi;
-        case 333: // CV_AMD64_RDI
+        case CV_AMD64_RDI:
             return pContext->Rdi;
-        case 334: // CV_AMD64_RBP
+        case CV_AMD64_RBP:
             return pContext->Rbp;
-        case 335: // CV_AMD64_RSP
+        case CV_AMD64_RSP:
             return pContext->Rsp;
 
-        case 336: // CV_AMD64_R8
-        case 337: // CV_AMD64_R9
-        case 338: // CV_AMD64_R10
-        case 339: // CV_AMD64_R11
-        case 340: // CV_AMD64_R12
-        case 341: // CV_AMD64_R13
-        case 342: // CV_AMD64_R14
-        case 343: // CV_AMD64_R15
+        case CV_AMD64_R8:
+        case CV_AMD64_R9:
+        case CV_AMD64_R10:
+        case CV_AMD64_R11:
+        case CV_AMD64_R12:
+        case CV_AMD64_R13:
+        case CV_AMD64_R14:
+        case CV_AMD64_R15:
             return (&pContext->R8)[pSymInfo->Register - 336];
 
-        case 344: // CV_AMD64_R8B
-        case 345: // CV_AMD64_R9B
-        case 346: // CV_AMD64_R10B
-        case 347: // CV_AMD64_R11B
-        case 348: // CV_AMD64_R12B
-        case 349: // CV_AMD64_R13B
-        case 350: // CV_AMD64_R14B
-        case 351: // CV_AMD64_R15B
+        case CV_AMD64_R8B:
+        case CV_AMD64_R9B:
+        case CV_AMD64_R10B:
+        case CV_AMD64_R11B:
+        case CV_AMD64_R12B:
+        case CV_AMD64_R13B:
+        case CV_AMD64_R14B:
+        case CV_AMD64_R15B:
             return (&pContext->R8)[pSymInfo->Register - 344] & 0xFF;
 
-        case 352: // CV_AMD64_R8W
-        case 353: // CV_AMD64_R9W
-        case 354: // CV_AMD64_R10W
-        case 355: // CV_AMD64_R11W
-        case 356: // CV_AMD64_R12W
-        case 357: // CV_AMD64_R13W
-        case 358: // CV_AMD64_R14W
-        case 359: // CV_AMD64_R15W
+        case CV_AMD64_R8W:
+        case CV_AMD64_R9W:
+        case CV_AMD64_R10W:
+        case CV_AMD64_R11W:
+        case CV_AMD64_R12W:
+        case CV_AMD64_R13W:
+        case CV_AMD64_R14W:
+        case CV_AMD64_R15W:
             return (&pContext->R8)[pSymInfo->Register - 352] & 0xFFFF;
 
-        case 360: // CV_AMD64_R8D
-        case 361: // CV_AMD64_R9D
-        case 362: // CV_AMD64_R10D
-        case 363: // CV_AMD64_R11D
-        case 364: // CV_AMD64_R12D
-        case 365: // CV_AMD64_R13D
-        case 366: // CV_AMD64_R14D
-        case 367: // CV_AMD64_R15D
+        case CV_AMD64_R8D:
+        case CV_AMD64_R9D:
+        case CV_AMD64_R10D:
+        case CV_AMD64_R11D:
+        case CV_AMD64_R12D:
+        case CV_AMD64_R13D:
+        case CV_AMD64_R14D:
+        case CV_AMD64_R15D:
             return (&pContext->R8)[pSymInfo->Register - 360];
 
         default:
