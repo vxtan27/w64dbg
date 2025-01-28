@@ -65,7 +65,7 @@ Refer to [samples](samples) for additional examples.
 
 System type: **64-bit**
 
-Windows version: **7+** / **10+** (x86 debugging)
+Windows version: **10+**
 
 ### Dynamic link libraries
 
