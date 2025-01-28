@@ -23,10 +23,10 @@ void __stdcall main(void)
     start = DEFAULT_START,
     help = DEFAULT_HELP;
 
-    char* p = buffer;
+    char *p = buffer;
     PZWRTL_USER_PROCESS_PARAMETERS ProcessParameters = ((PPEB) __readgsqword(0x60))->ProcessParameters;
     len = ProcessParameters->CommandLine.Length >> 1;
-    PWSTR pCmdLine = wmemchr(ProcessParameters->CommandLine.Buffer, ' ', len);
+    PWSTR pCmdLine = __builtin_wmemchr(ProcessParameters->CommandLine.Buffer, ' ', len);
     PWSTR pNext = pCmdLine;
 
     if (pCmdLine)
@@ -102,7 +102,7 @@ void __stdcall main(void)
 
                 case 'T':
                 case 't':
-                    wchar_t* cmd = pNext;
+                    wchar_t *cmd = pNext;
                     pNext += 2;
 
                     while (*pNext == ' ') ++pNext; // Skip spaces
@@ -159,7 +159,7 @@ void __stdcall main(void)
                 sizeof(_INVALID_ARGUMENT));
             p += sizeof(_INVALID_ARGUMENT);
 
-            temp = (wchar_t*) wmemchr(pNext, ' ',
+            temp = __builtin__wmemchr(pNext, ' ',
                 pCmdLine + len + 1 - pNext) - pNext;
 
             RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
@@ -200,7 +200,7 @@ void __stdcall main(void)
         RtlExitUserProcess(1);
     }
 
-    wchar_t* ptr;
+    wchar_t *ptr;
     DWORD wDirLen;
     wchar_t PATH[WBUFLEN], ApplicationName[WBUFLEN];
 
@@ -209,7 +209,7 @@ void __stdcall main(void)
     RtlQueryEnvironmentVariable(ProcessParameters->Environment, PATHENV,
         sizeof(PATHENV) >> 1, PATH + wDirLen + 1, WBUFLEN - wDirLen - 1, &temp);
 
-    ptr = (wchar_t*) wmemchr(pNext, ' ',
+    ptr = __builtin__wmemchr(pNext, ' ',
         pCmdLine + len + 1 - pNext);
     *ptr = '\0';
 
@@ -234,7 +234,7 @@ void __stdcall main(void)
     if (!GetBinaryTypeW(ApplicationName, &bx64win) ||
         (bx64win != SCS_32BIT_BINARY && bx64win != SCS_64BIT_BINARY))
     { // Check if executable format (x86-64)
-        wchar_t* pos;
+        wchar_t *pos;
         MESSAGE_RESOURCE_ENTRY *Entry;
 
         FindSystemMessage(ERROR_BAD_EXE_FORMAT, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
@@ -248,7 +248,7 @@ void __stdcall main(void)
         else
         {
             // Should - 8 and () >> 1
-            pos = (wchar_t*) wmemchr(Entry->Text, '%', Entry->Length);
+            pos = __builtin__wmemchr(Entry->Text, '%', Entry->Length);
             RtlUnicodeToUTF8N(buffer, BUFLEN, &UTF8StringActualByteCount,
                 Entry->Text, pos - Entry->Text);
             p = buffer + UTF8StringActualByteCount;
@@ -259,7 +259,7 @@ void __stdcall main(void)
             pNext, (ptr - pNext) << 1);
         p += UTF8StringActualByteCount;
 
-        pos = (wchar_t*) wmemchr(pos + 1, '1', Entry->Length) + 1;
+        pos = __builtin__wmemchr(pos + 1, '1', Entry->Length) + 1;
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &UTF8StringActualByteCount,
             pos, Entry->Length - 8 - ((pos - Entry->Text) << 1));
@@ -291,7 +291,7 @@ void __stdcall main(void)
 
         NtClose(processInfo.hThread);
         NtClose(processInfo.hProcess);
-        WaitForDebugEvent(&DebugEvent, INFINITE);
+        WaitForDebugEventEx(&DebugEvent, INFINITE);
         hFile[0] = DebugEvent.u.CreateProcessInfo.hFile;
         BaseOfDll[0] = DebugEvent.u.CreateProcessInfo.lpBaseOfImage;
         hProcess = DebugEvent.u.CreateProcessInfo.hProcess;
@@ -307,7 +307,7 @@ void __stdcall main(void)
 
         DebugActiveProcess(processInfo.dwProcessId);
         NtResumeProcess(processInfo.hProcess);
-        WaitForDebugEvent(&DebugEvent, INFINITE);
+        WaitForDebugEventEx(&DebugEvent, INFINITE);
         NtClose(DebugEvent.u.CreateProcessInfo.hFile);
         hThread[0] = processInfo.hThread;
         hProcess = processInfo.hProcess;
@@ -339,7 +339,7 @@ void __stdcall main(void)
 
     while (TRUE)
     {
-        WaitForDebugEvent(&DebugEvent, INFINITE);
+        WaitForDebugEventEx(&DebugEvent, INFINITE);
 
         // https://learn.microsoft.com/windows/win32/debug/debugging-events
         switch (DebugEvent.dwDebugEventCode)
@@ -490,11 +490,25 @@ void __stdcall main(void)
 
                 if (output == TRUE)
                 {
-                    NtReadVirtualMemory(hProcess,
-                        DebugEvent.u.DebugString.lpDebugStringData,
-                        buffer, --DebugEvent.u.DebugString.nDebugStringLength, NULL);
-                    NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, buffer,
-                        DebugEvent.u.DebugString.nDebugStringLength, NULL, NULL);
+                    if (DebugEvent.u.DebugString.fUnicode)
+                    {
+                        wchar_t Tmp[WBUFLEN];
+
+                        NtReadVirtualMemory(hProcess,
+                            DebugEvent.u.DebugString.lpDebugStringData,
+                            Tmp, DebugEvent.u.DebugString.nDebugStringLength - 2, NULL);
+                        RtlUnicodeToUTF8N(buffer, BUFLEN, &UTF8StringActualByteCount,
+                            Tmp, DebugEvent.u.DebugString.nDebugStringLength - 2);
+                        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+                            buffer, UTF8StringActualByteCount, NULL, NULL);
+                    } else
+                    {
+                        NtReadVirtualMemory(hProcess,
+                            DebugEvent.u.DebugString.lpDebugStringData,
+                            buffer, DebugEvent.u.DebugString.nDebugStringLength - 1, NULL);
+                        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, buffer,
+                            DebugEvent.u.DebugString.nDebugStringLength - 1, NULL, NULL);
+                    }
                 }
 
                 break;

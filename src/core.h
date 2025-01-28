@@ -50,6 +50,7 @@ static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
 
 #include "ntdll.h"
 #include "string\conversion.h"
+#include "string\wmemchr.h"
 #include "string\format.h"
 #include "symbols.h"
 #include "timeout.h"

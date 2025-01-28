@@ -5,7 +5,7 @@
 
 static
 __forceinline
-long process_timeout(wchar_t* str, wchar_t **p, size_t len)
+long process_timeout(wchar_t *str, wchar_t **p, size_t len)
 {
     char is_signed = FALSE; // Tracks if the value is negative
 
@@ -24,7 +24,7 @@ long process_timeout(wchar_t* str, wchar_t **p, size_t len)
         c = *str - '0'; // Normalize to numeric range
         if (c > 9)
         { // Non-numeric character validation
-            *p = (wchar_t*) wmemchr(str, ' ', len) + 1;
+            *p = __builtin__wmemchr(str, ' ', len) + 1;
             return INVALID_TIMEOUT;
         }
         value = value * 10 + c;
@@ -60,7 +60,7 @@ typedef struct
 {
     HANDLE hStdout;
     long timeout;
-} THREAD_PARAMETER;
+} THREAD_PARAMETER, *PTHREAD_PARAMETER;
 
 __declspec(noreturn)
 static VOID WINAPI WaitForInput(LPVOID lpParameter)
@@ -70,7 +70,7 @@ static VOID WINAPI WaitForInput(LPVOID lpParameter)
     char buffer[8];
     char Count, Recursive;
     IO_STATUS_BLOCK IoStatusBlock;
-    THREAD_PARAMETER* Parameter = (THREAD_PARAMETER*) lpParameter;
+    PTHREAD_PARAMETER Parameter = lpParameter;
 
     buffer[0] = '\b';
 
@@ -144,7 +144,7 @@ VOID WaitForInputOrTimeout(
         } else NtWaitForMultipleObjects(1, &hStdin, WaitAll, FALSE, NULL);
     } else
     {
-        char* p;
+        char *p;
         char buffer[64];
 
         memcpy(buffer, _FiniteMessage, sizeof(_FiniteMessage));

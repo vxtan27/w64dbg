@@ -7,14 +7,14 @@
 
 static
 __forceinline
-char* _ltoa10(long value, char* p)
+char *_ltoa10(long value, char *p)
 {
     long num = value;
 
     // Determine the number of digits
     while ((num /= 10)) ++p;
 
-    char* ptr = p;
+    char *ptr = p;
 
     // Convert digits to characters in reverse order
     do *ptr-- = (value % 10) + '0';
@@ -25,14 +25,14 @@ char* _ltoa10(long value, char* p)
 
 static
 __forceinline
-char* _ultoa10(unsigned long value, char* p)
+char *_ultoa10(unsigned long value, char *p)
 {
     unsigned long num = value;
 
     // Determine the number of digits
     while ((num /= 10)) ++p;
 
-    char* ptr = p;
+    char *ptr = p;
 
     // Convert digits to characters in reverse order
     do *ptr-- = (value % 10) + '0';
@@ -45,14 +45,14 @@ static const char hex_table[16] = "0123456789abcdef";
 
 static
 __forceinline
-char* _ultoa16(unsigned long value, char* p)
+char *_ultoa16(unsigned long value, char *p)
 {
     unsigned long num = value;
 
     // Determine the number of hexadecimal digits.
     while ((num >>= 4)) ++p;
 
-    char* ptr = p;
+    char *ptr = p;
 
     // Convert digits to hexadecimal characters in reverse order
     do *ptr-- = hex_table[value & 0xF];
@@ -63,7 +63,7 @@ char* _ultoa16(unsigned long value, char* p)
 
 static
 __forceinline
-char* _ui64toa16(unsigned long long value, char* p, unsigned long bx64win)
+char *_ui64toa16(unsigned long long value, char *p, unsigned long bx64win)
 {
     *p++ = '0';
     *p++ = 'x';
@@ -78,7 +78,7 @@ char* _ui64toa16(unsigned long long value, char* p, unsigned long bx64win)
         p += 7; // Move to the last position
     }
 
-    char* ptr = p;
+    char *ptr = p;
 
     // Convert digits to hexadecimal characters in reverse order
     do *ptr-- = hex_table[value & 0xF];

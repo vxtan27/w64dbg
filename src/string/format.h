@@ -7,7 +7,7 @@
 
 static
 __forceinline
-char* FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG len, char* p, char Color)
+char *FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG len, char *p, char Color)
 {
     ULONG UTF8StringActualByteCount;
 
@@ -33,7 +33,7 @@ char* FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG len, char* p, char 
 
 static
 __forceinline
-char* FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t _len, char* _buffer, char* p, char verbose)
+char *FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t _len, char *_buffer, char *p, char verbose)
 {
     HANDLE hFile;
     UNICODE_STRING String;
@@ -52,7 +52,7 @@ char* FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t _len, char* _buf
 
     if (IoStatusBlock.Information == 1) // FILE_OPENED
     {
-        char* ptr;
+        char *ptr;
         char buffer[PAGESIZE];
         DWORD line = 1;
 
@@ -67,7 +67,7 @@ char* FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t _len, char* _buf
             { // Locate and process line breaks
                 if (++line == LineNumber)
                 {
-                    char* _ptr;
+                    char *_ptr;
                     size_t temp;
 
                     // Format line number and spacing

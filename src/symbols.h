@@ -470,7 +470,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, 
             *User->p++ = '?';
         } else
         {
-            const char* _Format;
+            const char *_Format;
             DWORD64 Base;
             LONG_DOUBLE value = {};
             if (pSymInfo->Flags & SYMFLAG_REGREL)
