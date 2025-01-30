@@ -7,13 +7,13 @@
 
 static
 __forceinline
-char *FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG len, char *p, char Color)
+char *FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG Length, char *p, char Color)
 {
     ULONG UTF8StringActualByteCount;
 
     // Convert file name from Unicode to UTF-8
     RtlUnicodeToUTF8N(p, BUFLEN,
-        &UTF8StringActualByteCount, FileName, len << 1);
+        &UTF8StringActualByteCount, FileName, Length);
     p += UTF8StringActualByteCount;
 
     // Optionally apply color formatting
@@ -33,17 +33,17 @@ char *FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG len, char *p, char 
 
 static
 __forceinline
-char *FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t _len, char *_buffer, char *p, char verbose)
+char *FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t Length, char *_buffer, char *p, char verbose)
 {
     HANDLE hFile;
     UNICODE_STRING String;
     IO_STATUS_BLOCK IoStatusBlock;
 
     // Prepend Object Manager namespace to the file name
-    memcpy(FileName - 4, OBJECT_MANAGER_NAMESPACE,
+    memcpy(FileName - OBJECT_MANAGER_NAMESPACE_WLEN, OBJECT_MANAGER_NAMESPACE,
         OBJECT_MANAGER_NAMESPACE_LEN);
-    String.Length = (_len << 1) + OBJECT_MANAGER_NAMESPACE_LEN;
-    String.Buffer = FileName - 4;
+    String.Length = Length + OBJECT_MANAGER_NAMESPACE_LEN;
+    String.Buffer = FileName - OBJECT_MANAGER_NAMESPACE_WLEN;
 
     // Open the file with necessary permissions
     NtOpenFile(&hFile, FILE_READ_DATA | SYNCHRONIZE,
@@ -104,9 +104,7 @@ char *FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t _len, char *_buf
         NtClose(hFile); // Close the file handle
     } else if (verbose >= 3)
     {  // Handle file not found error in verbose mode
-        DWORD len;
-        wchar_t Tmp[WBUFLEN];
-        MESSAGE_RESOURCE_ENTRY *Entry;
+        PMESSAGE_RESOURCE_ENTRY Entry;
         ULONG UTF8StringActualByteCount;
 
         FindSystemMessage(ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);

@@ -93,6 +93,22 @@ typedef enum _FSINFOCLASS
 } FSINFOCLASS, *PFSINFOCLASS;
 typedef enum _FSINFOCLASS FS_INFORMATION_CLASS;
 
+/**
+ * The FILE_BASIC_INFORMATION structure contains timestamps and basic attributes of a file.
+ * \li If you specify a value of zero for any of the XxxTime members, the file system keeps a file's current value for that time.
+ * \li If you specify a value of -1 for any of the XxxTime members, time stamp updates are disabled for I/O operations preformed on the file handle.
+ * \li If you specify a value of -2 for any of the XxxTime members, time stamp updates are enabled for I/O operations preformed on the file handle.
+ * \remarks To set the members of this structure, the caller must have FILE_WRITE_ATTRIBUTES access to the file.
+ */
+typedef struct _FILE_BASIC_INFORMATION
+{
+    LARGE_INTEGER CreationTime;         // Specifies the time that the file was created.
+    LARGE_INTEGER LastAccessTime;       // Specifies the time that the file was last accessed.
+    LARGE_INTEGER LastWriteTime;        // Specifies the time that the file was last written to.
+    LARGE_INTEGER ChangeTime;           // Specifies the last time the file was changed.
+    ULONG FileAttributes;               // Specifies one or more FILE_ATTRIBUTE_XXX flags.
+} FILE_BASIC_INFORMATION, *PFILE_BASIC_INFORMATION;
+
 typedef struct _PS_ATTRIBUTE
 {
     ULONG_PTR Attribute;
@@ -178,6 +194,14 @@ NTAPI
 NtGetContextThread(
     _In_ HANDLE ThreadHandle,
     _Inout_ PCONTEXT ThreadContext
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtQueryAttributesFile(
+    _In_ POBJECT_ATTRIBUTES ObjectAttributes,
+    _Out_ PFILE_BASIC_INFORMATION FileInformation
     );
 
 NTSYSCALLAPI
@@ -287,7 +311,7 @@ NtWriteFile(
     _In_opt_ PULONG Key
     );
 
-#if (PHNT_VERSION >= PHNT_VISTA)
+#if WINVER >= _WIN32_WINNT_VISTA
 _Must_inspect_result_
 NTSYSAPI
 LONG
@@ -313,7 +337,7 @@ RtlDosSearchPath_U(
     _Out_opt_ PWSTR *FilePart
     );
 
-#if (PHNT_VERSION >= PHNT_WINXP)
+#if WINVER >= _WIN32_WINNT_WINXP
 _Analysis_noreturn_
 DECLSPEC_NORETURN
 NTSYSAPI
@@ -324,7 +348,7 @@ RtlExitUserThread(
     );
 #endif
 
-#if (PHNT_VERSION >= PHNT_VISTA)
+#if WINVER >= _WIN32_WINNT_VISTA
 _Analysis_noreturn_
 DECLSPEC_NORETURN
 NTSYSAPI
@@ -346,15 +370,7 @@ RtlFindMessage(
     _Out_ PMESSAGE_RESOURCE_ENTRY *MessageEntry
     );
 
-NTSYSAPI
-ULONG
-NTAPI
-RtlGetCurrentDirectory_U(
-    _In_ ULONG BufferLength,
-    _Out_writes_bytes_(BufferLength) PWSTR Buffer
-    );
-
-#if (PHNT_VERSION >= PHNT_VISTA)
+#if WINVER >= _WIN32_WINNT_VISTA
 // private
 NTSYSAPI
 NTSTATUS
@@ -369,7 +385,7 @@ RtlQueryEnvironmentVariable(
     );
 #endif
 
-#if (PHNT_VERSION >= PHNT_WIN7)
+#if WINVER >= _WIN32_WINNT_WIN7
 NTSYSAPI
 NTSTATUS
 NTAPI
@@ -388,7 +404,7 @@ static
 __forceinline
 VOID FindSystemMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *Entry)
 {
-    LDR_DATA_TABLE_ENTRY *KERNEL32;
+    PLDR_DATA_TABLE_ENTRY KERNEL32;
 
     LdrFindEntryForAddress(KERNEL32API, &KERNEL32);
     RtlFindMessage(KERNEL32->DllBase, RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);

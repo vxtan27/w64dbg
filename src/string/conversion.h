@@ -63,7 +63,7 @@ char *_ultoa16(unsigned long value, char *p)
 
 static
 __forceinline
-char *_ui64toa16(unsigned long long value, char *p, unsigned long bx64win)
+char *_ui64toaddr(unsigned long long value, char *p, unsigned long bx64win)
 {
     *p++ = '0';
     *p++ = 'x';

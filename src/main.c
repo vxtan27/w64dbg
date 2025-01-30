@@ -204,14 +204,7 @@ void __stdcall main(void)
         RtlExitUserProcess(1);
     }
 
-    wchar_t *ptr;
-    DWORD wDirLen;
-    wchar_t PATH[WBUFLEN], ApplicationName[WBUFLEN];
-
-    wDirLen = RtlGetCurrentDirectory_U(sizeof(PATH), PATH) >> 1;
-    PATH[wDirLen] = ';';
-    RtlQueryEnvironmentVariable(ProcessParameters->Environment, PATHENV,
-        sizeof(PATHENV) >> 1, PATH + wDirLen + 1, WBUFLEN - wDirLen - 1, &temp);
+    wchar_t *ptr, ApplicationName[WBUFLEN];
 
     ptr = __builtin__wmemchr(pNext, ' ',
         pCmdLine + len + 1 - pNext);
@@ -219,10 +212,10 @@ void __stdcall main(void)
 
     *(pCmdLine + len) = '\0';
 
-    if (!RtlDosSearchPath_U(PATH, pNext, EXTENSION,
+    if (!SearchPathW(NULL, pNext, EXTENSION,
         sizeof(ApplicationName), ApplicationName, NULL))
     { // Check if executable exists
-        MESSAGE_RESOURCE_ENTRY *Entry;
+        PMESSAGE_RESOURCE_ENTRY Entry;
 
         FindSystemMessage(ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
         // Convert error message to UTF-8
@@ -239,7 +232,7 @@ void __stdcall main(void)
         (bx64win != SCS_32BIT_BINARY && bx64win != SCS_64BIT_BINARY))
     { // Check if executable format (x86-64)
         wchar_t *pos;
-        MESSAGE_RESOURCE_ENTRY *Entry;
+        PMESSAGE_RESOURCE_ENTRY Entry;
 
         FindSystemMessage(ERROR_BAD_EXE_FORMAT, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
 
@@ -335,8 +328,10 @@ void __stdcall main(void)
     if ((bx64win && dwarf) || !bx64win) --firstbreak;
 
     unsigned char i;
+    wchar_t PATH[WBUFLEN];
     DWORD dwThreadId[MAX_THREAD] = {};
 
+    *PATH = '\0';
     dwThreadId[0] = DebugEvent.dwThreadId;
 
     while (TRUE)
@@ -517,8 +512,8 @@ void __stdcall main(void)
 
             case EXCEPTION_DEBUG_EVENT:
                 // Skip first-chance breakpoints
-                if ((DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == STATUS_BREAKPOINT ||
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == STATUS_WX86_BREAKPOINT) &&
+                if ((DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x80000003 || // STATUS_BREAKPOINT
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x4000001F) && // STATUS_WX86_BREAKPOINT
                     ((breakpoint == FALSE) || (breakpoint == TRUE && ++firstbreak <= 1)))
                     break;
 
@@ -526,7 +521,7 @@ void __stdcall main(void)
                 if (!DebugEvent.u.Exception.dwFirstChance)
                 {
                     NtTerminateProcess(hProcess, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode);
-                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
+                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001);
                     continue;
                 }
 
@@ -554,8 +549,8 @@ void __stdcall main(void)
                     p += sizeof(CONSOLE_NRED_FORMAT);
                 } else *p++ = '\n';
 
-                LDR_DATA_TABLE_ENTRY *NTDLL;
-                MESSAGE_RESOURCE_ENTRY *Entry;
+                PLDR_DATA_TABLE_ENTRY NTDLL;
+                PMESSAGE_RESOURCE_ENTRY Entry;
 
                 LdrFindEntryForAddress(LdrFindEntryForAddress, &NTDLL);
                 FindModuleMessage(NTDLL->DllBase, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode,
@@ -571,6 +566,9 @@ void __stdcall main(void)
                     p += sizeof(CONSOLE_DEFAULT_FORMAT);
                 }
 
+                if (dwarf && !*PATH)
+                    RtlQueryEnvironmentVariable(ProcessParameters->Environment, PATHENV,
+                        sizeof(PATHENV) >> 1, PATH, WBUFLEN, &temp);
 
                 // Check if critical exception
                 if (!(DebugEvent.u.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE) &&
@@ -591,7 +589,6 @@ void __stdcall main(void)
                     HANDLE hTemp;
                     UNICODE_STRING String;
                     LARGE_INTEGER ByteOffset;
-                    OBJECT_ATTRIBUTES ObjectAttributes;
                     wchar_t CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + MAX_PATH];
 
                     memcpy(CommandLine, GDB_COMMAND_LINE, sizeof(GDB_COMMAND_LINE));
@@ -609,11 +606,10 @@ void __stdcall main(void)
                     memcpy(&CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + temp], W64DBG, sizeof(W64DBG));
                     String.Length = 8 + sizeof(W64DBG) + (temp << 1);
                     String.Buffer = &CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) - 4];
-                    InitializeObjectAttributes(&ObjectAttributes,
-                        &String, OBJ_CASE_INSENSITIVE, NULL, NULL);
                     NtCreateFile(&hTemp, FILE_WRITE_DATA | SYNCHRONIZE,
-                        &ObjectAttributes, &IoStatusBlock, NULL, FILE_ATTRIBUTE_NOT_CONTENT_INDEXED,
-                        0, FILE_OPEN_IF, FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
+                        &(OBJECT_ATTRIBUTES) {sizeof(OBJECT_ATTRIBUTES), NULL, &String, OBJ_CASE_INSENSITIVE, NULL, NULL},
+                        &IoStatusBlock, NULL, FILE_ATTRIBUTE_NOT_CONTENT_INDEXED, 0, FILE_OPEN_IF,
+                        FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
 
                     // First time run
                     if (IoStatusBlock.Information == FILE_CREATED)
@@ -673,7 +669,7 @@ void __stdcall main(void)
 
                     // Convert seconds to 100-nanosecond units
                     // (negative for relative time)
-                    DelayInterval.QuadPart = -(LATENCY * 10000LL);
+                    DelayInterval.QuadPart = -MiliSecToUnits(LATENCY);
 
                     while (TRUE)
                     { // Wait until GDB attachs
@@ -790,6 +786,7 @@ void __stdcall main(void)
                 char Symbol[BUFLEN];
                 unsigned char count;
                 PSYMBOL_INFOW pSymbol;
+                DWORD DirLen, wDirLen;
                 IMAGEHLP_LINEW64 Line;
                 USERCONTEXT UserContext;
 
@@ -807,6 +804,8 @@ void __stdcall main(void)
                 UserContext.pBase = &StackFrame.AddrFrame.Offset;
                 UserContext.bx64win = bx64win;
                 UserContext.Console = Console;
+                DirLen = ProcessParameters->CurrentDirectory.DosPath.Length;
+                wDirLen = ProcessParameters->CurrentDirectory.DosPath.Length >> 1;
 
                 while (TRUE)
                 {
@@ -814,7 +813,7 @@ void __stdcall main(void)
                         &StackFrame, &Context, NULL, NULL, NULL, NULL))
                         break;
 
-                    if (!SymFromAddr(hProcess, StackFrame.AddrPC.Offset, NULL, pSymbol))
+                    if (!SymFromAddrW(hProcess, StackFrame.AddrPC.Offset, NULL, pSymbol))
                         break;
 
                     *p++ = '#';
@@ -838,7 +837,7 @@ void __stdcall main(void)
                         p += sizeof(CONSOLE_BLUE_FORMAT);
                     }
 
-                    p = _ui64toa16(StackFrame.AddrPC.Offset, p, bx64win);
+                    p = _ui64toaddr(StackFrame.AddrPC.Offset, p, bx64win);
 
                     if (Console)
                     {
@@ -850,8 +849,9 @@ void __stdcall main(void)
                         p += 4;
                     }
 
-                    memcpy(p, pSymbol->Name, pSymbol->NameLen);
-                    p += pSymbol->NameLen;
+                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
+                        &UTF8StringActualByteCount, pSymbol->Name, pSymbol->NameLen << 1);
+                    p += UTF8StringActualByteCount;
 
                     if (Console)
                     {
@@ -880,7 +880,7 @@ void __stdcall main(void)
                         StackFrame.AddrPC.Offset, &Displacement, &Line))
                     {
                         memcpy(p, EXCEPTION_AT, sizeof(EXCEPTION_AT));
-                        temp = wcslen(Line.FileName);
+                        temp = wcslen(Line.FileName) << 1;
                         p += sizeof(EXCEPTION_AT);
 
                         if (Console)
@@ -890,10 +890,10 @@ void __stdcall main(void)
                         }
 
                         // Skip %dir%/
-                        if (temp > wDirLen && !RtlCompareUnicodeStrings(Line.FileName,
-                                wDirLen, PATH, wDirLen, TRUE))
-                            p = FormatFileLine(Line.FileName + wDirLen + 1,
-                                Line.LineNumber, temp - wDirLen - 1, p, Console);
+                        if (temp > DirLen && !RtlCompareUnicodeStrings(Line.FileName,
+                                wDirLen, ProcessParameters->CurrentDirectory.DosPath.Buffer, wDirLen, TRUE))
+                            p = FormatFileLine(Line.FileName + wDirLen,
+                                Line.LineNumber, temp - DirLen, p, Console);
                         else p = FormatFileLine(Line.FileName,
                             Line.LineNumber, temp, p, Console);
                         if (verbose >= 1) p = FormatSourceCode(Line.FileName, Line.LineNumber, temp, buffer, p, verbose);
@@ -960,7 +960,7 @@ void __stdcall main(void)
             case RIP_EVENT:
                 if (verbose >= 2)
                 {
-                    MESSAGE_RESOURCE_ENTRY *Entry;
+                    PMESSAGE_RESOURCE_ENTRY Entry;
 
                     memcpy(buffer, RIP, sizeof(RIP));
                     p = _ultoa10(DebugEvent.dwProcessId, buffer + sizeof(RIP));

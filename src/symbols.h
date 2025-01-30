@@ -8,7 +8,7 @@ typedef struct
     char *p;
     HANDLE hProcess;
     PVOID pContext;
-    DWORD64 *pBase;
+    PDWORD64 pBase;
     DWORD bx64win;
     char Console;
     char DataIsLocal;

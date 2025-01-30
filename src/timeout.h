@@ -37,7 +37,8 @@ long process_timeout(wchar_t *str, wchar_t **p, size_t len)
     return value;
 }
 
-#define SecToUnits(lSeconds) ((lSeconds) * 10000000LL)
+#define MiliSecToUnits(lSeconds) ((lSeconds) * 10000)
+#define SecToUnits(lSeconds) MiliSecToUnits(lSeconds * 1000)
 
 #define IsInputInvalidate(InputRecord) ( \
     InputRecord.EventType != KEY_EVENT || \
@@ -77,7 +78,7 @@ static VOID WINAPI WaitForInput(LPVOID lpParameter)
     while (TRUE)
     {
         NtDelayExecution(FALSE,
-            &(LARGE_INTEGER){.QuadPart=-(999 * 10000LL)});
+            &(LARGE_INTEGER){.QuadPart=-MiliSecToUnits(999)});
         temp = --Parameter->timeout;
         Count = 1;
 

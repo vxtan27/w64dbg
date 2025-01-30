@@ -35,7 +35,6 @@
 #include <wchar.h>
 #include <windows.h>
 #include <devioctl.h>
-#include <ntstatus.h>
 #include <dbghelp.h>
 #include <psapi.h>
 
@@ -49,6 +48,7 @@ static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
 
 #define OBJECT_MANAGER_NAMESPACE GDB_COMMAND_LINE + 14
 #define OBJECT_MANAGER_NAMESPACE_LEN 8
+#define OBJECT_MANAGER_NAMESPACE_WLEN (OBJECT_MANAGER_NAMESPACE_LEN >> 1)
 
 #include "ntdll.h"
 #include "string\conversion.h"
