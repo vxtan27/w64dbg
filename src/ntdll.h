@@ -146,6 +146,10 @@ typedef enum _WAIT_TYPE
     WaitDpc,
 } WAIT_TYPE;
 
+#define RTL_DOS_SEARCH_PATH_FLAG_APPLY_ISOLATION_REDIRECTION 0x00000001
+#define RTL_DOS_SEARCH_PATH_FLAG_DISALLOW_DOT_RELATIVE_PATH_SEARCH 0x00000002
+#define RTL_DOS_SEARCH_PATH_FLAG_APPLY_DEFAULT_EXTENSION_WHEN_NOT_RELATIVE_PATH_EVEN_IF_FILE_HAS_EXTENSION 0x00000004
+
 typedef struct _FILE_STANDARD_INFORMATION
 {
     LARGE_INTEGER AllocationSize;
@@ -326,15 +330,18 @@ RtlCompareUnicodeStrings(
 #endif
 
 NTSYSAPI
-ULONG
+NTSTATUS
 NTAPI
-RtlDosSearchPath_U(
-    _In_ PCWSTR Path,
-    _In_ PCWSTR FileName,
-    _In_opt_ PCWSTR Extension,
-    _In_ ULONG BufferLength,
-    _Out_writes_bytes_(BufferLength) PWSTR Buffer,
-    _Out_opt_ PWSTR *FilePart
+RtlDosSearchPath_Ustr(
+    _In_ ULONG Flags,
+    _In_ PUNICODE_STRING Path,
+    _In_ PUNICODE_STRING FileName,
+    _In_opt_ PUNICODE_STRING DefaultExtension,
+    _Out_opt_ PUNICODE_STRING StaticString,
+    _Out_opt_ PUNICODE_STRING DynamicString,
+    _Out_opt_ PCUNICODE_STRING *FullFileNameOut,
+    _Out_opt_ SIZE_T *FilePartPrefixCch,
+    _Out_opt_ SIZE_T *BytesRequired
     );
 
 #if WINVER >= _WIN32_WINNT_WINXP

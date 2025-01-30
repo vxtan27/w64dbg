@@ -329,6 +329,7 @@ void __stdcall main(void)
 
     unsigned char i;
     wchar_t PATH[WBUFLEN];
+    UNICODE_STRING Path, FileName, FoundFile;
     DWORD dwThreadId[MAX_THREAD] = {};
 
     *PATH = '\0';
@@ -567,8 +568,17 @@ void __stdcall main(void)
                 }
 
                 if (dwarf && !*PATH)
+                {
                     RtlQueryEnvironmentVariable(ProcessParameters->Environment, PATHENV,
-                        sizeof(PATHENV) >> 1, PATH, WBUFLEN, &temp);
+                        sizeof(PATHENV) >> 1, PATH, WBUFLEN, &Path.Length);
+                    Path.Length <<= 1;
+                    Path.Buffer = PATH;
+                    FileName.Length = sizeof(GDB_EXE);
+                    FileName.MaximumLength = sizeof(GDB_EXE) + 2;
+                    FileName.Buffer = GDB_EXE;
+                    FoundFile.MaximumLength = sizeof(ApplicationName) + 2;
+                    FoundFile.Buffer = ApplicationName;
+                }
 
                 // Check if critical exception
                 if (!(DebugEvent.u.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE) &&
@@ -577,8 +587,8 @@ void __stdcall main(void)
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE06D7363 || // STATUS_CPP_EH_EXCEPTION
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE0434f4D)) // STATUS_CLR_EXCEPTION
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
-                else if (dwarf && RtlDosSearchPath_U(PATH, GDB_EXE, NULL,
-                    sizeof(ApplicationName), ApplicationName, NULL))
+                else if (dwarf && NT_SUCCESS(RtlDosSearchPath_Ustr(RTL_DOS_SEARCH_PATH_FLAG_DISALLOW_DOT_RELATIVE_PATH_SEARCH,
+                    &Path, &FileName, NULL, &FoundFile, NULL, NULL, NULL, NULL)))
                 { // Check if executable exists
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer, NULL, NULL);

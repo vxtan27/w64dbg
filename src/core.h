@@ -122,7 +122,7 @@ static const char THREAD_TRIGGERD[23] = " triggered exception 0x";
 static const char THREAD_NUMBER[8] = "Thread #";
 
 static const wchar_t TMPENV[3] = L"TMP";
-static const wchar_t GDB_EXE[] = L"gdb.exe";
+static const wchar_t GDB_EXE[7] = L"gdb.exe";
 static const wchar_t W64DBG[6] = L"w64dbg";
 static const char GDB_DEFAULT[125] =
     "set bac l 100\n" // set backtrace limit 100
