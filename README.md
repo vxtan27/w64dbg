@@ -31,7 +31,7 @@ A native debugging utility for x64 Windows with PDB and DWARF format support.
         /G[+]         Load DWARF debug symbols.
         /O            Suppress OutputDebugString.
         /S            Open in a new console window.
-        /T            Wait for input (seconds).
+        /T<n>          Wait for input (seconds).
         /V<n>         Set output verbosity.
         
 
