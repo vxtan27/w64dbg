@@ -67,18 +67,6 @@ System type: **64-bit**
 
 Windows version: **10+**
 
-### Dynamic link libraries
-
-| DLL              | Location            | Description                          |
-| ---------------- | ------------------- | ------------------------------------ |
-| ntdll.dll        | C:\Windows\System32 | Windows Native API                   |
-| kernel32.dll     | C:\Windows\System32 | Windows Core API                     |
-| ucrtbase.dll     | C:\Windows\System32 | Universal C Runtime                  |
-| vcruntime140.dll | C:\Windows\System32 | Microsoft Visual C++ Redistributable |
-| dbghelp.dll      | C:\Windows\System32 | Debugging Tools For Windows          |
-
-Missing DLLs can be downloaded from trusted sources.
-
 ## Limitations
 
 Supports up to 32 threads and 32 DLLs, suitable for most debugging scenarios.
