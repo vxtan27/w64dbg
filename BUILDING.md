@@ -2,23 +2,24 @@
 
 ## Prerequisites
 
-A compatible C/C++ compiler is required:
+Ensure the following dependencies are installed:
 
-- MSVC C/C++ Compiler
-- MSVC Clang Compiler
+- A C/C++ compiler compatible with Microsoft Visual C++ (MSVC).
+
+- Windows SDK.
 
 ## Instructions
 
-Launch the Microsoft Visual Studio Tools Command Prompt.
+Open the Microsoft Visual Studio Developer Command Prompt.
 
-Change to the `src` directory:
+Navigate to the source directory:
 
     cd src
 
 Compile the source code:
 
-    cl /std:clatest main.c /link ntdll.lib kernel32.lib ucrt.lib vcruntime.lib dbghelp.lib /ENTRY:main
+    cl /std:clatest main.c /link ntdll.lib kernel32.lib ucrt.lib libvcruntime.lib dbghelp.lib /ENTRY:main
 
-## Optimizations
+## Customization
 
-Customize the build process by adding compiler and linker options as needed to enhance performance or meet specific requirements.
+Adjust compiler and linker options as needed to align with specific performance, compatibility, or debugging requirements.
