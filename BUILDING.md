@@ -18,7 +18,7 @@ Navigate to the source directory:
 
 Compile the source code:
 
-    cl /std:clatest main.c /link ntdll.lib kernel32.lib ucrt.lib libvcruntime.lib dbghelp.lib /ENTRY:main
+    cl /std:clatest main.c /link ntdll.lib kernel32.lib ucrt.lib vcruntime.lib dbghelp.lib /ENTRY:main
 
 ## Customization
 
