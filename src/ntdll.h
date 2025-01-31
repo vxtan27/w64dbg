@@ -170,6 +170,15 @@ LdrFindEntryForAddress(
 NTSYSCALLAPI
 NTSTATUS
 NTAPI
+NtCreateJobObject(
+    _Out_ PHANDLE JobHandle,
+    _In_ ACCESS_MASK DesiredAccess,
+    _In_opt_ POBJECT_ATTRIBUTES ObjectAttributes
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
 NtCreateThreadEx(
     _Out_ PHANDLE ThreadHandle,
     _In_ ACCESS_MASK DesiredAccess,
@@ -272,6 +281,16 @@ NtSetInformationFile(
     _In_reads_bytes_(Length) PVOID FileInformation,
     _In_ ULONG Length,
     _In_ FILE_INFORMATION_CLASS FileInformationClass
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtSetInformationJobObject(
+    _In_ HANDLE JobHandle,
+    _In_ JOBOBJECTINFOCLASS JobObjectInformationClass,
+    _In_reads_bytes_(JobObjectInformationLength) PVOID JobObjectInformation,
+    _In_ ULONG JobObjectInformationLength
     );
 
 NTSYSCALLAPI

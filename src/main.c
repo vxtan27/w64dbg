@@ -267,15 +267,22 @@ void __stdcall main(void)
         RtlExitUserProcess(1);
     }
 
-    HANDLE hProcess;
     HANDLE hFile[MAX_DLL];
+    HANDLE hJob, hProcess;
     DEBUG_EVENT DebugEvent;
     HANDLE hThread[MAX_THREAD];
     PROCESS_INFORMATION processInfo;
     LPVOID BaseOfDll[MAX_DLL] = {};
     STARTUPINFOW startupInfo = {sizeof(startupInfo)};
+    JOBOBJECT_BASIC_LIMIT_INFORMATION jobInfo = {};
 
     if (pCmdLine + len != ptr) *ptr = ' ';
+
+    // Avoid resources leak
+    jobInfo.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    NtCreateJobObject(&hJob, JOB_OBJECT_ALL_ACCESS,
+        &(OBJECT_ATTRIBUTES) {sizeof(OBJECT_ATTRIBUTES), NULL, NULL, OBJ_OPENIF, NULL, NULL});
+    NtSetInformationJobObject(hJob, JobObjectBasicLimitInformation, &jobInfo, sizeof(jobInfo));
 
     if (!dwarf)
     {
@@ -285,7 +292,7 @@ void __stdcall main(void)
             start ? CreationFlags | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE
                   : CreationFlags | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
             ProcessParameters->Environment, ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
-
+        AssignProcessToJobObject(hJob, processInfo.hProcess);
         NtClose(processInfo.hThread);
         NtClose(processInfo.hProcess);
         WaitForDebugEventEx(&DebugEvent, INFINITE);
@@ -301,7 +308,7 @@ void __stdcall main(void)
             start ? CreationFlags | CREATE_SUSPENDED | CREATE_NEW_CONSOLE
                   : CreationFlags | CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP,
             ProcessParameters->Environment, ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
-
+        AssignProcessToJobObject(hJob, processInfo.hProcess);
         DebugActiveProcess(processInfo.dwProcessId);
         NtResumeProcess(processInfo.hProcess);
         WaitForDebugEventEx(&DebugEvent, INFINITE);
@@ -471,6 +478,7 @@ void __stdcall main(void)
                 }
 
                 ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
+                NtClose(hJob);
                 RtlExitUserProcess(0);
 
             [[fallthrough]];
@@ -671,6 +679,7 @@ void __stdcall main(void)
                     CreateProcessW(ApplicationName, CommandLine, NULL, NULL,
                         FALSE, CreationFlags, ProcessParameters->Environment,
                         ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
+                    AssignProcessToJobObject(hJob, processInfo.hProcess);
                     NtClose(processInfo.hThread);
                     NtClose(hThread[0]);
 
@@ -739,6 +748,7 @@ void __stdcall main(void)
                     if (timeout) WaitForInputOrTimeout(hStdin,
                         hStdout, timeout, StdinConsole);
 
+                    NtClose(hJob);
                     RtlExitUserProcess(0);
                 } else ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
 
