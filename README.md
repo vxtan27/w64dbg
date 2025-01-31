@@ -10,30 +10,30 @@ A native debugging utility for x64 Windows with PDB and DWARF format support.
 ## Installation
 
 1. Download and extract the archive.
-2. Run `bin\PREREQUISITES.bat` script.
+2. Run `bin\PREREQUISITES.bat`.
 
 ## Usage
 
-    
-    Usage: W64DBG [options] <executable> [exec-args]
-    
-    Description:
-        A native debugging utility for x64 Windows.
-        
-    Entries:
-        options       Options control behavior.
-        executable    Target executable file.
-        exec-args     Target executable arguments.
-        
-    Options:
-        /B<n>         Set breakpoints ignorance.
-        /D            Load PDB debug symbols.
-        /G[+]         Load DWARF debug symbols.
-        /O            Suppress OutputDebugString.
-        /S            Open in a new console window.
-        /T<n>          Wait for input (seconds).
-        /V<n>         Set output verbosity.
-        
+```
+Usage: W64DBG [options] <executable> [exec-args]
+
+Description:
+    A native debugging utility for x64 Windows.
+
+Entries:
+    options       Options control behavior.
+    executable    Target executable file.
+    exec-args     Target executable arguments.
+
+Options:
+    /B<n>         Set breakpoints ignorance.
+    /D            Load PDB debug symbols.
+    /G[+]         Load DWARF debug symbols.
+    /O            Suppress OutputDebugString.
+    /S            Open in a new console window.
+    /T<n>         Wait for input (seconds).
+    /V<n>         Set output verbosity.
+```
 
 ## Examples
 
@@ -81,7 +81,7 @@ Missing DLLs can be downloaded from trusted sources.
 
 ## Limitations
 
-Supports a maximum of 32 threads and 32 DLLs, sufficient for most debugging scenarios.
+Supports up to 32 threads and 32 DLLs, suitable for most debugging scenarios.
 
 ## Frequently Asked Questions
 
@@ -104,7 +104,7 @@ Use these options with MSVC:
 | /OPT:NOREF      | No             | Enhanced symbol info |
 | /OPT:NOICF      | No             | Enhanced symbol info |
 
-For more information:
+For further details:
 
 - [Generate debug info](https://learn.microsoft.com/cpp/build/reference/debug-generate-debug-info)
 - [Debug Information Format](https://learn.microsoft.com/cpp/build/reference/z7-zi-zi-debug-information-format)
@@ -128,9 +128,9 @@ Use these options with MinGW:
 | -ggdb  | No         | Yes           | Basic            |
 | -ggdb3 | Yes        | Yes           | Maximum          |
 
-Include `-fno-omit-frame-pointer` to preserve frame pointers.
+Include `-fno-omit-frame-pointer` to retain frame pointers.
 
-For more information:
+For further details:
 
 - [Debugging Options](https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html)
 - [Optimize Options](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html#index-fomit-frame-pointer)
@@ -146,7 +146,7 @@ For more information:
 
 Place `*.pdb` files alongside the executable or configure symbol paths via `_NT_ALT_SYMBOL_PATH` or `_NT_SYMBOL_PATH`
 
-Refer to [this documentation](https://learn.microsoft.com/windows-hardware/drivers/debugger/general-environment-variables) for additional information.
+Refer to [Microsoft Documentation](https://learn.microsoft.com/windows-hardware/drivers/debugger/general-environment-variables) for further details.
 
 </details>
 
@@ -157,9 +157,9 @@ Refer to [this documentation](https://learn.microsoft.com/windows-hardware/drive
         </b>
     </summary>
 
-You can use the `__debugbreak()` or `DebugBreak()` API to pause execution at specific points.
+You can use the `__debugbreak()` or `DebugBreak()` to pause execution at specific points.
 
-Refer to [this documentation](https://learn.microsoft.com/visualstudio/debugger/using-breakpoints) for additional information.
+Refer to [Microsoft Documentation](https://learn.microsoft.com/visualstudio/debugger/using-breakpoints) for further details.
 
 </details>
 
