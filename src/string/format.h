@@ -7,17 +7,17 @@
 
 static
 __forceinline
-char *FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG Length, char *p, char Color)
+LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG BufLength, LPSTR p, BOOL Console)
 {
     ULONG UTF8StringActualByteCount;
 
     // Convert file name from Unicode to UTF-8
-    RtlUnicodeToUTF8N(p, BUFLEN,
-        &UTF8StringActualByteCount, FileName, Length);
+    RtlUnicodeToUTF8N(p, BufLength,
+        &UTF8StringActualByteCount, FileName, FileLength);
     p += UTF8StringActualByteCount;
 
     // Optionally apply color formatting
-    if (Color)
+    if (Console)
     {
         memcpy(p, CONSOLE_DEFAULT_FORMAT,
             sizeof(CONSOLE_DEFAULT_FORMAT));
@@ -33,21 +33,21 @@ char *FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG Length, char *p, ch
 
 static
 __forceinline
-char *FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t Length, char *_buffer, char *p, char verbose)
+LPSTR FormatSourceCode(LPWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, LPSTR p, BOOL verbose)
 {
     HANDLE hFile;
     UNICODE_STRING String;
     IO_STATUS_BLOCK IoStatusBlock;
 
     // Prepend Object Manager namespace to the file name
-    memcpy(FileName - OBJECT_MANAGER_NAMESPACE_WLEN, OBJECT_MANAGER_NAMESPACE,
-        OBJECT_MANAGER_NAMESPACE_LEN);
-    String.Length = Length + OBJECT_MANAGER_NAMESPACE_LEN;
+    memcpy(FileName - OBJECT_MANAGER_NAMESPACE_WLEN,
+        OBJECT_MANAGER_NAMESPACE, OBJECT_MANAGER_NAMESPACE_LEN);
+    String.Length = FileLength + OBJECT_MANAGER_NAMESPACE_LEN;
     String.Buffer = FileName - OBJECT_MANAGER_NAMESPACE_WLEN;
 
     // Open the file with necessary permissions
-    NtOpenFile(&hFile, FILE_READ_DATA | SYNCHRONIZE,
-        &(OBJECT_ATTRIBUTES) {sizeof(OBJECT_ATTRIBUTES), NULL, &String, OBJ_CASE_INSENSITIVE, NULL, NULL},
+    NtOpenFile(&hFile, FILE_READ_DATA | SYNCHRONIZE, &(OBJECT_ATTRIBUTES)
+        {sizeof(OBJECT_ATTRIBUTES), NULL, &String, OBJ_CASE_INSENSITIVE, NULL, NULL},
         &IoStatusBlock, 0, FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT);
 
     if (IoStatusBlock.Information == FILE_OPENED)
@@ -59,7 +59,7 @@ char *FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t Length, char *_b
         while (TRUE)
         { // Read file content in chunks
             if (NtReadFile(hFile, NULL, NULL, NULL, &IoStatusBlock,
-                buffer, PAGESIZE, NULL, NULL)) break;
+                buffer, sizeof(buffer), NULL, NULL) != 0) break; // STATUS_SUCCESS
 
             ptr = buffer;
 
@@ -84,7 +84,7 @@ char *FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t Length, char *_b
                         memcpy(p, ptr, temp);
                         p += temp;
                         if (NtReadFile(hFile, NULL, NULL, NULL, &IoStatusBlock, buffer,
-                            PAGESIZE, NULL, NULL)) break;
+                            sizeof(buffer), NULL, NULL) != 0) break; // STATUS_SUCCESS
                         ptr = buffer;
                         _ptr = (char*) memchr(buffer, '\n', IoStatusBlock.Information);
                         if (_ptr) temp = buffer + IoStatusBlock.Information - _ptr;
@@ -102,14 +102,14 @@ char *FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t Length, char *_b
         }
 
         NtClose(hFile); // Close the file handle
-    } else if (verbose >= 3)
+    } else if (verbose >= 1)
     {  // Handle file not found error in verbose mode
         PMESSAGE_RESOURCE_ENTRY Entry;
         ULONG UTF8StringActualByteCount;
 
         FindSystemMessage(ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
         // Convert error message to UTF-8
-        RtlUnicodeToUTF8N(p, _buffer + BUFLEN - p,
+        RtlUnicodeToUTF8N(p, BufLength,
             &UTF8StringActualByteCount, Entry->Text, Entry->Length - 8);
         p += UTF8StringActualByteCount;
     }

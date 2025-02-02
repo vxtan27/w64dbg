@@ -7,7 +7,7 @@ static
 __forceinline
 long process_timeout(wchar_t *str, wchar_t **p, size_t len)
 {
-    char is_signed = FALSE; // Tracks if the value is negative
+    BOOL is_signed = FALSE; // Tracks if the value is negative
 
     // Handle optional sign at the start
     while (*str == '-' || *str == '+')
@@ -69,7 +69,7 @@ static VOID WINAPI WaitForInput(LPVOID lpParameter)
     long temp;
     ULONG Length;
     char buffer[8];
-    char Count, Recursive;
+    DWORD Count, Recursive;
     IO_STATUS_BLOCK IoStatusBlock;
     PTHREAD_PARAMETER Parameter = lpParameter;
 
@@ -120,9 +120,9 @@ static
 __forceinline
 VOID WaitForInputOrTimeout(
     HANDLE     hStdin,
-    HANDLE    hStdout,
-    long      timeout,
-    char StdinConsole
+    HANDLE     hStdout,
+    LONG       timeout,
+    BOOL       Console
 )
 {
     IO_STATUS_BLOCK IoStatusBlock;
@@ -133,7 +133,7 @@ VOID WaitForInputOrTimeout(
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             InfiniteMessage, sizeof(InfiniteMessage), NULL, NULL);
 
-        if (StdinConsole)
+        if (Console)
         {
             DWORD dwRead;
             INPUT_RECORD InputRecord;
@@ -152,7 +152,7 @@ VOID WaitForInputOrTimeout(
         p = _ltoa10(timeout, buffer + sizeof(_FiniteMessage));
         memcpy(p, FiniteMessage_, sizeof(FiniteMessage_));
 
-        if (StdinConsole)
+        if (Console)
         {
             DWORD dwRead;
             HANDLE Handles[2];

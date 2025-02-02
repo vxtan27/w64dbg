@@ -3,6 +3,7 @@
     Licensed under the BSD-3-Clause.
 */
 
+// Always find
 _Post_writable_byte_size_(sizeof(wchar_t))
 static
 __forceinline
@@ -39,7 +40,6 @@ __builtin__wmemchr(
         --_N;
     }
 
-    // Character not found.
     return (wchar_t *)_S;
 }
 

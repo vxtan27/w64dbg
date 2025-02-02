@@ -15,7 +15,7 @@ void __stdcall main(void)
     ULONG UTF8StringActualByteCount;
 
     long timeout = DEFAULT_TIMEOUT;
-    char breakpoint = DEFAULT_BREAKPOINT,
+    BOOL breakpoint = DEFAULT_BREAKPOINT,
     firstbreak = DEFAULT_FIRSTBREAK,
     dwarf = DEFAULT_DEBUG_DWARF,
     verbose = DEFAULT_VERBOSE,
@@ -50,14 +50,10 @@ void __stdcall main(void)
                     {
                         breakpoint = FALSE;
                         pNext += 3;
-                    } else if (*(pNext + 2) >= '0' &&
-                        *(pNext + 2) <= '9' && *(pNext + 3) == ' ')
-                    {
-                        breakpoint -= *(pNext + 2) - '0';
-                        pNext += 4;
-                    } else break;
+                        continue;
+                    }
 
-                    continue;
+                    break;
 
                 case 'D':
                 case 'd':
@@ -68,19 +64,23 @@ void __stdcall main(void)
                         continue;
                     }
 
+                    break;
+
                 case 'G':
                 case 'g':
                     if (*(pNext + 2) == ' ')
                     {
                         dwarf = MINGW_KEEP;
                         pNext += 3;
+                        continue;
                     } else if (*(pNext + 2) == '+' && *(pNext + 3) == ' ')
                     {
                         dwarf = MINGW_NOKEEP;
                         pNext += 4;
-                    } else break;
+                        continue;
+                    }
 
-                    continue;
+                    break;
 
                 case 'O':
                 case 'o':
@@ -91,6 +91,8 @@ void __stdcall main(void)
                         continue;
                     }
 
+                    break;
+
                 case 'S':
                 case 's':
                     if (*(pNext + 2) == ' ')
@@ -99,6 +101,8 @@ void __stdcall main(void)
                         pNext += 3;
                         continue;
                     }
+
+                    break;
 
                 case 'T':
                 case 't':
@@ -135,16 +139,18 @@ void __stdcall main(void)
                 case 'v':
                     if (*(pNext + 2) == ' ')
                     {
-                        verbose = 3;
+                        verbose = 2;
                         pNext += 3;
+                        continue;
                     } else if (*(pNext + 2) >= '0' &&
-                        *(pNext + 2) <= '9' && *(pNext + 3) == ' ')
+                        *(pNext + 2) <= '2' && *(pNext + 3) == ' ')
                     {
                         verbose = *(pNext + 2) - '0';
                         pNext += 4;
-                    } else break;
+                        continue;
+                    }
 
-                    continue;
+                    break;
 
                 case '?':
                     if (*(pNext + 2) == ' ')
@@ -153,6 +159,8 @@ void __stdcall main(void)
                         pNext += 3;
                         continue;
                     }
+
+                    break;
             }
 
             memcpy(p, _INVALID_ARGUMENT,
@@ -182,7 +190,7 @@ void __stdcall main(void)
         p += 65;
     }
 
-    char Console;
+    BOOL Console;
     IO_STATUS_BLOCK IoStatusBlock;
     FILE_FS_DEVICE_INFORMATION FFDI;
     HANDLE hStdout = ProcessParameters->StandardOutput;
@@ -213,7 +221,7 @@ void __stdcall main(void)
     *(pCmdLine + len) = '\0';
 
     if (!SearchPathW(NULL, pNext, EXTENSION,
-        sizeof(ApplicationName), ApplicationName, NULL))
+        sizeof(ApplicationName) >> 1, ApplicationName, NULL))
     { // Check if executable exists
         PMESSAGE_RESOURCE_ENTRY Entry;
 
@@ -334,7 +342,7 @@ void __stdcall main(void)
     // more than one breakpoints at start-up
     if ((bx64win && dwarf) || !bx64win) --firstbreak;
 
-    unsigned char i;
+    DWORD i;
     wchar_t PATH[WBUFLEN];
     UNICODE_STRING Path, FileName, FoundFile;
     DWORD dwThreadId[MAX_THREAD] = {};
@@ -471,11 +479,7 @@ void __stdcall main(void)
                     if (BaseOfDll[i]) NtClose(hFile[i]);
 
                 if (timeout)
-                {
-                    HANDLE hStdin = ProcessParameters->StandardInput;
-                    WaitForInputOrTimeout(hStdin, hStdout, timeout,
-                        GetFileType(hStdin) == FILE_TYPE_CHAR);
-                }
+                    WaitForInputOrTimeout(ProcessParameters->StandardInput, hStdout, timeout, Console);
 
                 ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
                 NtClose(hJob);
@@ -698,19 +702,13 @@ void __stdcall main(void)
                         if (ProcDbgPt) break;
                     }
 
-                    HANDLE hStdin;
-                    char StdinConsole;
-
                     NtResumeProcess(hProcess);
                     // marks deletion on close, prevent writting to disk
                     NtClose(hProcess);
 
                     if (timeout)
                     { // Quit GDB first
-                        hStdin = ProcessParameters->StandardInput;
-                        StdinConsole = GetFileType(hStdin) == FILE_TYPE_CHAR;
-
-                        if (StdinConsole)
+                        if (Console)
                         {
                             DWORD dwWriten;
                             INPUT_RECORD InputRecord[2];
@@ -725,7 +723,7 @@ void __stdcall main(void)
                             InputRecord[1].Event.KeyEvent.wRepeatCount = 1;
                             InputRecord[1].Event.KeyEvent.uChar.AsciiChar = '\n';
 
-                            WriteConsoleInputW(hStdin,
+                            WriteConsoleInputW(ProcessParameters->StandardInput,
                                 InputRecord, 2, &dwWriten);
                         } else NtWriteFile(hStdout, NULL, NULL, NULL,
                             &IoStatusBlock, GDB_QUIT, sizeof(GDB_QUIT), NULL, NULL);
@@ -745,8 +743,8 @@ void __stdcall main(void)
                             &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
                     }
 
-                    if (timeout) WaitForInputOrTimeout(hStdin,
-                        hStdout, timeout, StdinConsole);
+                    if (timeout) WaitForInputOrTimeout(
+                        ProcessParameters->StandardInput, hStdout, timeout, Console);
 
                     NtClose(hJob);
                     RtlExitUserProcess(0);
@@ -766,7 +764,7 @@ void __stdcall main(void)
                 SymSetOptions(bx64win ? SymOptions : SymOptions | SYMOPT_INCLUDE_32BIT_MODULES);
                 SymInitializeW(hProcess, NULL, FALSE);
 
-                for (unsigned char j = 0; j < MAX_DLL; ++j) if (BaseOfDll[j])
+                for (DWORD j = 0; j < MAX_DLL; ++j) if (BaseOfDll[j])
                 {
                     NtQueryInformationFile(hFile[j], &IoStatusBlock,
                         &FileInfo, sizeof(FileInfo), 5); // FileStandardInformation
@@ -801,10 +799,10 @@ void __stdcall main(void)
                     StackFrame.AddrFrame.Offset = ((PWOW64_CONTEXT) &Context)->Ebp;
                 }
 
-                char Success;
+                DWORD count;
+                BOOL Success;
                 DWORD Displacement;
                 char Symbol[BUFLEN];
-                unsigned char count;
                 PSYMBOL_INFOW pSymbol;
                 DWORD DirLen, wDirLen;
                 IMAGEHLP_LINEW64 Line;
@@ -913,10 +911,10 @@ void __stdcall main(void)
                         if (temp > DirLen && !RtlCompareUnicodeStrings(Line.FileName,
                                 wDirLen, ProcessParameters->CurrentDirectory.DosPath.Buffer, wDirLen, TRUE))
                             p = FormatFileLine(Line.FileName + wDirLen,
-                                Line.LineNumber, temp - DirLen, p, Console);
+                                Line.LineNumber, temp - DirLen, buffer + BUFLEN - p, p, Console);
                         else p = FormatFileLine(Line.FileName,
-                            Line.LineNumber, temp, p, Console);
-                        if (verbose >= 1) p = FormatSourceCode(Line.FileName, Line.LineNumber, temp, buffer, p, verbose);
+                            Line.LineNumber, temp, buffer + BUFLEN - p, p, Console);
+                        if (verbose >= 1) p = FormatSourceCode(Line.FileName, Line.LineNumber, temp, buffer + BUFLEN - p, p, verbose);
                     } else
                     {
                         memcpy(p, EXCEPTION_FROM, sizeof(EXCEPTION_FROM));

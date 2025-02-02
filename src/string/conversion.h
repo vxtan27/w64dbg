@@ -5,20 +5,22 @@
 
 #pragma once
 
+// Optimized for non-negative long
+// values in range from 0 to 99999
 static
 __forceinline
 char *_ltoa10(long value, char *p)
 {
-    long num = value;
+    unsigned long long num = value;
 
     // Move to new position
-    do ++p; while ((num /= 10));
+    do ++p; while ((num = (num * 0xCCCD) >> 19));
 
     char *ptr = p;
 
     // Convert digits to characters in reverse order
-    do *--ptr = (value % 10) + '0';
-    while ((value /= 10));
+    do *--ptr = (value - ((value * 0xCCCDULL) >> 19) * 10) + '0';
+    while ((value = (value * 0xCCCDULL) >> 19));
 
     return p; // Return pointer to next position
 }
@@ -41,7 +43,6 @@ char *_ultoa10(unsigned long value, char *p)
     return p; // Return pointer to next position
 }
 
-static const char hex_table_lower[16] = "0123456789abcdef";
 static const char hex_table_upper[16] = "0123456789ABCDEF";
 
 static
@@ -62,9 +63,11 @@ char *_ultoa16(unsigned long value, char *p)
     return p; // Return pointer to next position
 }
 
+static const char hex_table_lower[16] = "0123456789abcdef";
+
 static
 __forceinline
-char *_ui64toaddr(unsigned long long value, char *p, unsigned long bx64win)
+char *_ui64toaddr(unsigned long long value, char *p, BOOL bx64win)
 {
     *p++ = '0';
     *p++ = 'x';

@@ -90,13 +90,13 @@ static const char HELP[589] =
 "    exec-args     Target executable arguments.\n"
 "\n"
 "Options:\n"
-"    /B<n>         Set breakpoints ignorance.\n"
+"    /B            Ignore breakpoints.\n"
 "    /D            Load PDB debug symbols.\n"
 "    /G[+]         Load DWARF debug symbols.\n"
 "    /O            Suppress OutputDebugString.\n"
 "    /S            Open in a new console window.\n"
 "    /T<n>         Wait for input (seconds).\n"
-"    /V<n>         Set output verbosity.\n";
+"    /V{0|1|2}     Set output verbosity.\n";
 
 static const char VALUE_EXPECTED[20] =
 "Value expected for '";
@@ -124,12 +124,11 @@ static const char THREAD_NUMBER[8] = "Thread #";
 static const wchar_t TMPENV[3] = L"TMP";
 static const wchar_t GDB_EXE[7] = L"gdb.exe";
 static const wchar_t W64DBG[6] = L"w64dbg";
-static const char GDB_DEFAULT[125] =
+static const char GDB_DEFAULT[102] =
     "set bac l 100\n" // set backtrace limit 100
     "set con of\n" // set confirm off
     "set p th of\n" // set print thread-events off
     "set p i of\n" // set print inferior-events off
-    "set p frame-i source-a\n" // set print frame-info source-and-location
     "set p en n\n" // set print entry-values no
     "set lo f NUL\n" // set logging file
     "set lo r\n" // set logging redirect
@@ -141,8 +140,8 @@ static const char GDB_DEFAULT[125] =
 static const char GDB_PRESERVE[20] = "\nset pa of\nset wi 0\n";
 // set style enabled
 static const char GDB_STYLE[11] = "\nset sty e\n";
-// set print frame-arguments all & set print pretty
-static const char GDB_FRAME_ARG[25] = "set p frame-a a\nset p pr\n";
+// set print frame-arguments all & set print frame-info source-and-location & set print pretty
+static const char GDB_FRAME_ARG[48] = "set p frame-a a\nset p frame-i source-a\nset p pr\n";
 // continue & set logging enabled off & backtrace
 static const char GDB_CONTINUE[16] = "c\nset lo e of\nbt";
 

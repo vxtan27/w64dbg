@@ -5,14 +5,14 @@
 
 typedef struct
 {
-    char *p;
+    LPSTR p;
     HANDLE hProcess;
     PVOID pContext;
     PDWORD64 pBase;
     DWORD bx64win;
-    char Console;
-    char DataIsLocal;
-    char IsFirst;
+    BOOL Console;
+    BOOL DataIsLocal;
+    BOOL IsFirst;
 } USERCONTEXT, *PUSERCONTEXT;
 
 typedef union
