@@ -426,9 +426,7 @@ RtlUnicodeToUTF8N(
 
 #define KERNEL32API ContinueDebugEvent
 
-static
-__forceinline
-VOID FindSystemMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *Entry)
+static __forceinline VOID FindSystemMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *Entry)
 {
     PLDR_DATA_TABLE_ENTRY KERNEL32;
 
@@ -436,9 +434,7 @@ VOID FindSystemMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_
     RtlFindMessage(KERNEL32->DllBase, RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
 }
 
-static
-__forceinline
-VOID FindModuleMessage(PVOID DllHandle, DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *Entry)
+static __forceinline VOID FindModuleMessage(PVOID DllHandle, DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *Entry)
 {
     RtlFindMessage(DllHandle, RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
 }

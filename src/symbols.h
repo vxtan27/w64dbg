@@ -9,7 +9,7 @@ typedef struct
     HANDLE hProcess;
     PVOID pContext;
     PDWORD64 pBase;
-    DWORD bx64win;
+    DWORD is_64bit;
     BOOL Console;
     BOOL DataIsLocal;
     BOOL IsFirst;
@@ -56,9 +56,7 @@ int __builtin_sprintf(
 #include "cvconst.h"
 
 [[deprecated]]
-static
-__forceinline
-DWORD64 _GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext)
+static __forceinline DWORD64 _GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext)
 {
     switch (pSymInfo->Register)
     {
@@ -123,9 +121,7 @@ DWORD64 _GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext)
 }
 
 [[deprecated]]
-static
-__forceinline
-DWORD64 _GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext)
+static __forceinline DWORD64 _GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext)
 {
     switch (pSymInfo->Register)
     {
@@ -189,9 +185,7 @@ DWORD64 _GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext)
     }
 }
 
-static
-__forceinline
-DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext)
+static __forceinline DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext)
 {
     switch (pSymInfo->Register)
     {
@@ -238,9 +232,7 @@ DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext)
     }
 }
 
-static
-__forceinline
-DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext)
+static __forceinline DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext)
 {
     switch (pSymInfo->Register)
     {
@@ -333,11 +325,9 @@ DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext)
     }
 }
 
-static
-__forceinline
-DWORD64 GetRegisterBase(PSYMBOL_INFOW pSymInfo, PVOID ContextRecord, DWORD bx64win)
+static __forceinline DWORD64 GetRegisterBase(PSYMBOL_INFOW pSymInfo, PVOID ContextRecord, DWORD is_64bit)
 {
-    if (bx64win) return GetRegisterBase64(pSymInfo, ContextRecord);
+    if (is_64bit) return GetRegisterBase64(pSymInfo, ContextRecord);
     else return GetRegisterBase32(pSymInfo, ContextRecord);
 }
 
@@ -407,14 +397,14 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, 
             DWORD64 Base;
             LONG_DOUBLE value = {};
             if (pSymInfo->Flags & SYMFLAG_REGREL)
-                Base = GetRegisterBase(pSymInfo, User->pContext, User->bx64win);
+                Base = GetRegisterBase(pSymInfo, User->pContext, User->is_64bit);
             else if (pSymInfo->Flags & SYMFLAG_FRAMEREL)
                 Base = *User->pBase;
             else return TRUE;
 
             /*
             else if (pSymInfo->Flags & SYMFLAG_REGISTER)
-                GetRegisterValue(pSymInfo, User->pContext, User->bx64win);
+                GetRegisterValue(pSymInfo, User->pContext, User->is_64bit);
             */
 
             if (DTag == SymTagArrayType ||

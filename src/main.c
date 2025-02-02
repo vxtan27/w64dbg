@@ -14,7 +14,7 @@ void __stdcall main(void)
     char buffer[BUFLEN];
     ULONG UTF8StringActualByteCount;
 
-    long timeout = DEFAULT_TIMEOUT;
+    LONG timeout = DEFAULT_TIMEOUT;
     BOOL breakpoint = DEFAULT_BREAKPOINT,
     firstbreak = DEFAULT_FIRSTBREAK,
     dwarf = DEFAULT_DEBUG_DWARF,
@@ -234,10 +234,10 @@ void __stdcall main(void)
         RtlExitUserProcess(1);
     }
 
-    DWORD bx64win; // Is 64-bit application
+    DWORD is_64bit; // Is 64-bit application
 
-    if (!GetBinaryTypeW(ApplicationName, &bx64win) ||
-        (bx64win != SCS_32BIT_BINARY && bx64win != SCS_64BIT_BINARY))
+    if (!GetBinaryTypeW(ApplicationName, &is_64bit) ||
+        (is_64bit != SCS_32BIT_BINARY && is_64bit != SCS_64BIT_BINARY))
     { // Check if executable format (x86-64)
         wchar_t *pos;
         PMESSAGE_RESOURCE_ENTRY Entry;
@@ -340,7 +340,7 @@ void __stdcall main(void)
 
     // x86 process / MinGW64 G++ trigger
     // more than one breakpoints at start-up
-    if ((bx64win && dwarf) || !bx64win) --firstbreak;
+    if ((is_64bit && dwarf) || !is_64bit) --firstbreak;
 
     DWORD i;
     wchar_t PATH[WBUFLEN];
@@ -554,7 +554,7 @@ void __stdcall main(void)
 
                 memcpy(p, THREAD_TRIGGERD, sizeof(THREAD_TRIGGERD));
                 p += sizeof(THREAD_TRIGGERD);
-                p = _ultoa16(DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, p);
+                p = _ultoa16u(DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, p);
 
                 if (Console)
                 {
@@ -761,7 +761,7 @@ void __stdcall main(void)
                 STACKFRAME64 StackFrame;
                 FILE_STANDARD_INFORMATION FileInfo;
 
-                SymSetOptions(bx64win ? SymOptions : SymOptions | SYMOPT_INCLUDE_32BIT_MODULES);
+                SymSetOptions(is_64bit ? SymOptions : SymOptions | SYMOPT_INCLUDE_32BIT_MODULES);
                 SymInitializeW(hProcess, NULL, FALSE);
 
                 for (DWORD j = 0; j < MAX_DLL; ++j) if (BaseOfDll[j])
@@ -780,7 +780,7 @@ void __stdcall main(void)
 
                 CONTEXT Context;
 
-                if (bx64win)
+                if (is_64bit)
                 {
                     Context.ContextFlags = CONTEXT_ALL;
                     NtGetContextThread(hThread[i], &Context);
@@ -820,7 +820,7 @@ void __stdcall main(void)
                 UserContext.hProcess = hProcess;
                 UserContext.pContext = &Context;
                 UserContext.pBase = &StackFrame.AddrFrame.Offset;
-                UserContext.bx64win = bx64win;
+                UserContext.is_64bit = is_64bit;
                 UserContext.Console = Console;
                 DirLen = ProcessParameters->CurrentDirectory.DosPath.Length;
                 wDirLen = ProcessParameters->CurrentDirectory.DosPath.Length >> 1;
@@ -855,7 +855,7 @@ void __stdcall main(void)
                         p += sizeof(CONSOLE_BLUE_FORMAT);
                     }
 
-                    p = _ui64toaddr(StackFrame.AddrPC.Offset, p, bx64win);
+                    p = _ui64toaddr(StackFrame.AddrPC.Offset, p, is_64bit);
 
                     if (Console)
                     {

@@ -3,9 +3,7 @@
     Licensed under the BSD-3-Clause.
 */
 
-static
-__forceinline
-long process_timeout(wchar_t *str, wchar_t **p, size_t len)
+static __forceinline long process_timeout(wchar_t *str, wchar_t **p, size_t len)
 {
     BOOL is_signed = FALSE; // Tracks if the value is negative
 
@@ -116,9 +114,7 @@ static const char InfiniteMessage[30] = "\nPress any key to continue ...";
 static const char _FiniteMessage[13] = "\nWaiting for ";
 static const char FiniteMessage_[42] = " seconds, press a key to continue ...\x1b[37D";
 
-static
-__forceinline
-VOID WaitForInputOrTimeout(
+static __forceinline VOID WaitForInputOrTimeout(
     HANDLE     hStdin,
     HANDLE     hStdout,
     LONG       timeout,

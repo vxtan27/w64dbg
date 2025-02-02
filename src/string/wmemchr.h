@@ -5,9 +5,7 @@
 
 // Always find
 _Post_writable_byte_size_(sizeof(wchar_t))
-static
-__forceinline
-wchar_t *
+static __forceinline wchar_t *
 __builtin__wmemchr(
     _In_reads_(n) const wchar_t *_S,
     wchar_t _C,
@@ -46,9 +44,7 @@ __builtin__wmemchr(
 _Success_(return != NULL)
 _Ret_maybenull_
 _Post_writable_byte_size_(sizeof(wchar_t))
-static
-__forceinline
-wchar_t *
+static __forceinline wchar_t *
 __builtin_wmemchr(
     _In_reads_(n) const wchar_t *_S,
     wchar_t _C,

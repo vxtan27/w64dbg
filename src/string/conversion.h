@@ -5,88 +5,94 @@
 
 #pragma once
 
-// Optimized for non-negative long
-// values in range from 0 to 99999
-static
-__forceinline
-char *_ltoa10(long value, char *p)
-{
-    unsigned long long num = value;
-
-    // Move to new position
-    do ++p; while ((num = (num * 0xCCCD) >> 19));
-
-    char *ptr = p;
-
-    // Convert digits to characters in reverse order
-    do *--ptr = (value - ((value * 0xCCCDULL) >> 19) * 10) + '0';
-    while ((value = (value * 0xCCCDULL) >> 19));
-
-    return p; // Return pointer to next position
-}
-
-static
-__forceinline
-char *_ultoa10(unsigned long value, char *p)
+/*
+// Convert long to string
+static __forceinline char *_ultoa10(unsigned long value, char *str)
 {
     unsigned long num = value;
 
-    // Move to new position
-    do ++p; while ((num /= 10));
+    do ++str; while ((num /= 10)); // Advance past last digit
 
-    char *ptr = p;
+    char *ptr = str;
 
-    // Convert digits to characters in reverse order
-    do *--ptr = (value % 10) + '0';
+    do *--ptr = (value % 10) + '0'; // Reverse convert
     while ((value /= 10));
 
-    return p; // Return pointer to next position
+    return str;
+}
+*/
+
+// Convert non-negative long [0, 999996] to string
+static __forceinline char *_ltoa10(long value, char *str)
+{
+    unsigned _int64 num = value;
+
+    do ++str; while ((num = (num * 0xCCCD) >> 19)); // Advance past last digit
+
+    char *ptr = str;
+
+    do *--ptr = (value - ((value * 0xCCCDULL) >> 19) * 10) + '0'; // Reverse convert
+    while ((value = (value * 0xCCCDULL) >> 19));
+
+    return str;
 }
 
-static const char hex_table_upper[16] = "0123456789ABCDEF";
-
-static
-__forceinline
-char *_ultoa16(unsigned long value, char *p)
+// Convert unsigned long to string
+static __forceinline char *_ultoa10(unsigned long value, char *str)
 {
     unsigned long num = value;
 
-    // Move to new position
-    do ++p; while ((num >>= 4));
+    do ++str; while ((num /= 10)); // Advance past last digit
 
-    char *ptr = p;
+    char *ptr = str;
 
-    // Convert digits to hexadecimal characters in reverse order
-    do *--ptr = hex_table_upper[value & 0xF];
-    while ((value >>= 4));
+    do *--ptr = (value % 10) + '0'; // Reverse convert
+    while ((value /= 10));
 
-    return p; // Return pointer to next position
+    return str;
 }
 
-static const char hex_table_lower[16] = "0123456789abcdef";
+// Uppercase hex lookup table
+static const char HexTableUpper[16] = "0123456789ABCDEF";
 
-static
-__forceinline
-char *_ui64toaddr(unsigned long long value, char *p, BOOL bx64win)
+// Convert unsigned long to uppercase hex string
+static __forceinline char *_ultoa16u(unsigned long value, char *str)
 {
-    *p++ = '0';
-    *p++ = 'x';
+    unsigned long num = value;
 
-    if (bx64win)
-    { // Format as 64-bit hexadecimal (16 digits)
-        memset(p, '0', 16);
-        p += 16; // Move to new position
-    } else
-    { // Format as 32-bit hexadecimal (8 digits)
-        memset(p, '0', 8);
-        p += 8; // Move to new position
-    }
+    do ++str; while ((num >>= 4)); // Advance past last digit
 
-    char *ptr = p;
+    char *ptr = str;
 
-    // Convert digits to hexadecimal characters in reverse order
-    do *--ptr = hex_table_lower[value & 0xF];
+    do *--ptr = HexTableUpper[value & 0xF]; // Reverse convert
     while ((value >>= 4));
 
-    return p; // Return pointer to next position
+    return str;
+}
+
+// Lowercase hex lookup table
+static const char HexTableLower[16] = "0123456789abcdef";
+
+// Convert unsigned long long to lowercase memory address string
+static __forceinline char *_ui64toaddr(unsigned _int64 value, char *str, BOOL is_64bit)
+{
+    *str++ = '0'; *str++ = 'x'; // Address prefix
+
+    // Zero-pad
+    if (is_64bit)
+    { // 64-bit hex (16 digits)
+        memset(str, '0', 16);
+        str += 16; // Advance past last digit
+    } else
+    { // 32-bit hex (8 digits)
+        memset(str, '0', 8);
+        str += 8; // Advance past last digit
+    }
+
+    char *ptr = str;
+
+    do *--ptr = HexTableLower[value & 0xF]; // Reverse convert
+    while ((value >>= 4));
+
+    return str;
 }

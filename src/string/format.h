@@ -5,9 +5,7 @@
 
 #pragma once
 
-static
-__forceinline
-LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG BufLength, LPSTR p, BOOL Console)
+static __forceinline LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG BufLength, LPSTR p, BOOL Console)
 {
     ULONG UTF8StringActualByteCount;
 
@@ -31,9 +29,7 @@ LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG 
     return p + 1;
 }
 
-static
-__forceinline
-LPSTR FormatSourceCode(LPWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, LPSTR p, BOOL verbose)
+static __forceinline LPSTR FormatSourceCode(LPWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, LPSTR p, BOOL verbose)
 {
     HANDLE hFile;
     UNICODE_STRING String;
