@@ -37,7 +37,7 @@ long process_timeout(wchar_t *str, wchar_t **p, size_t len)
     return value;
 }
 
-#define MiliSecToUnits(lSeconds) ((lSeconds) * 10000)
+#define MiliSecToUnits(lSeconds) ((lSeconds) * 10000LL)
 #define SecToUnits(lSeconds) MiliSecToUnits(lSeconds * 1000)
 
 #define IsInputInvalidate(InputRecord) ( \
