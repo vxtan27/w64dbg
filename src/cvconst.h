@@ -4,8 +4,86 @@
 // Copyright Microsoft Corporation.  All Rights Reserved.
 //
 //---------------------------------------------------------------
+#ifndef _CVCONST_H_
+#define _CVCONST_H_
 
-#pragma once
+
+
+//      Enumeration for function call type
+
+
+typedef enum CV_call_e
+{
+    CV_CALL_NEAR_C      = 0x00, // near right to left push, caller pops stack
+    CV_CALL_FAR_C       = 0x01, // far right to left push, caller pops stack
+    CV_CALL_NEAR_PASCAL = 0x02, // near left to right push, callee pops stack
+    CV_CALL_FAR_PASCAL  = 0x03, // far left to right push, callee pops stack
+    CV_CALL_NEAR_FAST   = 0x04, // near left to right push with regs, callee pops stack
+    CV_CALL_FAR_FAST    = 0x05, // far left to right push with regs, callee pops stack
+    CV_CALL_SKIPPED     = 0x06, // skipped (unused) call index
+    CV_CALL_NEAR_STD    = 0x07, // near standard call
+    CV_CALL_FAR_STD     = 0x08, // far standard call
+    CV_CALL_NEAR_SYS    = 0x09, // near sys call
+    CV_CALL_FAR_SYS     = 0x0a, // far sys call
+    CV_CALL_THISCALL    = 0x0b, // this call (this passed in register)
+    CV_CALL_MIPSCALL    = 0x0c, // Mips call
+    CV_CALL_GENERIC     = 0x0d, // Generic call sequence
+    CV_CALL_ALPHACALL   = 0x0e, // Alpha call
+    CV_CALL_PPCCALL     = 0x0f, // PPC call
+    CV_CALL_SHCALL      = 0x10, // Hitachi SuperH call
+    CV_CALL_ARMCALL     = 0x11, // ARM call
+    CV_CALL_AM33CALL    = 0x12, // AM33 call
+    CV_CALL_TRICALL     = 0x13, // TriCore Call
+    CV_CALL_SH5CALL     = 0x14, // Hitachi SuperH-5 call
+    CV_CALL_M32RCALL    = 0x15, // M32R Call
+    CV_CALL_CLRCALL     = 0x16, // clr call
+    CV_CALL_INLINE      = 0x17, // Marker for routines always inlined and thus lacking a convention
+    CV_CALL_NEAR_VECTOR = 0x18, // near left to right push with regs, callee pops stack
+    CV_CALL_SWIFT       = 0x19, // Swift calling convention
+    CV_CALL_RESERVED    = 0x20  // first unused call enumeration
+
+    // Do NOT add any more machine specific conventions.  This is to be used for
+    // calling conventions in the source only (e.g. __cdecl, __stdcall).
+} CV_call_e;
+
+
+//      Values for the access protection of class attributes
+
+
+typedef enum CV_access_e
+{
+    CV_private   = 1,
+    CV_protected = 2,
+    CV_public    = 3
+} CV_access_e;
+
+
+typedef enum THUNK_ORDINAL
+{
+    THUNK_ORDINAL_NOTYPE,       // standard thunk
+    THUNK_ORDINAL_ADJUSTOR,     // "this" adjustor thunk
+    THUNK_ORDINAL_VCALL,        // virtual call thunk
+    THUNK_ORDINAL_PCODE,        // pcode thunk
+    THUNK_ORDINAL_LOAD,         // thunk which loads the address to jump to
+                                //  via unknown means...
+
+    // trampoline thunk ordinals   - only for use in Trampoline thunk symbols
+
+    THUNK_ORDINAL_TRAMP_INCREMENTAL,
+    THUNK_ORDINAL_TRAMP_BRANCHISLAND,
+    THUNK_ORDINAL_TRAMP_STRICTICF,
+    THUNK_ORDINAL_TRAMP_ARM64XSAMEADDRESS,
+    THUNK_ORDINAL_TRAMP_FUNCOVERRIDING,
+} THUNK_ORDINAL;
+
+
+enum CV_SourceChksum_t
+{
+    CHKSUM_TYPE_NONE = 0,        // indicates no checksum is available
+    CHKSUM_TYPE_MD5,
+    CHKSUM_TYPE_SHA1,
+    CHKSUM_TYPE_SHA_256,
+};
 
 //
 // DIA enums
@@ -60,6 +138,46 @@ enum SymTagEnum
     SymTagMax
 };
 
+enum LocationType
+{
+    LocIsNull,
+    LocIsStatic,
+    LocIsTLS,
+    LocIsRegRel,
+    LocIsThisRel,
+    LocIsEnregistered,
+    LocIsBitField,
+    LocIsSlot,
+    LocIsIlRel,
+    LocInMetaData,
+    LocIsConstant,
+    LocIsRegRelAliasIndir,
+    LocTypeMax
+};
+
+enum DataKind
+{
+    DataIsUnknown,
+    DataIsLocal,
+    DataIsStaticLocal,
+    DataIsParam,
+    DataIsObjectPtr,
+    DataIsFileStatic,
+    DataIsGlobal,
+    DataIsMember,
+    DataIsStaticMember,
+    DataIsConstant
+};
+
+enum UdtKind
+{
+    UdtStruct,
+    UdtClass,
+    UdtUnion,
+    UdtInterface,
+    UdtTaggedUnion
+};
+
 enum BasicType
 {
     btNoType = 0,
@@ -84,6 +202,203 @@ enum BasicType
     btChar32 = 33,  // char32_t
     btChar8  = 34,  // char8_t
 };
+
+
+//      enumeration for type modifier values
+
+typedef enum CV_modifier_e
+{
+    // 0x0000 - 0x01ff - Reserved.
+
+    CV_MOD_INVALID                      = 0x0000,
+
+    // Standard modifiers.
+
+    CV_MOD_CONST                        = 0x0001,
+    CV_MOD_VOLATILE                     = 0x0002,
+    CV_MOD_UNALIGNED                    = 0x0003,
+
+    // 0x0200 - 0x03ff - HLSL modifiers.
+
+    CV_MOD_HLSL_UNIFORM                 = 0x0200,
+    CV_MOD_HLSL_LINE                    = 0x0201,
+    CV_MOD_HLSL_TRIANGLE                = 0x0202,
+    CV_MOD_HLSL_LINEADJ                 = 0x0203,
+    CV_MOD_HLSL_TRIANGLEADJ             = 0x0204,
+    CV_MOD_HLSL_LINEAR                  = 0x0205,
+    CV_MOD_HLSL_CENTROID                = 0x0206,
+    CV_MOD_HLSL_CONSTINTERP             = 0x0207,
+    CV_MOD_HLSL_NOPERSPECTIVE           = 0x0208,
+    CV_MOD_HLSL_SAMPLE                  = 0x0209,
+    CV_MOD_HLSL_CENTER                  = 0x020a,
+    CV_MOD_HLSL_SNORM                   = 0x020b,
+    CV_MOD_HLSL_UNORM                   = 0x020c,
+    CV_MOD_HLSL_PRECISE                 = 0x020d,
+    CV_MOD_HLSL_UAV_GLOBALLY_COHERENT   = 0x020e,
+
+    // 0x0400 - 0xffff - Unused.
+
+} CV_modifier_e;
+
+
+//      built-in type kinds
+
+
+typedef enum CV_builtin_e
+{
+    // 0x0000 - 0x01ff - Reserved.
+    CV_BI_INVALID                       = 0x0000,
+
+    // 0x0200 - 0x03ff - HLSL types.
+
+    CV_BI_HLSL_INTERFACE_POINTER        = 0x0200,
+    CV_BI_HLSL_TEXTURE1D                = 0x0201,
+    CV_BI_HLSL_TEXTURE1D_ARRAY          = 0x0202,
+    CV_BI_HLSL_TEXTURE2D                = 0x0203,
+    CV_BI_HLSL_TEXTURE2D_ARRAY          = 0x0204,
+    CV_BI_HLSL_TEXTURE3D                = 0x0205,
+    CV_BI_HLSL_TEXTURECUBE              = 0x0206,
+    CV_BI_HLSL_TEXTURECUBE_ARRAY        = 0x0207,
+    CV_BI_HLSL_TEXTURE2DMS              = 0x0208,
+    CV_BI_HLSL_TEXTURE2DMS_ARRAY        = 0x0209,
+    CV_BI_HLSL_SAMPLER                  = 0x020a,
+    CV_BI_HLSL_SAMPLERCOMPARISON        = 0x020b,
+    CV_BI_HLSL_BUFFER                   = 0x020c,
+    CV_BI_HLSL_POINTSTREAM              = 0x020d,
+    CV_BI_HLSL_LINESTREAM               = 0x020e,
+    CV_BI_HLSL_TRIANGLESTREAM           = 0x020f,
+    CV_BI_HLSL_INPUTPATCH               = 0x0210,
+    CV_BI_HLSL_OUTPUTPATCH              = 0x0211,
+    CV_BI_HLSL_RWTEXTURE1D              = 0x0212,
+    CV_BI_HLSL_RWTEXTURE1D_ARRAY        = 0x0213,
+    CV_BI_HLSL_RWTEXTURE2D              = 0x0214,
+    CV_BI_HLSL_RWTEXTURE2D_ARRAY        = 0x0215,
+    CV_BI_HLSL_RWTEXTURE3D              = 0x0216,
+    CV_BI_HLSL_RWBUFFER                 = 0x0217,
+    CV_BI_HLSL_BYTEADDRESS_BUFFER       = 0x0218,
+    CV_BI_HLSL_RWBYTEADDRESS_BUFFER     = 0x0219,
+    CV_BI_HLSL_STRUCTURED_BUFFER        = 0x021a,
+    CV_BI_HLSL_RWSTRUCTURED_BUFFER      = 0x021b,
+    CV_BI_HLSL_APPEND_STRUCTURED_BUFFER = 0x021c,
+    CV_BI_HLSL_CONSUME_STRUCTURED_BUFFER= 0x021d,
+    CV_BI_HLSL_MIN8FLOAT                = 0x021e,
+    CV_BI_HLSL_MIN10FLOAT               = 0x021f,
+    CV_BI_HLSL_MIN16FLOAT               = 0x0220,
+    CV_BI_HLSL_MIN12INT                 = 0x0221,
+    CV_BI_HLSL_MIN16INT                 = 0x0222,
+    CV_BI_HLSL_MIN16UINT                = 0x0223,
+    CV_BI_HLSL_CONSTANT_BUFFER          = 0x0224,
+
+    // 0x0400 - 0xffff - Unused.
+
+} CV_builtin_e;
+
+
+//  enum describing the compile flag source language
+
+
+typedef enum CV_CFL_LANG
+{
+    CV_CFL_C        = 0x00,
+    CV_CFL_CXX      = 0x01,
+    CV_CFL_FORTRAN  = 0x02,
+    CV_CFL_MASM     = 0x03,
+    CV_CFL_PASCAL   = 0x04,
+    CV_CFL_BASIC    = 0x05,
+    CV_CFL_COBOL    = 0x06,
+    CV_CFL_LINK     = 0x07,
+    CV_CFL_CVTRES   = 0x08,
+    CV_CFL_CVTPGD   = 0x09,
+    CV_CFL_CSHARP   = 0x0A,  // C#
+    CV_CFL_VB       = 0x0B,  // Visual Basic
+    CV_CFL_ILASM    = 0x0C,  // IL (as in CLR) ASM
+    CV_CFL_JAVA     = 0x0D,
+    CV_CFL_JSCRIPT  = 0x0E,
+    CV_CFL_MSIL     = 0x0F,  // Unknown MSIL (LTCG of .NETMODULE)
+    CV_CFL_HLSL     = 0x10,  // High Level Shader Language
+    CV_CFL_OBJC     = 0x11,  // Objective-C
+    CV_CFL_OBJCXX   = 0x12,  // Objective-C++
+    CV_CFL_SWIFT    = 0x13,  // Swift
+    CV_CFL_ALIASOBJ = 0x14,
+    CV_CFL_RUST     = 0x15,  // Rust
+} CV_CFL_LANG;
+
+
+//  enum describing target processor
+
+
+typedef enum CV_CPU_TYPE_e
+{
+    CV_CFL_8080             = 0x00,
+    CV_CFL_8086             = 0x01,
+    CV_CFL_80286            = 0x02,
+    CV_CFL_80386            = 0x03,
+    CV_CFL_80486            = 0x04,
+    CV_CFL_PENTIUM          = 0x05,
+    CV_CFL_PENTIUMII        = 0x06,
+    CV_CFL_PENTIUMPRO       = CV_CFL_PENTIUMII,
+    CV_CFL_PENTIUMIII       = 0x07,
+    CV_CFL_MIPS             = 0x10,
+    CV_CFL_MIPSR4000        = CV_CFL_MIPS,  // don't break current code
+    CV_CFL_MIPS16           = 0x11,
+    CV_CFL_MIPS32           = 0x12,
+    CV_CFL_MIPS64           = 0x13,
+    CV_CFL_MIPSI            = 0x14,
+    CV_CFL_MIPSII           = 0x15,
+    CV_CFL_MIPSIII          = 0x16,
+    CV_CFL_MIPSIV           = 0x17,
+    CV_CFL_MIPSV            = 0x18,
+    CV_CFL_M68000           = 0x20,
+    CV_CFL_M68010           = 0x21,
+    CV_CFL_M68020           = 0x22,
+    CV_CFL_M68030           = 0x23,
+    CV_CFL_M68040           = 0x24,
+    CV_CFL_ALPHA            = 0x30,
+    CV_CFL_ALPHA_21064      = 0x30,
+    CV_CFL_ALPHA_21164      = 0x31,
+    CV_CFL_ALPHA_21164A     = 0x32,
+    CV_CFL_ALPHA_21264      = 0x33,
+    CV_CFL_ALPHA_21364      = 0x34,
+    CV_CFL_PPC601           = 0x40,
+    CV_CFL_PPC603           = 0x41,
+    CV_CFL_PPC604           = 0x42,
+    CV_CFL_PPC620           = 0x43,
+    CV_CFL_PPCFP            = 0x44,
+    CV_CFL_PPCBE            = 0x45,
+    CV_CFL_SH3              = 0x50,
+    CV_CFL_SH3E             = 0x51,
+    CV_CFL_SH3DSP           = 0x52,
+    CV_CFL_SH4              = 0x53,
+    CV_CFL_SHMEDIA          = 0x54,
+    CV_CFL_ARM3             = 0x60,
+    CV_CFL_ARM4             = 0x61,
+    CV_CFL_ARM4T            = 0x62,
+    CV_CFL_ARM5             = 0x63,
+    CV_CFL_ARM5T            = 0x64,
+    CV_CFL_ARM6             = 0x65,
+    CV_CFL_ARM_XMAC         = 0x66,
+    CV_CFL_ARM_WMMX         = 0x67,
+    CV_CFL_ARM7             = 0x68,
+    CV_CFL_OMNI             = 0x70,
+    CV_CFL_IA64             = 0x80,
+    CV_CFL_IA64_1           = 0x80,
+    CV_CFL_IA64_2           = 0x81,
+    CV_CFL_CEE              = 0x90,
+    CV_CFL_AM33             = 0xA0,
+    CV_CFL_M32R             = 0xB0,
+    CV_CFL_TRICORE          = 0xC0,
+    CV_CFL_X64              = 0xD0,
+    CV_CFL_AMD64            = CV_CFL_X64,
+    CV_CFL_EBC              = 0xE0,
+    CV_CFL_THUMB            = 0xF0,
+    CV_CFL_ARMNT            = 0xF4,
+    CV_CFL_ARM64            = 0xF6,
+    CV_CFL_HYBRID_X86_ARM64 = 0xF7,
+    CV_CFL_ARM64EC          = 0xF8,
+    CV_CFL_ARM64X           = 0xF9,
+    CV_CFL_UNKNOWN          = 0xFF,
+    CV_CFL_D3D11_SHADER     = 0x100,
+} CV_CPU_TYPE_e;
 
 typedef enum CV_HREG_e
 {
@@ -3709,3 +4024,109 @@ typedef enum CV_HREG_e
     // this one is above 44K now.
 
 } CV_HREG_e;
+
+typedef enum CV_HLSLREG_e
+{
+    CV_HLSLREG_TEMP                                = 0,
+    CV_HLSLREG_INPUT                               = 1,
+    CV_HLSLREG_OUTPUT                              = 2,
+    CV_HLSLREG_INDEXABLE_TEMP                      = 3,
+    CV_HLSLREG_IMMEDIATE32                         = 4,
+    CV_HLSLREG_IMMEDIATE64                         = 5,
+    CV_HLSLREG_SAMPLER                             = 6,
+    CV_HLSLREG_RESOURCE                            = 7,
+    CV_HLSLREG_CONSTANT_BUFFER                     = 8,
+    CV_HLSLREG_IMMEDIATE_CONSTANT_BUFFER           = 9,
+    CV_HLSLREG_LABEL                               = 10,
+    CV_HLSLREG_INPUT_PRIMITIVEID                   = 11,
+    CV_HLSLREG_OUTPUT_DEPTH                        = 12,
+    CV_HLSLREG_NULL                                = 13,
+    CV_HLSLREG_RASTERIZER                          = 14,
+    CV_HLSLREG_OUTPUT_COVERAGE_MASK                = 15,
+    CV_HLSLREG_STREAM                              = 16,
+    CV_HLSLREG_FUNCTION_BODY                       = 17,
+    CV_HLSLREG_FUNCTION_TABLE                      = 18,
+    CV_HLSLREG_INTERFACE                           = 19,
+    CV_HLSLREG_FUNCTION_INPUT                      = 20,
+    CV_HLSLREG_FUNCTION_OUTPUT                     = 21,
+    CV_HLSLREG_OUTPUT_CONTROL_POINT_ID             = 22,
+    CV_HLSLREG_INPUT_FORK_INSTANCE_ID              = 23,
+    CV_HLSLREG_INPUT_JOIN_INSTANCE_ID              = 24,
+    CV_HLSLREG_INPUT_CONTROL_POINT                 = 25,
+    CV_HLSLREG_OUTPUT_CONTROL_POINT                = 26,
+    CV_HLSLREG_INPUT_PATCH_CONSTANT                = 27,
+    CV_HLSLREG_INPUT_DOMAIN_POINT                  = 28,
+    CV_HLSLREG_THIS_POINTER                        = 29,
+    CV_HLSLREG_UNORDERED_ACCESS_VIEW               = 30,
+    CV_HLSLREG_THREAD_GROUP_SHARED_MEMORY          = 31,
+    CV_HLSLREG_INPUT_THREAD_ID                     = 32,
+    CV_HLSLREG_INPUT_THREAD_GROUP_ID               = 33,
+    CV_HLSLREG_INPUT_THREAD_ID_IN_GROUP            = 34,
+    CV_HLSLREG_INPUT_COVERAGE_MASK                 = 35,
+    CV_HLSLREG_INPUT_THREAD_ID_IN_GROUP_FLATTENED  = 36,
+    CV_HLSLREG_INPUT_GS_INSTANCE_ID                = 37,
+    CV_HLSLREG_OUTPUT_DEPTH_GREATER_EQUAL          = 38,
+    CV_HLSLREG_OUTPUT_DEPTH_LESS_EQUAL             = 39,
+    CV_HLSLREG_CYCLE_COUNTER                       = 40,
+} CV_HLSLREG_e;
+
+enum StackFrameTypeEnum
+{
+    FrameTypeFPO,                   // Frame pointer omitted, FPO info available
+    FrameTypeTrap,                  // Kernel Trap frame
+    FrameTypeTSS,                   // Kernel Trap frame
+    FrameTypeStandard,              // Standard EBP stackframe
+    FrameTypeFrameData,             // Frame pointer omitted, FrameData info available
+
+    FrameTypeUnknown = -1,          // Frame which does not have any debug info
+};
+
+enum MemoryTypeEnum
+{
+    MemTypeCode,                    // Read only code memory
+    MemTypeData,                    // Read only data/stack memory
+    MemTypeStack,                   // Read only stack memory
+    MemTypeCodeOnHeap,              // Read only memory for code generated on heap by runtime
+
+    MemTypeAny = -1,
+};
+
+typedef enum CV_HLSLMemorySpace_e
+{
+    // HLSL specific memory spaces
+
+    CV_HLSL_MEMSPACE_DATA         = 0x00,
+    CV_HLSL_MEMSPACE_SAMPLER      = 0x01,
+    CV_HLSL_MEMSPACE_RESOURCE     = 0x02,
+    CV_HLSL_MEMSPACE_RWRESOURCE   = 0x03,
+
+    CV_HLSL_MEMSPACE_MAX          = 0x0F,
+} CV_HLSLMemorySpace_e;
+
+enum
+{
+    NAMEHASH_BUILD_START,
+    NAMEHASH_BUILD_PAUSE,
+    NAMEHASH_BUILD_RESUME,
+    NAMEHASH_BUILD_COMPLETE,
+    NAMEHASH_BUILD_ERROR,
+    NAMEHASH_BUILD_OOM = NAMEHASH_BUILD_ERROR,
+    NAMEHASH_BUILD_FAIL_TO_OPEN_MOD,
+};
+
+typedef enum CV_CoroutineKind_e
+{
+    CV_COROUTINEKIND_NONE,      // Not a coroutine
+    CV_COROUTINEKIND_PRIMARY,   // The original coroutine function
+    CV_COROUTINEKIND_INIT,      // Initialization function, sets up the coroutine frame
+    CV_COROUTINEKIND_RESUME,    // Resume function, contains the coroutine body code
+    CV_COROUTINEKIND_DESTROY    // Destroy function, tears down the coroutine frame
+} CV_CoroutineKind_e;
+
+typedef enum CV_AssociationKind_e
+{
+    CV_ASSOCIATIONKIND_NONE,         // No associated symbol
+    CV_ASSOCIATIONKIND_COROUTINE     // Associated symbol is the primary coroutine function
+} CV_AssociationKind_e;
+
+#endif
