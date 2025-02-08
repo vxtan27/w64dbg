@@ -26,13 +26,13 @@ typedef union
 } LONG_DOUBLE;
 
 // Applies non-bold/bright cyan to foreground
-static const char CONSOLE_CYAN_FORMAT[5] = "\x1b[36m";
+#define CONSOLE_CYAN_FORMAT "\x1b[36m"
 
-static const char LOW_HEX_FORMAT[] = "%Ix";
-static const char LONGLONG_FORMAT[] = "%lld";
-static const char ULONGLONG_FORMAT[] = "%llu";
-static const char LONGDOUBLE_FORMAT[] = "%Lg";
-static const char UP_HEX_FORMAT[] = "%IX";
+#define LOW_HEX_FORMAT "%Ix"
+#define LONGLONG_FORMAT "%lld"
+#define ULONGLONG_FORMAT "%llu"
+#define LONGDOUBLE_FORMAT "%Lg"
+#define UP_HEX_FORMAT "%IX"
 
 _Success_(return >= 0)
 _Check_return_opt_

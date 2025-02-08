@@ -3,7 +3,7 @@
     Licensed under the BSD-3-Clause.
 */
 
-// Debugger's default configuration
+/* Configuration */
 #define DEFAULT_DEBUG_DWARF   FALSE
 #define DEFAULT_BREAKPOINT    TRUE
 #define DEFAULT_FIRSTBREAK    FALSE
@@ -12,25 +12,158 @@
 #define DEFAULT_OUTPUT        TRUE
 #define DEFAULT_START         FALSE
 #define DEFAULT_HELP          FALSE
+#define VALID_TIMEOUT         99999
+#define INVALID_TIMEOUT       100000
+#define MAX_THREAD            32
+#define MAX_DLL               16
+#define LATENCY               25
 
-#define VALID_TIMEOUT 99999
-#define INVALID_TIMEOUT (VALID_TIMEOUT + 1)
-
-#define MAX_THREAD 32
-#define MAX_DLL 16
-#define MINGW_KEEP 1
-#define MINGW_NOKEEP 2
-#define LATENCY 25
-
-// Debugger buffer length
+/* Buffer length */
 #define PAGESIZE    4096
 #define BUFLEN      8192
 #define WBUFLEN     4096
 
-// Faster Builds
-#define NOMINMAX
+/* MinGW options */
+#define MINGW_KEEP 1
+#define MINGW_NOKEEP 2
+
+/*
+    Faster Builds
+*/
+
 #define WIN32_LEAN_AND_MEAN
 
+#define NOGDICAPMASKS
+// #define NOVIRTUALKEYCODES
+#define NOWINMESSAGES
+#define NOWINSTYLES
+#define NOSYSMETRICS
+#define NOMENUS
+#define NOICONS
+#define NOKEYSTATES
+#define NOSYSCOMMANDS
+#define NORASTEROPS
+#define NOSHOWWINDOW
+#define OEMRESOURCE
+#define NOATOM
+#define NOCLIPBOARD
+#define NOCOLOR
+#define NOCTLMGR
+#define NODRAWTEXT
+#define NOGDI
+#define NOKERNEL
+#define NONLS
+#define NOMB
+#define NOMEMMGR
+#define NOMETAFILE
+#define NOMINMAX
+#define NOMSG
+#define NOOPENFILE
+#define NOSCROLL
+#define NOSERVICE
+#define NOSOUND
+#define NOTEXTMETRIC
+#define NOWH
+#define NOWINOFFSETS
+#define NOCOMM
+#define NOKANJI
+#define NOHELP
+#define NOPROFILER
+#define NODEFERWINDOWPOS
+#define NOMCX
+#define NOCRYPT
+#define NOIME
+#define NOFONTSIG
+
+#define NOMMIDS
+#define NONEWWAVE
+#define NONEWRIFF
+#define NOJPEGDIB
+#define NONEWIC
+#define NOBITMAP
+
+/* #define NOUSER */
+#define NOTOOLBAR
+#define NOREBAR
+#define NOUPDOWN
+#define NOTOOLTIPS
+#define NOSTATUSBAR
+#define NOMENUHELP
+#define NOTRACKBAR
+#define NODRAGLIST
+#define NOPROGRESS
+#define NOHOTKEY
+#define NOHEADER
+#define NOIMAGEAPIS
+#define NOLISTVIEW
+#define NOTREEVIEW
+#define NOUSEREXCONTROLS
+#define NOTABCONTROL
+#define NOANIMATE
+#define NOMONTHCAL
+#define NODATETIMEPICK
+#define NOIPADDRESS
+#define NOPAGESCROLLER
+#define NONATIVEFONTCTL
+#define NOBUTTON
+#define NOSTATIC
+#define NOEDIT
+#define NOLISTBOX
+#define NOCOMBOBOX
+#define NOSCROLLBAR
+#define NOTASKDIALOG
+#define NOMUI
+#define NOTRACKMOUSEEVENT
+// #define NORESOURCE
+#define NODESKTOP
+#define NOWINDOWSTATION
+#define NOSECURITY
+#define NONCMESSAGES
+#define NOMDI
+#define NOSYSPARAMSINFO
+#define NOWINABLE
+#define NO_STATE_FLAGS
+
+#define NODDRAWGDI
+#define NODDEMLSPY
+#define NO_COMMCTRL_DA
+#define NO_DSHOW_STRSAFE
+#define NODXINCLUDES
+#define NODXMALLOC
+#define NODXLCL
+#define NODX95TYPES
+#define NO_BASEINTERFACE_FUNCS
+#define NOWINBASEINTERLOCK
+#define NO_MEDIA_ENGINE_FACTORY
+#define NO_INTSHCUT_GUIDS
+#define NO_SHDOCVW_GUIDS
+#define NO_WRAPPERS_FOR_ILCREATEFROMPATH
+#define NO_SHOBJIDL_SORTDIRECTION
+#define NO_WCN_PKEYS
+#define NOEXTAPI
+#define NO_WIA_DEBUG
+// #define NOAPISET
+
+/* NOSHLWAPI */
+#define NO_SHLWAPI_STRFCNS
+#define NO_SHLWAPI_PATH
+#define NO_SHLWAPI_REG
+#define NO_SHLWAPI_STREAM
+#define NO_SHLWAPI_HTTP
+#define NO_SHLWAPI_ISOS
+#define NO_SHLWAPI_GDI
+
+#define NOCOMPMAN
+#define NODRAWDIB
+#define NOVIDEO
+#define NOAVIFMT
+#define NOMMREG
+#define NOAVIFILE
+#define NOMCIWND
+#define NOAVICAP
+#define NOMSACM
+
+/* Required headers */
 #include <stdio.h>
 #include <wchar.h>
 #include <windows.h>
@@ -39,12 +172,12 @@
 #include <psapi.h>
 
 // GDB command line arguments
-static const wchar_t GDB_COMMAND_LINE[18] = L"gdb.exe -q -x=\\??\\";
+#define GDB_COMMAND_LINE L"gdb.exe -q \??\\"
 // Returns all attributes to the default state prior to modification
-static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
+#define CONSOLE_DEFAULT_FORMAT "\x1b[m"
 
-// static const wchar_t OBJECT_MANAGER_NAMESPACE[4] = L"\\??\\";
-// static const char OBJECT_MANAGER_NAMESPACE[] = "\\\0?\0?\0\\";
+// #define OBJECT_MANAGER_NAMESPACE L"\\??\\"
+// #define OBJECT_MANAGER_NAMESPACE "\\\0?\0?\0\\"
 
 #define OBJECT_MANAGER_NAMESPACE GDB_COMMAND_LINE + 14
 #define OBJECT_MANAGER_NAMESPACE_LEN 8
@@ -77,90 +210,97 @@ static const char CONSOLE_DEFAULT_FORMAT[3] = "\x1b[m";
     SYMOPT_DISABLE_SYMSRV_AUTODETECT | \
     SYMOPT_SYMPATH_LAST
 
-static const char HELP[589] =
-"Invalid syntax.\n"
-"Usage: W64DBG [options] <executable> [exec-args]\n"
-"\n"
-"Description:\n"
-"    A native debugging utility for x64 Windows.\n"
-"\n"
-"Entries:\n"
-"    options       Options control behavior.\n"
-"    executable    Target executable file.\n"
-"    exec-args     Target executable arguments.\n"
-"\n"
-"Options:\n"
-"    /B            Ignore breakpoints.\n"
-"    /D            Load PDB debug symbols.\n"
-"    /G[+]         Load DWARF debug symbols.\n"
-"    /O            Suppress OutputDebugString.\n"
-"    /S            Open in a new console window.\n"
-"    /T<n>         Wait for input (seconds).\n"
-"    /V{0|1|2}     Set output verbosity.\n";
+#define HELP \
+    "Invalid syntax.\n" \
+    "Usage: W64DBG [options] <executable> [exec-args]\n" \
+    "\n" \
+    "Description:\n" \
+    "    A native debugging utility for x64 Windows.\n" \
+    "\n" \
+    "Entries:\n" \
+    "    options       Options control behavior.\n" \
+    "    executable    Target executable file.\n" \
+    "    exec-args     Target executable arguments.\n" \
+    "\n" \
+    "Options:\n" \
+    "    /B            Ignore breakpoints.\n" \
+    "    /D            Load PDB debug symbols.\n" \
+    "    /G[+]         Load DWARF debug symbols.\n" \
+    "    /O            Suppress OutputDebugString.\n" \
+    "    /S            Open in a new console window.\n" \
+    "    /T<n>         Wait for input (seconds).\n" \
+    "    /V{0|1|2}     Set output verbosity.\n"
 
-static const char VALUE_EXPECTED[20] =
-"Value expected for '";
-static const char TIMEOUT_INVALID[70] =
-"Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n";
-static const char _INVALID_ARGUMENT[27] = "Invalid argument/option - '";
-static const char INVALID_ARGUMENT_[3] = "'.\n";
+#define VALUE_EXPECTED "Value expected for '"
+#define TIMEOUT_INVALID "Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n"
+#define _INVALID_ARGUMENT "Invalid argument/option - '"
+#define INVALID_ARGUMENT_ "'.\n"
 
-static const wchar_t PATHENV[4] = L"PATH";
-static const wchar_t EXTENSION[] = L".exe";
+#define PATHENV L"PATH"
+#define EXTENSION L".exe"
 
-static const char CREATE_PROCESS[14] = "CreateProcess ";
-static const char LOAD_DLL[8] = "LoadDll ";
-static const char UNLOAD_DLL[10] = "UnloadDll ";
-static const char CREATE_THREAD[13] = "CreateThread ";
-static const char EXIT_THREAD[11] = "ExitThread ";
-static const char EXIT_PROCESS[12] = "ExitProcess ";
-static const char OUTPUT_DEBUG[18] = "OutputDebugString ";
+#define CREATE_PROCESS "CreateProcess "
+#define LOAD_DLL "LoadDll "
+#define UNLOAD_DLL "UnloadDll "
+#define CREATE_THREAD "CreateThread "
+#define EXIT_THREAD "ExitThread "
+#define EXIT_PROCESS "ExitProcess "
+#define OUTPUT_DEBUG "OutputDebugString "
 
 // Newline & Applies non-bold/bright red to foreground
-static const char CONSOLE_NRED_FORMAT[6] = "\n\x1b[31m";
-static const char THREAD_TRIGGERD[23] = " triggered exception 0x";
-static const char THREAD_NUMBER[8] = "Thread #";
+#define CONSOLE_NRED_FORMAT "\n\x1b[31m"
+#define THREAD_TRIGGERD " triggered exception 0x"
+#define THREAD_NUMBER "Thread #"
 
-static const wchar_t TMPENV[3] = L"TMP";
-static const wchar_t GDB_EXE[7] = L"gdb.exe";
-static const wchar_t W64DBG[6] = L"w64dbg";
-static const char GDB_DEFAULT[102] =
-    "set bac l 100\n" // set backtrace limit 100
-    "set con of\n" // set confirm off
-    "set p th of\n" // set print thread-events off
-    "set p i of\n" // set print inferior-events off
-    "set p en n\n" // set print entry-values no
-    "set lo f NUL\n" // set logging file
-    "set lo r\n" // set logging redirect
-    "set lo d\n" // set logging debugredirect
-    "set lo e\n" // set logging enabled
-    "at "; // attach
+#define TMPENV L"TMP"
+#define GDB_EXE L"gdb.exe"
+#define W64DBG L"w64dbg"
+
+#define GDB_COMMAND_0 "set bac l 100\n" // set backtrace limit 100
+#define GDB_COMMAND_1 "set con of\n" // set confirm off
+#define GDB_COMMAND_2 "set p th of\n" // set print thread-events off
+#define GDB_COMMAND_3 "set p i of\n" // set print inferior-events off
+#define GDB_COMMAND_4 "set p en n\n" // set print entry-values no
+#define GDB_COMMAND_5 "set lo f NUL\n" // set logging file
+#define GDB_COMMAND_6 "set lo r\n" // set logging redirect
+#define GDB_COMMAND_7 "set lo d\n" // set logging debugredirect
+#define GDB_COMMAND_8 "set lo e\n" // set logging enabled
+#define GDB_COMMAND_9 "at " // attach
+
+#define GDB_DEFAULT \
+    GDB_COMMAND_0 \
+    GDB_COMMAND_1 \
+    GDB_COMMAND_2 \
+    GDB_COMMAND_3 \
+    GDB_COMMAND_4 \
+    GDB_COMMAND_5 \
+    GDB_COMMAND_6 \
+    GDB_COMMAND_7 \
+    GDB_COMMAND_8 \
+    GDB_COMMAND_9 \
 
 // set pagination off & set width 0
-static const char GDB_PRESERVE[20] = "\nset pa of\nset wi 0\n";
+#define GDB_PRESERVE "\nset pa of\nset wi 0\n"
 // set style enabled
-static const char GDB_STYLE[11] = "\nset sty e\n";
+#define GDB_STYLE "\nset sty e\n"
 // set print frame-arguments all & set print frame-info source-and-location & set print pretty
-static const char GDB_FRAME_ARG[48] = "set p frame-a a\nset p frame-i source-a\nset p pr\n";
+#define GDB_FRAME_ARG "set p frame-a a\nset p frame-i source-a\nset p pr\n"
 // continue & set logging enabled off & backtrace
-static const char GDB_CONTINUE[16] = "c\nset lo e of\nbt";
+#define GDB_CONTINUE "c\nset lo e of\nbt"
 
-static const wchar_t GDB_BATCH[8] = L" --batch";
-static const char GDB_QUIT[2] = "q\n";
+#define GDB_BATCH L" --batch"
+#define GDB_QUIT "q\n"
 
 // Applies non-bold/bright blue to foreground
-static const char CONSOLE_BLUE_FORMAT[5] = "\x1b[34m";
+#define CONSOLE_BLUE_FORMAT "\x1b[34m"
 // Applies non-bold/bright green to foreground
-static const char CONSOLE_GREEN_FORMAT[5] = "\x1b[32m";
+#define CONSOLE_GREEN_FORMAT "\x1b[32m"
 
-static const char EXCEPTION_IN[12] = "\x1b[m in \x1b[33m";
-static const char EXCEPTION_AT[3] = "at ";
-static const char EXCEPTION_FROM[5] = "from ";
+#define EXCEPTION_IN "\x1b[m in \x1b[33m"
+#define EXCEPTION_AT "at "
+#define EXCEPTION_FROM "from "
 
-static const char RIP[4] = "RIP ";
-static const char _SLE_ERROR[88] =
-"Invalid data was passed to the function that failed. This caused the application to fail";
-static const char _SLE_MINORERROR[102] =
-"Invalid data was passed to the function, but the error probably will not cause the application to fail";
-static const char _SLE_WARNING[90] =
-"Potentially invalid data was passed to the function, but the function completed processing";
+#define RIP "RIP "
+#define _SLE_ERROR "Invalid data was passed to the function that failed. This caused the application to fail"
+#define _SLE_MINORERROR "Invalid data was passed to the function, but the error probably will not cause the application to fail"
+#define _SLE_WARNING "Potentially invalid data was passed to the function, but the function completed processing"

@@ -23,6 +23,19 @@ typedef struct _RTL_DRIVE_LETTER_CURDIR
 
 #define RTL_MAX_DRIVE_LETTERS 32
 
+typedef struct _ZWPEB_LDR_DATA
+{
+    ULONG Length;
+    BOOLEAN Initialized;
+    HANDLE SsHandle;
+    LIST_ENTRY InLoadOrderModuleList;
+    LIST_ENTRY InMemoryOrderModuleList;
+    LIST_ENTRY InInitializationOrderModuleList;
+    PVOID EntryInProgress;
+    BOOLEAN ShutdownInProgress;
+    HANDLE ShutdownThreadId;
+} ZWPEB_LDR_DATA, *PZWPEB_LDR_DATA;
+
 typedef struct
 {
     ULONG MaximumLength;

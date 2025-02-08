@@ -110,9 +110,9 @@ static VOID WINAPI WaitForInput(LPVOID lpParameter)
     RtlExitUserThread(0);
 }
 
-static const char InfiniteMessage[30] = "\nPress any key to continue ...";
-static const char _FiniteMessage[13] = "\nWaiting for ";
-static const char FiniteMessage_[42] = " seconds, press a key to continue ...\x1b[37D";
+#define InfiniteMessage "\nPress any key to continue ..."
+#define _FiniteMessage "\nWaiting for "
+#define FiniteMessage_ " seconds, press a key to continue ...\x1b[37D"
 
 static __forceinline VOID WaitForInputOrTimeout(
     HANDLE     hStdin,

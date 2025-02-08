@@ -24,7 +24,8 @@ void __stdcall main(void)
     help = DEFAULT_HELP;
 
     char *p = buffer;
-    PZWRTL_USER_PROCESS_PARAMETERS ProcessParameters = ((PPEB) __readgsqword(0x60))->ProcessParameters;
+    PPEB ProcessEnvironmentBlock = (PPEB) __readgsqword(0x60);
+    PZWRTL_USER_PROCESS_PARAMETERS ProcessParameters = ProcessEnvironmentBlock->ProcessParameters;
     len = ProcessParameters->CommandLine.Length >> 1;
     PWSTR pCmdLine = __builtin_wmemchr(ProcessParameters->CommandLine.Buffer, ' ', len);
     PWSTR pNext = pCmdLine;
@@ -200,7 +201,7 @@ void __stdcall main(void)
 
     if (Console)
     {
-        SetConsoleOutputCP(CP_UTF8);
+        SetConsoleOutputCP(65001);  /* CP_UTF8 */
         SetConsoleMode(hStdout, ENABLE_PROCESSED_OUTPUT |
             ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     }
@@ -316,8 +317,8 @@ void __stdcall main(void)
             start ? CreationFlags | CREATE_SUSPENDED | CREATE_NEW_CONSOLE
                   : CreationFlags | CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP,
             ProcessParameters->Environment, ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
-        AssignProcessToJobObject(hJob, processInfo.hProcess);
         DebugActiveProcess(processInfo.dwProcessId);
+        AssignProcessToJobObject(hJob, processInfo.hProcess);
         NtResumeProcess(processInfo.hProcess);
         WaitForDebugEventEx(&DebugEvent, INFINITE);
         NtClose(DebugEvent.u.CreateProcessInfo.hFile);
@@ -562,12 +563,10 @@ void __stdcall main(void)
                     p += sizeof(CONSOLE_NRED_FORMAT);
                 } else *p++ = '\n';
 
-                PLDR_DATA_TABLE_ENTRY NTDLL;
                 PMESSAGE_RESOURCE_ENTRY Entry;
 
-                LdrFindEntryForAddress(LdrFindEntryForAddress, &NTDLL);
-                FindModuleMessage(NTDLL->DllBase, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode,
-                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+                FindModuleMessage(((PLDR_DATA_TABLE_ENTRY) ((PZWPEB_LDR_DATA) ProcessEnvironmentBlock->Ldr)->InLoadOrderModuleList.Flink->Flink)->DllBase,
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
                 // Convert error message to UTF-8
                 RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
                     &UTF8StringActualByteCount, Entry->Text, Entry->Length - 8);
@@ -782,7 +781,7 @@ void __stdcall main(void)
 
                 if (is_64bit)
                 {
-                    Context.ContextFlags = CONTEXT_ALL;
+                    Context.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
                     NtGetContextThread(hThread[i], &Context);
                     MachineType = IMAGE_FILE_MACHINE_AMD64;
                     StackFrame.AddrPC.Offset = Context.Rip;
@@ -790,7 +789,7 @@ void __stdcall main(void)
                     StackFrame.AddrFrame.Offset = Context.Rbp;
                 } else
                 {
-                    ((PWOW64_CONTEXT) &Context)->ContextFlags = WOW64_CONTEXT_ALL;
+                    ((PWOW64_CONTEXT) &Context)->ContextFlags = WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER;
                     NtQueryInformationThread(hThread[i], 29, // ThreadWow64Context
                         &Context, sizeof(WOW64_CONTEXT), NULL);
                     MachineType = IMAGE_FILE_MACHINE_I386;
@@ -802,7 +801,7 @@ void __stdcall main(void)
                 DWORD count;
                 BOOL Success;
                 DWORD Displacement;
-                char Symbol[BUFLEN];
+                char Symbol[sizeof(SYMBOL_INFO) + MAX_SYM_NAME << 1];
                 PSYMBOL_INFOW pSymbol;
                 DWORD DirLen, wDirLen;
                 IMAGEHLP_LINEW64 Line;
@@ -814,7 +813,7 @@ void __stdcall main(void)
                 StackFrame.AddrStack.Mode = AddrModeFlat;
                 StackFrame.AddrFrame.Mode = AddrModeFlat;
                 pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-                pSymbol->MaxNameLen = (BUFLEN - sizeof(SYMBOL_INFO)) >> 1;
+                pSymbol->MaxNameLen = MAX_SYM_NAME;
 
                 count = 0;
                 UserContext.hProcess = hProcess;
