@@ -29,21 +29,22 @@ static __forceinline LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULO
     return p + 1;
 }
 
-static __forceinline LPSTR FormatSourceCode(LPWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, LPSTR p, BOOL verbose)
+static __forceinline LPSTR FormatSourceCode(PPEB ProcessEnvironmentBlock, LPWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, LPSTR p, BOOL verbose)
 {
-    HANDLE hFile;
-    UNICODE_STRING String;
-    IO_STATUS_BLOCK IoStatusBlock;
-
     // Prepend Object Manager namespace to the file name
     memcpy(FileName - OBJECT_MANAGER_NAMESPACE_WLEN,
         OBJECT_MANAGER_NAMESPACE, OBJECT_MANAGER_NAMESPACE_LEN);
+
+    UNICODE_STRING String;
     String.Length = FileLength + OBJECT_MANAGER_NAMESPACE_LEN;
     String.Buffer = FileName - OBJECT_MANAGER_NAMESPACE_WLEN;
 
+    HANDLE hFile;
+    IO_STATUS_BLOCK IoStatusBlock;
+    OBJECT_ATTRIBUTES ObjectAttributes = {sizeof(OBJECT_ATTRIBUTES), NULL, &String, OBJ_CASE_INSENSITIVE, NULL, NULL};
+
     // Open the file with necessary permissions
-    NtOpenFile(&hFile, FILE_READ_DATA | SYNCHRONIZE, &(OBJECT_ATTRIBUTES)
-        {sizeof(OBJECT_ATTRIBUTES), NULL, &String, OBJ_CASE_INSENSITIVE, NULL, NULL},
+    NtOpenFile(&hFile, FILE_READ_DATA | SYNCHRONIZE, &ObjectAttributes,
         &IoStatusBlock, 0, FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT);
 
     if (IoStatusBlock.Information == FILE_OPENED)
@@ -103,10 +104,10 @@ static __forceinline LPSTR FormatSourceCode(LPWSTR FileName, DWORD LineNumber, s
         PMESSAGE_RESOURCE_ENTRY Entry;
         ULONG UTF8StringActualByteCount;
 
-        FindSystemMessage(ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+        FindNativeMessage(ProcessEnvironmentBlock, ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
         // Convert error message to UTF-8
-        RtlUnicodeToUTF8N(p, BufLength,
-            &UTF8StringActualByteCount, Entry->Text, Entry->Length - 8);
+        RtlUnicodeToUTF8N(p, BufLength, &UTF8StringActualByteCount,
+            (PCWCH) Entry->Text, Entry->Length - 8);
         p += UTF8StringActualByteCount;
     }
 

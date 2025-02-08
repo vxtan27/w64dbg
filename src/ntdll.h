@@ -172,13 +172,9 @@ typedef struct _FILE_STANDARD_INFORMATION
     BOOLEAN Directory;
 } FILE_STANDARD_INFORMATION, *PFILE_STANDARD_INFORMATION;
 
-NTSYSAPI
-NTSTATUS
-NTAPI
-LdrFindEntryForAddress(
-    _In_ PVOID DllHandle,
-    _Out_ PLDR_DATA_TABLE_ENTRY *Entry
-    );
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 NTSYSCALLAPI
 NTSTATUS
@@ -437,17 +433,28 @@ RtlUnicodeToUTF8N(
     );
 #endif
 
-#define KERNEL32API ContinueDebugEvent
+#ifdef __cplusplus
+}
+#endif
 
-static __forceinline VOID FindSystemMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *Entry)
+static __forceinline VOID FindNativeMessage(
+    PPEB ProcessEnvironmentBlock,
+    DWORD dwMessageId,
+    DWORD dwLanguageId,
+    PMESSAGE_RESOURCE_ENTRY *Entry
+    )
 {
-    PLDR_DATA_TABLE_ENTRY KERNEL32;
-
-    LdrFindEntryForAddress(KERNEL32API, &KERNEL32);
-    RtlFindMessage(KERNEL32->DllBase, RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
+    RtlFindMessage(((PLDR_DATA_TABLE_ENTRY) ((PZWPEB_LDR_DATA) ProcessEnvironmentBlock->Ldr)->InLoadOrderModuleList.
+        Flink->Flink)->DllBase, (ULONG)(ULONG_PTR) RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
 }
 
-static __forceinline VOID FindModuleMessage(PVOID DllHandle, DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *Entry)
+static __forceinline VOID FindCoreMessage(
+    PPEB ProcessEnvironmentBlock,
+    DWORD dwMessageId,
+    DWORD dwLanguageId,
+    PMESSAGE_RESOURCE_ENTRY *Entry
+    )
 {
-    RtlFindMessage(DllHandle, RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
+    RtlFindMessage(((PLDR_DATA_TABLE_ENTRY) ((PZWPEB_LDR_DATA) ProcessEnvironmentBlock->Ldr)->InLoadOrderModuleList.
+        Flink->Flink->Flink->Flink)->DllBase, (ULONG)(ULONG_PTR) RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
 }

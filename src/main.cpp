@@ -10,6 +10,7 @@
 __declspec(noreturn)
 void __stdcall main(void)
 {
+    wchar_t *ptr;
     size_t temp, len;
     char buffer[BUFLEN];
     ULONG UTF8StringActualByteCount;
@@ -25,10 +26,11 @@ void __stdcall main(void)
 
     char *p = buffer;
     PPEB ProcessEnvironmentBlock = (PPEB) __readgsqword(0x60);
-    PZWRTL_USER_PROCESS_PARAMETERS ProcessParameters = ProcessEnvironmentBlock->ProcessParameters;
+    PZWRTL_USER_PROCESS_PARAMETERS ProcessParameters =
+        (PZWRTL_USER_PROCESS_PARAMETERS) ProcessEnvironmentBlock->ProcessParameters;
     len = ProcessParameters->CommandLine.Length >> 1;
-    PWSTR pCmdLine = __builtin_wmemchr(ProcessParameters->CommandLine.Buffer, ' ', len);
-    PWSTR pNext = pCmdLine;
+    wchar_t *pCmdLine = fast_wmemchr(ProcessParameters->CommandLine.Buffer, ' ', len);
+    wchar_t *pNext = pCmdLine;
 
     if (pCmdLine)
     {
@@ -107,8 +109,7 @@ void __stdcall main(void)
 
                 case 'T':
                 case 't':
-                    wchar_t *cmd = pNext;
-                    pNext += 2;
+                    ptr = pNext + 2;
 
                     while (*pNext == ' ') ++pNext; // Skip spaces
 
@@ -119,8 +120,8 @@ void __stdcall main(void)
                         memcpy(p, VALUE_EXPECTED,
                             sizeof(VALUE_EXPECTED));
                         p += sizeof(VALUE_EXPECTED);
-                        *p++ = *cmd;
-                        *p++ = *(cmd + 1);
+                        *p++ = *ptr;
+                        *p++ = *(ptr + 1);
                         *p++ = '\'';
                         *p++ = '\n';
                     } else
@@ -129,8 +130,8 @@ void __stdcall main(void)
                         {
                             memcpy(p, TIMEOUT_INVALID, sizeof(TIMEOUT_INVALID));
                             p += sizeof(TIMEOUT_INVALID);
-                            *(p - 43) = *cmd;
-                            *(p - 42) = *(cmd + 1);
+                            *(p - 43) = *ptr;
+                            *(p - 42) = *(ptr + 1);
                         }
                     }
 
@@ -168,7 +169,7 @@ void __stdcall main(void)
                 sizeof(_INVALID_ARGUMENT));
             p += sizeof(_INVALID_ARGUMENT);
 
-            temp = __builtin__wmemchr(pNext, ' ',
+            temp = _fast_wmemchr(pNext, ' ',
                 pCmdLine + len + 1 - pNext) - pNext;
 
             RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
@@ -213,9 +214,9 @@ void __stdcall main(void)
         RtlExitUserProcess(1);
     }
 
-    wchar_t *ptr, ApplicationName[WBUFLEN];
+    wchar_t ApplicationName[WBUFLEN];
 
-    ptr = __builtin__wmemchr(pNext, ' ',
+    ptr = _fast_wmemchr(pNext, ' ',
         pCmdLine + len + 1 - pNext);
     *ptr = '\0';
 
@@ -226,10 +227,11 @@ void __stdcall main(void)
     { // Check if executable exists
         PMESSAGE_RESOURCE_ENTRY Entry;
 
-        FindSystemMessage(ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+        FindCoreMessage(ProcessEnvironmentBlock, ERROR_FILE_NOT_FOUND,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
         // Convert error message to UTF-8
-        RtlUnicodeToUTF8N(buffer, BUFLEN,
-            &UTF8StringActualByteCount, Entry->Text, Entry->Length - 8);
+        RtlUnicodeToUTF8N(buffer, BUFLEN, &UTF8StringActualByteCount,
+            (PCWCH) Entry->Text, Entry->Length - 8);
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, UTF8StringActualByteCount, NULL, NULL);
         RtlExitUserProcess(1);
@@ -243,20 +245,21 @@ void __stdcall main(void)
         wchar_t *pos;
         PMESSAGE_RESOURCE_ENTRY Entry;
 
-        FindSystemMessage(ERROR_BAD_EXE_FORMAT, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+        FindCoreMessage(ProcessEnvironmentBlock, ERROR_BAD_EXE_FORMAT,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
 
         // Convert error message to UTF-8
         if (*Entry->Text == '%')
         {
-            pos = Entry->Text;
+            pos = (wchar_t*) Entry->Text;
             p = buffer;
         }
         else
         {
             // Should - 8 and () >> 1
-            pos = __builtin__wmemchr(Entry->Text, '%', Entry->Length);
+            pos = _fast_wmemchr((wchar_t*) Entry->Text, '%', Entry->Length);
             RtlUnicodeToUTF8N(buffer, BUFLEN, &UTF8StringActualByteCount,
-                Entry->Text, pos - Entry->Text);
+                (PCWCH) Entry->Text, pos - (wchar_t*) Entry->Text);
             p = buffer + UTF8StringActualByteCount;
         }
 
@@ -265,10 +268,10 @@ void __stdcall main(void)
             pNext, (ptr - pNext) << 1);
         p += UTF8StringActualByteCount;
 
-        pos = __builtin__wmemchr(pos + 1, '1', Entry->Length) + 1;
+        pos = _fast_wmemchr(pos + 1, '1', Entry->Length) + 1;
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &UTF8StringActualByteCount,
-            pos, Entry->Length - 8 - ((pos - Entry->Text) << 1));
+            pos, Entry->Length - 8 - ((pos - (wchar_t*) Entry->Text) << 1));
         p += UTF8StringActualByteCount;
 
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
@@ -287,10 +290,11 @@ void __stdcall main(void)
 
     if (pCmdLine + len != ptr) *ptr = ' ';
 
+    OBJECT_ATTRIBUTES ObjectAttributes = {sizeof(OBJECT_ATTRIBUTES), NULL, NULL, OBJ_OPENIF, NULL, NULL};
+
     // Avoid resources leak
     jobInfo.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-    NtCreateJobObject(&hJob, JOB_OBJECT_ALL_ACCESS,
-        &(OBJECT_ATTRIBUTES) {sizeof(OBJECT_ATTRIBUTES), NULL, NULL, OBJ_OPENIF, NULL, NULL});
+    NtCreateJobObject(&hJob, JOB_OBJECT_ALL_ACCESS, &ObjectAttributes);
     NtSetInformationJobObject(hJob, JobObjectBasicLimitInformation, &jobInfo, sizeof(jobInfo));
 
     if (!dwarf)
@@ -565,11 +569,12 @@ void __stdcall main(void)
 
                 PMESSAGE_RESOURCE_ENTRY Entry;
 
-                FindModuleMessage(((PLDR_DATA_TABLE_ENTRY) ((PZWPEB_LDR_DATA) ProcessEnvironmentBlock->Ldr)->InLoadOrderModuleList.Flink->Flink)->DllBase,
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+                FindNativeMessage(ProcessEnvironmentBlock,
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
                 // Convert error message to UTF-8
                 RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                    &UTF8StringActualByteCount, Entry->Text, Entry->Length - 8);
+                    &UTF8StringActualByteCount, (PCWCH) Entry->Text, Entry->Length - 8);
                 p += UTF8StringActualByteCount;
 
                 if (Console)
@@ -580,13 +585,14 @@ void __stdcall main(void)
 
                 if (dwarf && !*PATH)
                 {
+                    SIZE_T ReturnLength;
                     RtlQueryEnvironmentVariable(ProcessParameters->Environment, PATHENV,
-                        sizeof(PATHENV) >> 1, PATH, WBUFLEN, &Path.Length);
-                    Path.Length <<= 1;
+                        sizeof(PATHENV) >> 1, PATH, WBUFLEN, &ReturnLength);
+                    Path.Length = ReturnLength << 1;
                     Path.Buffer = PATH;
                     FileName.Length = sizeof(GDB_EXE);
                     FileName.MaximumLength = sizeof(GDB_EXE) + 2;
-                    FileName.Buffer = GDB_EXE;
+                    FileName.Buffer = (PWSTR) GDB_EXE;
                     FoundFile.MaximumLength = sizeof(ApplicationName) + 2;
                     FoundFile.Buffer = ApplicationName;
                 }
@@ -627,15 +633,17 @@ void __stdcall main(void)
                     memcpy(&CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) + temp], W64DBG, sizeof(W64DBG));
                     String.Length = 8 + sizeof(W64DBG) + (temp << 1);
                     String.Buffer = &CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) - 4];
-                    NtCreateFile(&hTemp, FILE_WRITE_DATA | SYNCHRONIZE,
-                        &(OBJECT_ATTRIBUTES) {sizeof(OBJECT_ATTRIBUTES), NULL, &String, OBJ_CASE_INSENSITIVE, NULL, NULL},
+
+                    OBJECT_ATTRIBUTES ObjectAttributes = {sizeof(OBJECT_ATTRIBUTES), NULL, &String, OBJ_CASE_INSENSITIVE, NULL, NULL};
+
+                    NtCreateFile(&hTemp, FILE_WRITE_DATA | SYNCHRONIZE, &ObjectAttributes,
                         &IoStatusBlock, NULL, FILE_ATTRIBUTE_NOT_CONTENT_INDEXED, 0, FILE_OPEN_IF,
                         FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
 
                     // First time run
                     if (IoStatusBlock.Information == FILE_CREATED)
                         NtWriteFile(hTemp, NULL, NULL, NULL, &IoStatusBlock,
-                            GDB_DEFAULT, sizeof(GDB_DEFAULT), NULL, NULL);
+                            (PVOID) GDB_DEFAULT, sizeof(GDB_DEFAULT), NULL, NULL);
 
                     p = _ultoa10(DebugEvent.dwProcessId, buffer);
 
@@ -670,7 +678,7 @@ void __stdcall main(void)
 
                     ByteOffset.QuadPart +=  p - buffer;
                     NtSetInformationFile(hTemp, &IoStatusBlock, &ByteOffset,
-                        sizeof(LARGE_INTEGER), 20); // FileEndOfFileInformation
+                        sizeof(LARGE_INTEGER), (FILE_INFORMATION_CLASS) 20); // FileEndOfFileInformation
                     NtClose(hTemp);
 
                     if (dwarf == MINGW_KEEP && !timeout)
@@ -724,8 +732,8 @@ void __stdcall main(void)
 
                             WriteConsoleInputW(ProcessParameters->StandardInput,
                                 InputRecord, 2, &dwWriten);
-                        } else NtWriteFile(hStdout, NULL, NULL, NULL,
-                            &IoStatusBlock, GDB_QUIT, sizeof(GDB_QUIT), NULL, NULL);
+                        } else NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+                            (PVOID) GDB_QUIT, sizeof(GDB_QUIT), NULL, NULL);
                     }
 
                     NtWaitForMultipleObjects(1, &processInfo.hProcess, WaitAll, FALSE, NULL);
@@ -766,7 +774,7 @@ void __stdcall main(void)
                 for (DWORD j = 0; j < MAX_DLL; ++j) if (BaseOfDll[j])
                 {
                     NtQueryInformationFile(hFile[j], &IoStatusBlock,
-                        &FileInfo, sizeof(FileInfo), 5); // FileStandardInformation
+                        &FileInfo, sizeof(FileInfo), (FILE_INFORMATION_CLASS) 5); // FileStandardInformation
                     SymLoadModuleExW(hProcess,
                         hFile[j],
                         NULL,
@@ -790,7 +798,7 @@ void __stdcall main(void)
                 } else
                 {
                     ((PWOW64_CONTEXT) &Context)->ContextFlags = WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER;
-                    NtQueryInformationThread(hThread[i], 29, // ThreadWow64Context
+                    NtQueryInformationThread(hThread[i], (THREADINFOCLASS) 29, // ThreadWow64Context
                         &Context, sizeof(WOW64_CONTEXT), NULL);
                     MachineType = IMAGE_FILE_MACHINE_I386;
                     StackFrame.AddrPC.Offset = ((PWOW64_CONTEXT) &Context)->Eip;
@@ -913,7 +921,8 @@ void __stdcall main(void)
                                 Line.LineNumber, temp - DirLen, buffer + BUFLEN - p, p, Console);
                         else p = FormatFileLine(Line.FileName,
                             Line.LineNumber, temp, buffer + BUFLEN - p, p, Console);
-                        if (verbose >= 1) p = FormatSourceCode(Line.FileName, Line.LineNumber, temp, buffer + BUFLEN - p, p, verbose);
+                        if (verbose >= 1) p = FormatSourceCode(ProcessEnvironmentBlock, Line.FileName,
+                            Line.LineNumber, temp, buffer + BUFLEN - p, p, verbose);
                     } else
                     {
                         memcpy(p, EXCEPTION_FROM, sizeof(EXCEPTION_FROM));
@@ -985,10 +994,11 @@ void __stdcall main(void)
                     p = _ultoa10(DebugEvent.dwThreadId, p + 1);
                     *p++ = '\n';
 
-                    FindSystemMessage(DebugEvent.u.RipInfo.dwError, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+                    FindCoreMessage(ProcessEnvironmentBlock, DebugEvent.u.RipInfo.dwError,
+                        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
                     // Convert error message to UTF-8
-                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                        &UTF8StringActualByteCount, Entry->Text, Entry->Length - 8);
+                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &UTF8StringActualByteCount,
+                        (PCWCH) Entry->Text, Entry->Length - 8);
                     p += UTF8StringActualByteCount;
 
                     if (DebugEvent.u.RipInfo.dwType == 1)

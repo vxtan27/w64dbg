@@ -22,7 +22,7 @@ static __forceinline long process_timeout(wchar_t *str, wchar_t **p, size_t len)
         c = *str - '0'; // Normalize to numeric range
         if (c > 9)
         { // Non-numeric character validation
-            *p = __builtin__wmemchr(str, ' ', len) + 1;
+            *p = _fast_wmemchr(str, ' ', len) + 1;
             return INVALID_TIMEOUT;
         }
         value = value * 10 + c;
@@ -69,14 +69,14 @@ static VOID WINAPI WaitForInput(LPVOID lpParameter)
     char buffer[8];
     DWORD Count, Recursive;
     IO_STATUS_BLOCK IoStatusBlock;
-    PTHREAD_PARAMETER Parameter = lpParameter;
+    PTHREAD_PARAMETER Parameter = (PTHREAD_PARAMETER) lpParameter;
+    LARGE_INTEGER DelayInterval = {.QuadPart=-MiliSecToUnits(999)};
 
     buffer[0] = '\b';
 
     while (TRUE)
     {
-        NtDelayExecution(FALSE,
-            &(LARGE_INTEGER){.QuadPart=-MiliSecToUnits(999)});
+        NtDelayExecution(FALSE, &DelayInterval);
         temp = --Parameter->timeout;
         Count = 1;
 
@@ -127,7 +127,7 @@ static __forceinline VOID WaitForInputOrTimeout(
     {
         // Write the InfiniteMessage
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-            InfiniteMessage, sizeof(InfiniteMessage), NULL, NULL);
+            (PVOID) InfiniteMessage, sizeof(InfiniteMessage), NULL, NULL);
 
         if (Console)
         {
@@ -154,11 +154,11 @@ static __forceinline VOID WaitForInputOrTimeout(
             HANDLE Handles[2];
             INPUT_RECORD InputRecord;
             LARGE_INTEGER DelayInterval;
+            THREAD_PARAMETER Parameter = {hStdout, timeout};
 
             NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
                 buffer, p - buffer + sizeof(FiniteMessage_), NULL, NULL);
-            NtCreateThreadEx(&Handles[0], THREAD_ALL_ACCESS, NULL,
-                (HANDLE) -1, WaitForInput, &(THREAD_PARAMETER){hStdout, timeout},
+            NtCreateThreadEx(&Handles[0], THREAD_ALL_ACCESS, NULL, (HANDLE) -1, WaitForInput, &Parameter,
                 THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH | THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER |
                 THREAD_CREATE_FLAGS_SKIP_LOADER_INIT | THREAD_CREATE_FLAGS_BYPASS_PROCESS_FREEZE,
                 0, 0, 0, NULL);
@@ -177,14 +177,14 @@ static __forceinline VOID WaitForInputOrTimeout(
             NtClose(Handles[0]);
         } else
         {
+            LARGE_INTEGER DelayInterval = {.QuadPart=-SecToUnits(timeout)};
             NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
                 buffer, p - buffer + sizeof(FiniteMessage_) - 5, NULL, NULL);
-            NtWaitForMultipleObjects(1, &hStdin, WaitAll, // Relative time
-                FALSE, &(LARGE_INTEGER){.QuadPart=-SecToUnits(timeout)});
+            NtWaitForMultipleObjects(1, &hStdin, WaitAll, FALSE, &DelayInterval); // Relative time
         }
     }
 
     // Simulate normal behavior
-    NtWriteFile(hStdout, NULL, NULL, NULL,
-        &IoStatusBlock, InfiniteMessage, 1, NULL, NULL);
+    NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+        (PVOID) InfiniteMessage, 1, NULL, NULL);
 }

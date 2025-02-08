@@ -6,7 +6,7 @@
 // Always find
 _Post_writable_byte_size_(sizeof(wchar_t))
 static __forceinline wchar_t *
-__builtin__wmemchr(
+_fast_wmemchr(
     _In_reads_(n) const wchar_t *_S,
     wchar_t _C,
     size_t _N
@@ -16,13 +16,13 @@ __builtin__wmemchr(
     while (_N >= 4)
     {
         if (_S[0] == _C)
-            return (wchar_t *)_S;
+            return (wchar_t*) _S;
         if (_S[1] == _C)
-            return (wchar_t *)&_S[1];
+            return (wchar_t*) &_S[1];
         if (_S[2] == _C)
-            return (wchar_t *)&_S[2];
+            return (wchar_t*) &_S[2];
         if (_S[3] == _C)
-            return (wchar_t *)&_S[3];
+            return (wchar_t*) &_S[3];
 
         _S += 4;
         _N -= 4;
@@ -38,14 +38,14 @@ __builtin__wmemchr(
         --_N;
     }
 
-    return (wchar_t *)_S;
+    return (wchar_t*) _S;
 }
 
 _Success_(return != NULL)
 _Ret_maybenull_
 _Post_writable_byte_size_(sizeof(wchar_t))
 static __forceinline wchar_t *
-__builtin_wmemchr(
+fast_wmemchr(
     _In_reads_(n) const wchar_t *_S,
     wchar_t _C,
     size_t _N
@@ -55,13 +55,13 @@ __builtin_wmemchr(
     while (_N >= 4)
     {
         if (_S[0] == _C)
-            return (wchar_t *)_S;
+            return (wchar_t*) _S;
         if (_S[1] == _C)
-            return (wchar_t *)&_S[1];
+            return (wchar_t*) &_S[1];
         if (_S[2] == _C)
-            return (wchar_t *)&_S[2];
+            return (wchar_t*) &_S[2];
         if (_S[3] == _C)
-            return (wchar_t *)&_S[3];
+            return (wchar_t*) &_S[3];
 
         _S += 4;
         _N -= 4;
@@ -71,7 +71,7 @@ __builtin_wmemchr(
     while (_N)
     {
         if (*_S == _C)
-            return (wchar_t *)_S;
+            return (wchar_t*) _S;
 
         ++_S;
         --_N;

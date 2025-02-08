@@ -327,8 +327,8 @@ static __forceinline DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT 
 
 static __forceinline DWORD64 GetRegisterBase(PSYMBOL_INFOW pSymInfo, PVOID ContextRecord, DWORD is_64bit)
 {
-    if (is_64bit) return GetRegisterBase64(pSymInfo, ContextRecord);
-    else return GetRegisterBase32(pSymInfo, ContextRecord);
+    if (is_64bit) return GetRegisterBase64(pSymInfo, (PCONTEXT) ContextRecord);
+    else return GetRegisterBase32(pSymInfo, (PWOW64_CONTEXT) ContextRecord);
 }
 
 // https://accu.org/journals/overload/29/165/orr
