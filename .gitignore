@@ -1,5 +1,4 @@
 *.obj
-*.rc
 *.res
 *.exe
 *.pdb
