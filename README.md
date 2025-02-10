@@ -26,13 +26,13 @@ Entries:
     exec-args     Target executable arguments.
 
 Options:
-    /B<n>         Set breakpoints ignorance.
+    /B            Ignore breakpoints.
     /D            Load PDB debug symbols.
     /G[+]         Load DWARF debug symbols.
     /O            Suppress OutputDebugString.
     /S            Open in a new console window.
     /T<n>         Wait for input (seconds).
-    /V<n>         Set output verbosity.
+    /V{0|1|2}     Set output verbosity.
 ```
 
 ## Examples
@@ -60,8 +60,6 @@ Options:
 Refer to [samples](samples) for additional examples.
 
 ## Requirements
-
-### System Requirements
 
 System type: **64-bit**
 
