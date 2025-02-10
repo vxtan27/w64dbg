@@ -107,7 +107,7 @@ static VOID WINAPI WaitForInput(LPVOID lpParameter)
             &IoStatusBlock, buffer, Length, NULL, NULL);
     }
 
-    RtlExitUserThread(0);
+    RtlExitUserThread(EXIT_SUCCESS);
 }
 
 #define InfiniteMessage "\nPress any key to continue ..."

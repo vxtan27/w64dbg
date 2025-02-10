@@ -3,7 +3,22 @@
     Licensed under the BSD-3-Clause.
 */
 
-#include "core.h"
+#include "config.h"
+
+/* Required headers */
+#include <stdio.h>
+#include <stdlib.h>
+#include <wchar.h>
+#include <windows.h>
+#include <devioctl.h>
+#include <dbghelp.h>
+#include <psapi.h>
+#include "ntdll.h"
+#include "string\conversion.h"
+#include "string\wmemchr.h"
+#include "string\format.h"
+#include "symbols.h"
+#include "timeout.h"
 
 // https://hero.handmade.network/forums/code-discussion/t/94-guide_-_how_to_avoid_c_c++_runtime_on_windows
 
@@ -11,6 +26,7 @@ __declspec(noreturn)
 void __stdcall main(void)
 {
     wchar_t *ptr;
+    DWORD ExitStatus;
     size_t temp, len;
     char buffer[BUFLEN];
     ULONG UTF8StringActualByteCount;
@@ -117,6 +133,8 @@ void __stdcall main(void)
 
                     if (temp <= 0)
                     {
+                        ExitStatus = ERROR_BAD_ARGUMENTS;
+
                         memcpy(p, VALUE_EXPECTED,
                             sizeof(VALUE_EXPECTED));
                         p += sizeof(VALUE_EXPECTED);
@@ -124,15 +142,14 @@ void __stdcall main(void)
                         *p++ = *(ptr + 1);
                         *p++ = '\'';
                         *p++ = '\n';
-                    } else
+                    } else if ((timeout = process_timeout(pNext, &pNext, temp)) > VALID_TIMEOUT)
                     {
-                        if ((timeout = process_timeout(pNext, &pNext, temp)) > VALID_TIMEOUT)
-                        {
-                            memcpy(p, TIMEOUT_INVALID, sizeof(TIMEOUT_INVALID));
-                            p += sizeof(TIMEOUT_INVALID);
-                            *(p - 43) = *ptr;
-                            *(p - 42) = *(ptr + 1);
-                        }
+                        ExitStatus = ERROR_BAD_ARGUMENTS;
+
+                        memcpy(p, TIMEOUT_INVALID, sizeof(TIMEOUT_INVALID));
+                        p += sizeof(TIMEOUT_INVALID);
+                        *(p - 43) = *ptr;
+                        *(p - 42) = *(ptr + 1);
                     }
 
                     continue;
@@ -165,6 +182,8 @@ void __stdcall main(void)
                     break;
             }
 
+            ExitStatus = ERROR_INVALID_PARAMETER;
+
             memcpy(p, _INVALID_ARGUMENT,
                 sizeof(_INVALID_ARGUMENT));
             p += sizeof(_INVALID_ARGUMENT);
@@ -184,10 +203,12 @@ void __stdcall main(void)
 
     if (help)
     { // help message
+        ExitStatus = EXIT_SUCCESS;
         memcpy(p, HELP + 16, sizeof(HELP) - 16);
         p += sizeof(HELP) - 16;
     } else if (!pCmdLine || pCmdLine + len < pNext)
     { // No executable specified
+        ExitStatus = ERROR_BAD_ARGUMENTS;
         memcpy(p, HELP, 65);
         p += 65;
     }
@@ -211,7 +232,7 @@ void __stdcall main(void)
     {
         NtWriteFile(hStdout, NULL, NULL, NULL,
             &IoStatusBlock, buffer, p - buffer, NULL, NULL);
-        RtlExitUserProcess(1);
+        RtlExitUserProcess(ExitStatus);
     }
 
     wchar_t ApplicationName[WBUFLEN];
@@ -234,7 +255,7 @@ void __stdcall main(void)
             (PCWCH) Entry->Text, Entry->Length - 8);
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, UTF8StringActualByteCount, NULL, NULL);
-        RtlExitUserProcess(1);
+        RtlExitUserProcess(ERROR_FILE_NOT_FOUND);
     }
 
     DWORD is_64bit; // Is 64-bit application
@@ -276,7 +297,7 @@ void __stdcall main(void)
 
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, p - buffer, NULL, NULL);
-        RtlExitUserProcess(1);
+        RtlExitUserProcess(ERROR_BAD_EXE_FORMAT);
     }
 
     HANDLE hFile[MAX_DLL];
@@ -302,8 +323,8 @@ void __stdcall main(void)
         // The system closes the handles to the process and thread
         // when the debugger calls the ContinueDebugEvent function
         CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
-            start ? CreationFlags | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE
-                  : CreationFlags | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
+            start ? CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE
+                  : CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
             ProcessParameters->Environment, ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
         AssignProcessToJobObject(hJob, processInfo.hProcess);
         NtClose(processInfo.hThread);
@@ -318,8 +339,8 @@ void __stdcall main(void)
         // The system closes the handles to the process and thread
         // when the debugger calls the DebugActiveProcessStop function
         CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
-            start ? CreationFlags | CREATE_SUSPENDED | CREATE_NEW_CONSOLE
-                  : CreationFlags | CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP,
+            start ? CREATIONFLAGS | CREATE_SUSPENDED | CREATE_NEW_CONSOLE
+                  : CREATIONFLAGS | CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP,
             ProcessParameters->Environment, ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
         DebugActiveProcess(processInfo.dwProcessId);
         AssignProcessToJobObject(hJob, processInfo.hProcess);
@@ -488,7 +509,7 @@ void __stdcall main(void)
 
                 ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
                 NtClose(hJob);
-                RtlExitUserProcess(0);
+                RtlExitUserProcess(EXIT_SUCCESS);
 
             [[fallthrough]];
             case OUTPUT_DEBUG_STRING_EVENT:
@@ -688,7 +709,7 @@ void __stdcall main(void)
                     LARGE_INTEGER DelayInterval;
 
                     CreateProcessW(ApplicationName, CommandLine, NULL, NULL,
-                        FALSE, CreationFlags, ProcessParameters->Environment,
+                        FALSE, CREATIONFLAGS, ProcessParameters->Environment,
                         ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
                     AssignProcessToJobObject(hJob, processInfo.hProcess);
                     NtClose(processInfo.hThread);
@@ -754,7 +775,7 @@ void __stdcall main(void)
                         ProcessParameters->StandardInput, hStdout, timeout, Console);
 
                     NtClose(hJob);
-                    RtlExitUserProcess(0);
+                    RtlExitUserProcess(EXIT_SUCCESS);
                 } else ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
 
                 if (DebugEvent.dwThreadId != dwThreadId[i])
@@ -768,7 +789,7 @@ void __stdcall main(void)
                 STACKFRAME64 StackFrame;
                 FILE_STANDARD_INFORMATION FileInfo;
 
-                SymSetOptions(is_64bit ? SymOptions : SymOptions | SYMOPT_INCLUDE_32BIT_MODULES);
+                SymSetOptions(is_64bit ? SYMOPTIONS : SYMOPTIONS | SYMOPT_INCLUDE_32BIT_MODULES);
                 SymInitializeW(hProcess, NULL, FALSE);
 
                 for (DWORD j = 0; j < MAX_DLL; ++j) if (BaseOfDll[j])

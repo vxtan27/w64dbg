@@ -343,7 +343,7 @@ NtWriteFile(
     _In_opt_ PULONG Key
     );
 
-#if WINVER >= _WIN32_WINNT_VISTA
+#if _WIN32_WINNT >= _WIN32_WINNT_VISTA
 _Must_inspect_result_
 NTSYSAPI
 LONG
@@ -372,7 +372,7 @@ RtlDosSearchPath_Ustr(
     _Out_opt_ SIZE_T *BytesRequired
     );
 
-#if WINVER >= _WIN32_WINNT_WINXP
+#if _WIN32_WINNT >= _WIN32_WINNT_WINXP
 _Analysis_noreturn_
 DECLSPEC_NORETURN
 NTSYSAPI
@@ -383,7 +383,7 @@ RtlExitUserThread(
     );
 #endif
 
-#if WINVER >= _WIN32_WINNT_VISTA
+#if _WIN32_WINNT >= _WIN32_WINNT_VISTA
 _Analysis_noreturn_
 DECLSPEC_NORETURN
 NTSYSAPI
@@ -405,7 +405,7 @@ RtlFindMessage(
     _Out_ PMESSAGE_RESOURCE_ENTRY *MessageEntry
     );
 
-#if WINVER >= _WIN32_WINNT_VISTA
+#if _WIN32_WINNT >= _WIN32_WINNT_VISTA
 // private
 NTSYSAPI
 NTSTATUS
@@ -420,7 +420,7 @@ RtlQueryEnvironmentVariable(
     );
 #endif
 
-#if WINVER >= _WIN32_WINNT_WIN7
+#if _WIN32_WINNT >= _WIN32_WINNT_WIN7
 NTSYSAPI
 NTSTATUS
 NTAPI
