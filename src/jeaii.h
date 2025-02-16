@@ -71,8 +71,7 @@ namespace jeaiii
             80, 81, 82, 83, 84, 85, 86, 87, 88, 89,
             90, 91, 92, 93, 94, 95, 96, 97, 98, 99,
         };
-    }
-    digits;
+    } digits;
 
     constexpr u64 mask24 = (u64(1) << 24) - 1;
     constexpr u64 mask32 = (u64(1) << 32) - 1;
@@ -95,7 +94,7 @@ namespace jeaiii
 
         // convert bool to int before test with unary + to silence warning if T happens to be bool
         U const n = +i < 0 ? *b++ = '-', U(0) - U(i) : U(i);
-        U constexpr r = std::numeric_limits<T>::max();
+        U const r = +g <= 0 ? U(std::numeric_limits<T>::max()) : U(g);
 
         if (r < u32(1e2) || n < u32(1e2))
         {
