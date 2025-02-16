@@ -381,8 +381,8 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, 
         if (User->Console)
         {
             memcpy(User->p, CONSOLE_DEFAULT_FORMAT,
-                sizeof(CONSOLE_DEFAULT_FORMAT));
-            User->p += sizeof(CONSOLE_DEFAULT_FORMAT);
+                strlen(CONSOLE_DEFAULT_FORMAT));
+            User->p += strlen(CONSOLE_DEFAULT_FORMAT);
         }
 
         *User->p++ = '=';

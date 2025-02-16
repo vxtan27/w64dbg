@@ -5,54 +5,6 @@
 
 #pragma once
 
-/*
-// Convert non-negative long to string
-static __forceinline char *_ltoa10(unsigned long value, char *str)
-{
-    unsigned long num = value;
-
-    do ++str; while ((num /= 10)); // Advance past last digit
-
-    char *ptr = str;
-
-    do *--ptr = (value % 10) + '0'; // Reverse convert
-    while ((value /= 10));
-
-    return str;
-}
-*/
-
-// Convert non-negative long [0, 999996] to string
-static __forceinline char *_ltoa10(long value, char *str)
-{
-    unsigned long cal = value;
-
-    do ++str; while ((cal = (cal * 0xCCCDULL) >> 19)); // Advance past last digit
-
-    char *ptr = str;
-    unsigned long num = value;
-
-    do *--ptr = (num - ((num * 0xCCCDULL) >> 19) * 10) + '0'; // Reverse convert
-    while ((num = (num * 0xCCCDULL) >> 19));
-
-    return str;
-}
-
-// Convert unsigned long to string
-static __forceinline char *_ultoa10(unsigned long value, char *str)
-{
-    unsigned long num = value;
-
-    do ++str; while ((num /= 10)); // Advance past last digit
-
-    char *ptr = str;
-
-    do *--ptr = (value % 10) + '0'; // Reverse convert
-    while ((value /= 10));
-
-    return str;
-}
-
 // Uppercase hex lookup table
 static const char HexTableUpper[16] =
 {

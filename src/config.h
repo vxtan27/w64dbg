@@ -96,7 +96,7 @@
 #define W64DBG L"w64dbg"
 
 // GDB command line arguments
-#define GDB_COMMAND_LINE L"gdb.exe -q \??\\"
+#define GDB_COMMAND_LINE L"gdb.exe -q -x=\\??\\"
 // Returns all attributes to the default state prior to modification
 #define CONSOLE_DEFAULT_FORMAT "\x1b[m"
 

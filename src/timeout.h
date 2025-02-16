@@ -36,7 +36,7 @@ static __forceinline long process_timeout(wchar_t *str, wchar_t **p, size_t len)
 }
 
 #define MiliSecToUnits(lSeconds) ((lSeconds) * 10000LL)
-#define SecToUnits(lSeconds) MiliSecToUnits(lSeconds * 1000)
+#define SecToMiliSec(lSeconds) MiliSecToUnits(lSeconds * 1000)
 
 #define IsInputInvalidate(InputRecord) ( \
     InputRecord.EventType != KEY_EVENT || \
@@ -61,53 +61,44 @@ typedef struct
     long timeout;
 } THREAD_PARAMETER, *PTHREAD_PARAMETER;
 
-__declspec(noreturn)
-static VOID WINAPI WaitForInput(LPVOID lpParameter)
+static VOID CALLBACK TimerRoutine(PVOID lpParameter, BOOLEAN TimerOrWaitFired)
 {
     long temp;
     ULONG Length;
     char buffer[8];
     DWORD Count, Recursive;
-    IO_STATUS_BLOCK IoStatusBlock;
     PTHREAD_PARAMETER Parameter = (PTHREAD_PARAMETER) lpParameter;
-    LARGE_INTEGER DelayInterval = {.QuadPart=-MiliSecToUnits(999)};
 
     buffer[0] = '\b';
+    temp = --Parameter->timeout;
+    Count = 1;
 
-    while (TRUE)
+    while (temp % 10 + '0' == '9')
     {
-        NtDelayExecution(FALSE, &DelayInterval);
-        temp = --Parameter->timeout;
-        Count = 1;
-
-        while (temp % 10 + '0' == '9')
-        {
-            buffer[Count++] = '\b';
-            temp /= 10;
-        }
-
-        Recursive = Count;
-
-        if (!temp)
-        {
-            buffer[Count++] = '0';
-            --Recursive;
-        }
-
-        temp = Parameter->timeout;
-        Length = Count + Recursive;
-
-        while (Recursive)
-        {
-            buffer[Count + --Recursive] = temp % 10 + '0';
-            temp /= 10;
-        }
-
-        NtWriteFile(Parameter->hStdout, NULL, NULL, NULL,
-            &IoStatusBlock, buffer, Length, NULL, NULL);
+        buffer[Count++] = '\b';
+        temp /= 10;
     }
 
-    RtlExitUserThread(EXIT_SUCCESS);
+    Recursive = Count;
+
+    if (!temp)
+    {
+        buffer[Count++] = '0';
+        --Recursive;
+    }
+
+    temp = Parameter->timeout;
+    Length = Count + Recursive;
+
+    while (Recursive)
+    {
+        buffer[Count + --Recursive] = temp % 10 + '0';
+        temp /= 10;
+    }
+
+    IO_STATUS_BLOCK IoStatusBlock;
+    NtWriteFile(Parameter->hStdout, NULL, NULL, NULL,
+        &IoStatusBlock, buffer, Length, NULL, NULL);
 }
 
 #define InfiniteMessage "\nPress any key to continue ..."
@@ -127,7 +118,7 @@ static __forceinline VOID WaitForInputOrTimeout(
     {
         // Write the InfiniteMessage
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-            (PVOID) InfiniteMessage, sizeof(InfiniteMessage), NULL, NULL);
+            (PVOID) InfiniteMessage, strlen(InfiniteMessage), NULL, NULL);
 
         if (Console)
         {
@@ -144,42 +135,39 @@ static __forceinline VOID WaitForInputOrTimeout(
         char *p;
         char buffer[64];
 
-        memcpy(buffer, _FiniteMessage, sizeof(_FiniteMessage));
-        p = _ltoa10(timeout, buffer + sizeof(_FiniteMessage));
-        memcpy(p, FiniteMessage_, sizeof(FiniteMessage_));
+        memcpy(buffer, _FiniteMessage, strlen(_FiniteMessage));
+        p = dtoa(timeout, buffer + strlen(_FiniteMessage));
+        memcpy(p, FiniteMessage_, strlen(FiniteMessage_));
 
         if (Console)
         {
+            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+                buffer, p - buffer + strlen(FiniteMessage_), NULL, NULL);
+
             DWORD dwRead;
-            HANDLE Handles[2];
+            HANDLE hTimer;
             INPUT_RECORD InputRecord;
             LARGE_INTEGER DelayInterval;
-            THREAD_PARAMETER Parameter = {hStdout, timeout};
 
-            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-                buffer, p - buffer + sizeof(FiniteMessage_), NULL, NULL);
-            NtCreateThreadEx(&Handles[0], THREAD_ALL_ACCESS, NULL, (HANDLE) -1, WaitForInput, &Parameter,
-                THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH | THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER |
-                THREAD_CREATE_FLAGS_SKIP_LOADER_INIT | THREAD_CREATE_FLAGS_BYPASS_PROCESS_FREEZE,
-                0, 0, 0, NULL);
-            Handles[1] = hStdin;
+            THREAD_PARAMETER Parameter = {hStdout, timeout};
+            CreateTimerQueueTimer(&hTimer, NULL, TimerRoutine, &Parameter, 1000, 1000, WT_EXECUTEDEFAULT);
             NtQuerySystemTime(&DelayInterval);
             // Positive value for Absolute timeout
-            DelayInterval.QuadPart += SecToUnits(timeout);
+            DelayInterval.QuadPart += SecToMiliSec(timeout);
 
             do
             { // Wait for either timeout or input
-                if (NtWaitForMultipleObjects(2, Handles, WaitAny,
+                if (NtWaitForMultipleObjects(1, &hStdin, WaitAll,
                     FALSE, &DelayInterval) == STATUS_TIMEOUT) break;
                 ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
             } while (IsInputInvalidate(InputRecord));
+            DeleteTimerQueueTimer(NULL, hTimer, NULL);
 
-            NtClose(Handles[0]);
         } else
         {
-            LARGE_INTEGER DelayInterval = {.QuadPart=-SecToUnits(timeout)};
+            LARGE_INTEGER DelayInterval = {.QuadPart=-SecToMiliSec(timeout)};
             NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-                buffer, p - buffer + sizeof(FiniteMessage_) - 5, NULL, NULL);
+                buffer, p - buffer + strlen(FiniteMessage_) - 5, NULL, NULL);
             NtWaitForMultipleObjects(1, &hStdin, WaitAll, FALSE, &DelayInterval); // Relative time
         }
     }

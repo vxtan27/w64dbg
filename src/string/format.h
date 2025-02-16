@@ -18,12 +18,12 @@ static __forceinline LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULO
     if (Console)
     {
         memcpy(p, CONSOLE_DEFAULT_FORMAT,
-            sizeof(CONSOLE_DEFAULT_FORMAT));
-        p += sizeof(CONSOLE_DEFAULT_FORMAT);
+            strlen(CONSOLE_DEFAULT_FORMAT));
+        p += strlen(CONSOLE_DEFAULT_FORMAT);
     }
 
     *p = ':'; // Add a colon separator
-    p = _ultoa10(LineNumber, p + 1);
+    p = dtoa(LineNumber, p + 1);
     *p = '\n'; // Terminate with a newline
 
     return p + 1;
@@ -68,7 +68,7 @@ static __forceinline LPSTR FormatSourceCode(PPEB ProcessEnvironmentBlock, LPWSTR
                     size_t temp;
 
                     // Format line number and spacing
-                    p = _ultoa10(line, p);
+                    p = dtoa(line, p);
                     memset(p, ' ', 6);
                     p += 6;
                     // Extract content for the target line
