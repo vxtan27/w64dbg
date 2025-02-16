@@ -11,28 +11,28 @@ typedef struct
     PDWORD64 pBase;
     DWORD is_64bit;
     BOOL Console;
-    BOOL DataIsLocal;
+    BOOL DataIsParam;
     BOOL IsFirst;
 } USERCONTEXT, *PUSERCONTEXT;
 
 typedef union
 {
-    struct
-    {
-        ULARGE_INTEGER LowPart;
-        ULARGE_INTEGER HighPart;
-    } u;
-    long double QuadPart;
-} LONG_DOUBLE;
+    char c;
+    wchar_t wc;
+    __int64 i64;
+    unsigned __int64 ui64;
+    bool b;
+    long l;
+    unsigned long ul;
+    double d;
+} BASIC_TYPE;
 
 // Applies non-bold/bright cyan to foreground
 #define CONSOLE_CYAN_FORMAT "\x1b[36m"
 
-#define LOW_HEX_FORMAT "%Ix"
-#define LONGLONG_FORMAT "%lld"
-#define ULONGLONG_FORMAT "%llu"
+#define BOOL_TRUE "TRUE"
+#define BOOL_FALSE "FALSE"
 #define LONGDOUBLE_FORMAT "%Lg"
-#define UP_HEX_FORMAT "%IX"
 
 _Success_(return >= 0)
 _Check_return_opt_
@@ -337,131 +337,120 @@ static __forceinline DWORD64 GetRegisterBase(PSYMBOL_INFOW pSymInfo, PVOID Conte
 
 static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID UserContext)
 {
-    (void) SymbolSize;
-
     PUSERCONTEXT User = (PUSERCONTEXT) UserContext;
 
-    if ((User->DataIsLocal && !(pSymInfo->Flags & SYMFLAG_PARAMETER)) ||
-        (!User->DataIsLocal && pSymInfo->Flags & SYMFLAG_PARAMETER))
+    if (pSymInfo->Flags & SYMFLAG_NULL ||
+        (User->DataIsParam && !(pSymInfo->Flags & SYMFLAG_PARAMETER)) ||
+        (!User->DataIsParam && pSymInfo->Flags & SYMFLAG_PARAMETER)) return FALSE; // Stop enumeration
+
+    DWORD DTag;
+    SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_SYMTAG, &DTag);
+
+    if (User->DataIsParam)
     {
-        DWORD DTag;
-        SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_SYMTAG, &DTag);
-
-        if (DTag == SymTagTypedef)
+        if (!User->IsFirst)
         {
-            // Resolve the base type from the underlying type
-            SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_TYPE, &DTag);
-            SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, DTag, TI_GET_SYMTAG, &DTag);
-        }
-
-        if (!User->DataIsLocal)
-        {
-            if (!User->IsFirst)
-            {
-                *User->p++ = ',';
-                *User->p++ = ' ';
-            } else User->IsFirst = FALSE;
-        } else
-        {
-            memset(User->p, ' ', 8);
-            User->p += 8;
-        }
-
-        if (User->Console)
-        {
-            memcpy(User->p, CONSOLE_CYAN_FORMAT, 5);
-            User->p += 5;
-        }
-
-        ULONG UTF8StringActualByteCount;
-        RtlUnicodeToUTF8N(User->p, BUFLEN,
-            &UTF8StringActualByteCount, pSymInfo->Name, (pSymInfo->NameLen - 1) << 1);
-        User->p += UTF8StringActualByteCount;
-
-        if (User->Console)
-        {
-            memcpy(User->p, CONSOLE_DEFAULT_FORMAT,
-                strlen(CONSOLE_DEFAULT_FORMAT));
-            User->p += strlen(CONSOLE_DEFAULT_FORMAT);
-        }
-
-        *User->p++ = '=';
-
-        if (pSymInfo->Flags & SYMFLAG_NULL)
-        {
-            *User->p++ = '?';
-            *User->p++ = '?';
-        } else
-        {
-            const char *_Format;
-            DWORD64 Base;
-            LONG_DOUBLE value = {};
-            if (pSymInfo->Flags & SYMFLAG_REGREL)
-                Base = GetRegisterBase(pSymInfo, User->pContext, User->is_64bit);
-            else if (pSymInfo->Flags & SYMFLAG_FRAMEREL)
-                Base = *User->pBase;
-            else return TRUE;
-
-            /*
-            else if (pSymInfo->Flags & SYMFLAG_REGISTER)
-                GetRegisterValue(pSymInfo, User->pContext, User->is_64bit);
-            */
-
-            if (DTag == SymTagArrayType ||
-                DTag == SymTagUDT ||
-                DTag == SymTagTaggedUnionCase)
-            {
-                *User->p++ = '0';
-                *User->p++ = 'x';
-                value.u.LowPart.QuadPart = pSymInfo->Address + Base;
-                _Format = LOW_HEX_FORMAT;
-            } else
-            {
-                ULONG64 Len;
-
-                // add SYMFLAG_VALUEPRESENT
-                SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_LENGTH, &Len);
-                NtReadVirtualMemory(User->hProcess, (PVOID) (pSymInfo->Address + Base), &value, Len, NULL);
-
-                if (DTag == SymTagPointerType)
-                {
-                    *User->p++ = '0';
-                    *User->p++ = 'x';
-                    _Format = LOW_HEX_FORMAT;
-                } else
-                {
-                    DWORD BaseType;
-                    SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_BASETYPE, &BaseType);
-                    switch (BaseType)
-                    {
-                        case btChar:
-                        case btWChar:
-                        case btInt:
-                        case btLong:
-                            _Format = LONGLONG_FORMAT;
-                            break;
-                        case btUInt:
-                        case btBool:
-                        case btULong:
-                            _Format = ULONGLONG_FORMAT;
-                            break;
-                        case btFloat:
-                            _Format = LONGDOUBLE_FORMAT;
-                            User->p += __builtin_sprintf(User->p, _Format, value.QuadPart);
-                            if (User->DataIsLocal) *User->p++ = '\n';
-                            return TRUE;
-                        case btHresult:
-                            _Format = UP_HEX_FORMAT;
-                            break;
-                        default:
-                            _Format = LOW_HEX_FORMAT;
-                    }
-                }
-            }
-            User->p += __builtin_sprintf(User->p, _Format, value.u.LowPart);
-        }
-        if (User->DataIsLocal) *User->p++ = '\n';
+            *User->p++ = ',';
+            *User->p++ = ' ';
+        } else User->IsFirst = FALSE;
+    } else
+    {
+        memset(User->p, ' ', 8);
+        User->p += 8;
     }
+
+    if (User->Console)
+    {
+        memcpy(User->p, CONSOLE_CYAN_FORMAT, 5);
+        User->p += 5;
+    }
+
+    ULONG UTF8StringActualByteCount;
+    RtlUnicodeToUTF8N(User->p, BUFLEN,
+        &UTF8StringActualByteCount, pSymInfo->Name, (pSymInfo->NameLen - 1) << 1);
+    User->p += UTF8StringActualByteCount;
+
+    if (User->Console)
+    {
+        memcpy(User->p, CONSOLE_DEFAULT_FORMAT,
+            strlen(CONSOLE_DEFAULT_FORMAT));
+        User->p += strlen(CONSOLE_DEFAULT_FORMAT);
+    }
+
+    DWORD64 Base;
+
+    if (pSymInfo->Flags & SYMFLAG_REGREL)
+        Base = GetRegisterBase(pSymInfo, User->pContext, User->is_64bit);
+    else if (pSymInfo->Flags & SYMFLAG_FRAMEREL)
+        Base = *User->pBase;
+
+    /*
+    else if (pSymInfo->Flags & SYMFLAG_REGISTER)
+        GetRegisterValue(pSymInfo, User->pContext, User->is_64bit);
+    */
+    /* else return TRUE; */
+
+    *User->p++ = '=';
+
+    if (DTag == SymTagArrayType ||
+        DTag == SymTagUDT ||
+        DTag == SymTagTaggedUnionCase)
+        User->p = _ui64toaddr(pSymInfo->Address + Base, User->p, User->is_64bit);
+    else
+    {
+        BASIC_TYPE bt = {};
+
+        // add SYMFLAG_VALUEPRESENT
+        NtReadVirtualMemory(User->hProcess, (PVOID) (pSymInfo->Address + Base), &bt, SymbolSize, NULL); // pSymInfo->Size
+
+        if (DTag == SymTagPointerType) User->p = _ui64toaddr(bt.ui64, User->p, User->is_64bit);
+        else
+        {
+            DWORD BaseType;
+            SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_BASETYPE, &BaseType);
+
+            switch (BaseType)
+            {
+                case btChar:
+                    User->p = dtoa(bt.c, User->p);
+                    break;
+                case btWChar:
+                    User->p = dtoa(bt.wc, User->p);
+                    break;
+                case btInt:
+                    User->p = dtoa(bt.i64, User->p);
+                    break;
+                case btUInt:
+                    User->p = dtoa(bt.ui64, User->p);
+                    break;
+                case btFloat:
+                    User->p += __builtin_sprintf(User->p, LONGDOUBLE_FORMAT, bt.d);
+                    break;
+                case btBool:
+                    if (bt.b)
+                    {
+                        memcpy(User->p, BOOL_TRUE, strlen(BOOL_TRUE));
+                        User->p += strlen(BOOL_TRUE);
+                    } else
+                    {
+                        memcpy(User->p, BOOL_FALSE, strlen(BOOL_FALSE));
+                        User->p += strlen(BOOL_FALSE);
+                    }
+                    break;
+                case btLong:
+                    User->p = dtoa(bt.l, User->p);
+                    break;
+                case btULong:
+                    User->p = dtoa(bt.ul, User->p);
+                    break;
+                case btHresult:
+                    User->p = _ultoa16u(bt.ul, User->p);
+                    break;
+            }
+        }
+    }
+
+    if (!User->DataIsParam) *User->p++ = '\n';
 
     return TRUE; // Continue enumeration
 }

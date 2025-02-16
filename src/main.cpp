@@ -891,7 +891,7 @@ void __stdcall main(void)
                         p += strlen(CONSOLE_BLUE_FORMAT);
                     }
 
-                    p = _ui64toaddr(StackFrame.AddrPC.Offset, p, is_64bit);
+                    p = __ui64toaddr(StackFrame.AddrPC.Offset, p, is_64bit);
 
                     if (Console)
                     {
@@ -921,7 +921,7 @@ void __stdcall main(void)
                     {
                         Success = TRUE;
                         UserContext.p = p;
-                        UserContext.DataIsLocal = FALSE;
+                        UserContext.DataIsParam = TRUE;
                         UserContext.IsFirst = TRUE;
                         SymEnumSymbolsW(hProcess, 0, NULL, EnumCallbackProc, &UserContext);
                         p = UserContext.p;
@@ -983,7 +983,7 @@ void __stdcall main(void)
                     if (Success && verbose >= 1)
                     {
                         UserContext.p = p;
-                        UserContext.DataIsLocal = TRUE;
+                        UserContext.DataIsParam = FALSE;
                         SymEnumSymbolsW(hProcess, 0, NULL, EnumCallbackProc, &UserContext);
                         p = UserContext.p;
                     }

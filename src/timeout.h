@@ -136,7 +136,7 @@ static __forceinline VOID WaitForInputOrTimeout(
         char buffer[64];
 
         memcpy(buffer, _FiniteMessage, strlen(_FiniteMessage));
-        p = dtoa(timeout, buffer + strlen(_FiniteMessage));
+        p = to_ascii_chars(buffer + strlen(_FiniteMessage), (unsigned long) timeout, VALID_TIMEOUT);
         memcpy(p, FiniteMessage_, strlen(FiniteMessage_));
 
         if (Console)

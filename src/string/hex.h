@@ -38,8 +38,46 @@ static const char HexTableLower[16] =
     'c', 'd', 'e', 'f'
 };
 
+// Convert unsigned long to lowercase hex string
+static __forceinline char *_ultoa16(unsigned long value, char *str)
+{
+    unsigned long num = value;
+
+    do ++str; while ((num >>= 4)); // Advance past last digit
+
+    char *ptr = str;
+
+    do *--ptr = HexTableLower[value & 0xF]; // Reverse convert
+    while ((value >>= 4));
+
+    return str;
+}
+
+// Reverse convert unsigned long long to lowercase hex string
+static __forceinline char *_ui64toa(unsigned _int64 value, char *str)
+{
+    unsigned long long num = value;
+
+    do ++str; while ((num >>= 4)); // Advance past last digit
+
+    char *ptr = str;
+
+    do *--ptr = HexTableLower[value & 0xF]; // Reverse convert
+    while ((value >>= 4));
+
+    return str;
+
+}
+
+// Convert value to lowercase memory address string
+static __forceinline char *_ui64toaddr(unsigned _int64 value, char *str, BOOL is_64bit)
+{
+    *str++ = '0'; *str++ = 'x'; // Address prefix
+    return is_64bit ? _ui64toa(value, str) : _ultoa16(value, str);
+}
+
 // Reverse convert unsigned long to lowercase hex string
-static __forceinline char *__ultoa16l(unsigned long value, char *str)
+static __forceinline char *__ultoa16(unsigned long value, char *str)
 {
     do *--str = HexTableLower[value & 0xF];
     while ((value >>= 4));
@@ -47,7 +85,7 @@ static __forceinline char *__ultoa16l(unsigned long value, char *str)
     return str;
 }
 
-// Reverse convert unsigned long to lowercase hex string
+// Reverse convert unsigned long long to lowercase hex string
 static __forceinline char *__ui64toa(unsigned _int64 value, char *str)
 {
     do *--str = HexTableLower[value & 0xF];
@@ -56,8 +94,8 @@ static __forceinline char *__ui64toa(unsigned _int64 value, char *str)
     return str;
 }
 
-// Convert unsigned long long to lowercase memory address string
-static __forceinline char *_ui64toaddr(unsigned _int64 value, char *str, BOOL is_64bit)
+// Convert value to lowercase memory address string
+static __forceinline char *__ui64toaddr(unsigned _int64 value, char *str, BOOL is_64bit)
 {
     *str++ = '0'; *str++ = 'x'; // Address prefix
 
@@ -70,7 +108,7 @@ static __forceinline char *_ui64toaddr(unsigned _int64 value, char *str, BOOL is
     } else
     { // 32-bit hex (8 digits)
         str += 8; // Advance past last digit
-        stop = __ultoa16l(value, str);
+        stop = __ultoa16(value, str);
     }
 
     // Zero-pad
