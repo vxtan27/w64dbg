@@ -9,7 +9,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <wchar.h>
 
 #include <windows.h>
 #include <devioctl.h>
@@ -29,6 +28,11 @@ using namespace jeaiii;
 #include "include\timeout.h"
 
 // https://hero.handmade.network/forums/code-discussion/t/94-guide_-_how_to_avoid_c_c++_runtime_on_windows
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4326)
+#endif
 
 __declspec(noreturn)
 void __stdcall main(void)
@@ -312,13 +316,21 @@ void __stdcall main(void)
     HANDLE hFile[MAX_DLL];
     HANDLE hJob, hProcess;
     DEBUG_EVENT DebugEvent;
+    STARTUPINFOW startupInfo;
     HANDLE hThread[MAX_THREAD];
     PROCESS_INFORMATION processInfo;
+    JOBOBJECT_BASIC_LIMIT_INFORMATION jobInfo;
     LPVOID BaseOfDll[MAX_DLL] = {};
-    STARTUPINFOW startupInfo = {sizeof(startupInfo)};
-    JOBOBJECT_BASIC_LIMIT_INFORMATION jobInfo = {};
 
     if (pCmdLine + len != ptr) *ptr = ' ';
+
+    startupInfo.cb = sizeof(startupInfo);
+    startupInfo.lpReserved = NULL;
+    startupInfo.lpDesktop = NULL;
+    startupInfo.lpTitle = NULL;
+    startupInfo.dwFlags = 0;
+    startupInfo.cbReserved2 = 0;
+    startupInfo.lpReserved2 = NULL;
 
     OBJECT_ATTRIBUTES ObjectAttributes = {sizeof(OBJECT_ATTRIBUTES), NULL, NULL, OBJ_OPENIF, NULL, NULL};
 
@@ -568,7 +580,6 @@ void __stdcall main(void)
                 // Check if not first-chance
                 if (!DebugEvent.u.Exception.dwFirstChance)
                 {
-                    NtTerminateProcess(hProcess, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode);
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001);
                     continue;
                 }
@@ -714,9 +725,6 @@ void __stdcall main(void)
                     if (dwarf == MINGW_KEEP && !timeout)
                         memcpy(&CommandLine[wcslen(GDB_COMMAND_LINE) + temp + 6], GDB_BATCH, wcslen(GDB_BATCH) << 1);
 
-                    DWORD_PTR ProcDbgPt;
-                    LARGE_INTEGER DelayInterval;
-
                     CreateProcessW(ApplicationName, CommandLine, NULL, NULL,
                         FALSE, CREATIONFLAGS, ProcessParameters->Environment,
                         ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
@@ -726,6 +734,9 @@ void __stdcall main(void)
 
                     for (i = 0; i < MAX_DLL; ++i)
                         if (BaseOfDll[i]) NtClose(hFile[i]);
+
+                    DWORD_PTR ProcDbgPt;
+                    LARGE_INTEGER DelayInterval;
 
                     // Convert seconds to 100-nanosecond units
                     // (negative for relative time)
@@ -794,11 +805,9 @@ void __stdcall main(void)
                     continue;
                 }
 
-                DWORD MachineType;
-                STACKFRAME64 StackFrame;
                 FILE_STANDARD_INFORMATION FileInfo;
 
-                SymSetOptions(is_64bit ? SYMOPTIONS : SYMOPTIONS | SYMOPT_INCLUDE_32BIT_MODULES);
+                SymSetOptions(SYMOPTIONS);
                 SymInitializeW(hProcess, NULL, FALSE);
 
                 for (DWORD j = 0; j < MAX_DLL; ++j) if (BaseOfDll[j])
@@ -816,42 +825,48 @@ void __stdcall main(void)
                 }
 
                 CONTEXT Context;
+                DWORD MachineType;
+                STACKFRAME_EX StackFrame;
+
+                // memset(&StackFrame, 0, sizeof(StackFrame));
 
                 if (is_64bit)
                 {
+                    MachineType = IMAGE_FILE_MACHINE_AMD64;
                     Context.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
                     NtGetContextThread(hThread[i], &Context);
-                    MachineType = IMAGE_FILE_MACHINE_AMD64;
                     StackFrame.AddrPC.Offset = Context.Rip;
-                    StackFrame.AddrStack.Offset = Context.Rsp;
                     StackFrame.AddrFrame.Offset = Context.Rbp;
+                    StackFrame.AddrStack.Offset = Context.Rsp;
                 } else
                 {
+                    MachineType = IMAGE_FILE_MACHINE_I386;
                     ((PWOW64_CONTEXT) &Context)->ContextFlags = WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER;
                     NtQueryInformationThread(hThread[i], (THREADINFOCLASS) 29, // ThreadWow64Context
                         &Context, sizeof(WOW64_CONTEXT), NULL);
-                    MachineType = IMAGE_FILE_MACHINE_I386;
                     StackFrame.AddrPC.Offset = ((PWOW64_CONTEXT) &Context)->Eip;
-                    StackFrame.AddrStack.Offset = ((PWOW64_CONTEXT) &Context)->Esp;
                     StackFrame.AddrFrame.Offset = ((PWOW64_CONTEXT) &Context)->Ebp;
+                    StackFrame.AddrStack.Offset = ((PWOW64_CONTEXT) &Context)->Esp;
                 }
 
+                StackFrame.AddrPC.Mode = AddrModeFlat;
+                StackFrame.AddrFrame.Mode = AddrModeFlat;
+                StackFrame.AddrStack.Mode = AddrModeFlat;
+                // StackFrame.StackFrameSize = sizeof(StackFrame);
+
                 DWORD count;
+                DWORD DirLen;
                 BOOL Success;
                 DWORD Displacement;
-                char Symbol[sizeof(SYMBOL_INFO) + MAX_SYM_NAME << 1];
-                PSYMBOL_INFOW pSymbol;
-                DWORD DirLen, wDirLen;
+                PSYMBOL_INFOW pSymInfo;
                 IMAGEHLP_LINEW64 Line;
                 USERCONTEXT UserContext;
+                char Symbol[sizeof(SYMBOL_INFO) + (MAX_SYM_NAME << 1)];
 
-                pSymbol = (PSYMBOL_INFOW) Symbol;
+                pSymInfo = (PSYMBOL_INFOW) Symbol;
                 Line.SizeOfStruct = sizeof(Line);
-                StackFrame.AddrPC.Mode = AddrModeFlat;
-                StackFrame.AddrStack.Mode = AddrModeFlat;
-                StackFrame.AddrFrame.Mode = AddrModeFlat;
-                pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-                pSymbol->MaxNameLen = MAX_SYM_NAME;
+                pSymInfo->SizeOfStruct = sizeof(SYMBOL_INFO);
+                pSymInfo->MaxNameLen = MAX_SYM_NAME;
 
                 count = 0;
                 UserContext.hProcess = hProcess;
@@ -860,16 +875,16 @@ void __stdcall main(void)
                 UserContext.is_64bit = is_64bit;
                 UserContext.Console = Console;
                 DirLen = ProcessParameters->CurrentDirectory.DosPath.Length;
-                wDirLen = ProcessParameters->CurrentDirectory.DosPath.Length >> 1;
 
                 while (TRUE)
                 {
-                    if (!StackWalk64(MachineType, hProcess, hThread[i],
-                        &StackFrame, &Context, NULL, NULL, NULL, NULL))
-                        break;
+                    StackFrame.InlineFrameContext = INLINE_FRAME_CONTEXT_IGNORE;
 
-                    if (!SymFromAddrW(hProcess, StackFrame.AddrPC.Offset, NULL, pSymbol))
-                        break;
+                    if (!StackWalk2(MachineType, hProcess, hThread[i], &StackFrame, &Context,
+                        ReadMemoryRoutineLocal, NULL, NULL, NULL, NULL, SYM_STKWALK_DEFAULT)) break;
+
+                    if (!SymFromInlineContextW(hProcess, StackFrame.AddrPC.Offset,
+                        INLINE_FRAME_CONTEXT_IGNORE, NULL, pSymInfo)) break;
 
                     *p++ = '#';
 
@@ -905,7 +920,7 @@ void __stdcall main(void)
                     }
 
                     RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                        &UTF8StringActualByteCount, pSymbol->Name, pSymbol->NameLen << 1);
+                        &UTF8StringActualByteCount, pSymInfo->Name, pSymInfo->NameLen << 1);
                     p += UTF8StringActualByteCount;
 
                     if (Console)
@@ -918,21 +933,22 @@ void __stdcall main(void)
                     *p++ = ' ';
                     *p++ = '(';
 
-                    if (SymSetScopeFromIndex(hProcess, pSymbol->ModBase, pSymbol->Index))
+                    if (SymSetContext(hProcess, (PIMAGEHLP_STACK_FRAME) &StackFrame, &Context))
                     {
                         Success = TRUE;
                         UserContext.p = p;
                         UserContext.DataIsParam = TRUE;
                         UserContext.IsFirst = TRUE;
-                        SymEnumSymbolsW(hProcess, 0, NULL, EnumCallbackProc, &UserContext);
+                        SymEnumSymbolsExW(hProcess, 0, NULL, EnumCallbackProc, &UserContext, SYMENUM_OPTIONS_DEFAULT);
                         p = UserContext.p;
                     } else Success = FALSE;
 
                     *p++ = ')';
                     *p++ = ' ';
 
-                    if (SymGetLineFromAddrW64(hProcess,
-                        StackFrame.AddrPC.Offset, &Displacement, &Line))
+                    // Without &Displacement => undefined behavior
+                    if (SymGetLineFromInlineContextW(hProcess, StackFrame.AddrPC.Offset,
+                        INLINE_FRAME_CONTEXT_IGNORE, NULL, &Displacement, &Line))
                     {
                         memcpy(p, EXCEPTION_AT, strlen(EXCEPTION_AT));
                         temp = wcslen(Line.FileName) << 1;
@@ -945,9 +961,9 @@ void __stdcall main(void)
                         }
 
                         // Skip %dir%/
-                        if (temp > DirLen && !RtlCompareUnicodeStrings(Line.FileName,
-                                wDirLen, ProcessParameters->CurrentDirectory.DosPath.Buffer, wDirLen, TRUE))
-                            p = FormatFileLine(Line.FileName + wDirLen,
+                        if (temp > DirLen && !memcmp(Line.FileName,
+                                ProcessParameters->CurrentDirectory.DosPath.Buffer, DirLen))
+                            p = FormatFileLine(Line.FileName + (DirLen >> 1),
                                 Line.LineNumber, temp - DirLen, buffer + BUFLEN - p, p, Console);
                         else p = FormatFileLine(Line.FileName,
                             Line.LineNumber, temp, buffer + BUFLEN - p, p, Console);
@@ -965,8 +981,7 @@ void __stdcall main(void)
                         }
 
                         len = GetModuleFileNameExW(hProcess,
-                            (HMODULE) SymGetModuleBase64(hProcess,
-                                StackFrame.AddrPC.Offset), Tmp, WBUFLEN);
+                            (HMODULE) pSymInfo->ModBase, Tmp, WBUFLEN);
                         RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
                             &UTF8StringActualByteCount, Tmp, len << 1);
                         p += UTF8StringActualByteCount;
@@ -985,7 +1000,7 @@ void __stdcall main(void)
                     {
                         UserContext.p = p;
                         UserContext.DataIsParam = FALSE;
-                        SymEnumSymbolsW(hProcess, 0, NULL, EnumCallbackProc, &UserContext);
+                        SymEnumSymbolsExW(hProcess, 0, NULL, EnumCallbackProc, &UserContext, SYMENUM_OPTIONS_DEFAULT);
                         p = UserContext.p;
                     }
 
@@ -1057,3 +1072,7 @@ void __stdcall main(void)
         ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
     }
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
