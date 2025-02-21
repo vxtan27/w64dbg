@@ -31,6 +31,12 @@ SOFTWARE.
 
 #include <limits>
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4365)
+#pragma warning(disable: 5045)
+#endif
+
 namespace jeaiii
 {
     using u32 = decltype(0xffffffff);
@@ -216,7 +222,7 @@ namespace jeaiii
             u /= u32(1e8);
 
             // u is 2, 3, or 4 digits (if u < 10 it would have been handled above)
-            if (r < u32(1e18) || u < u32(1e2))
+            if (r < u64(1e18) || u < u32(1e2))
             {
                 *reinterpret_cast<pair*>(b) = digits.dd[u];
                 b += 2;
@@ -254,3 +260,7 @@ namespace jeaiii
         return b + 8;
     }
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
