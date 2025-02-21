@@ -22,7 +22,7 @@ static __forceinline long process_timeout(wchar_t *str, wchar_t **p, size_t len)
         c = *str - '0'; // Normalize to numeric range
         if (c > 9)
         { // Non-numeric character validation
-            *p = _fast_wmemchr(str, ' ', len) + 1;
+            *p = wmemchr(str, ' ', len) + 1;
             return INVALID_TIMEOUT;
         }
         value = value * 10 + c;

@@ -22,7 +22,6 @@ using namespace jeaiii;
 
 #include "ntdll.h"
 #include "string\hex.h"
-#include "string\wmemchr.h"
 #include "string\format.h"
 #include "symbols.h"
 #include "timeout.h"
@@ -52,7 +51,7 @@ void __stdcall main(void)
     PZWRTL_USER_PROCESS_PARAMETERS ProcessParameters =
         (PZWRTL_USER_PROCESS_PARAMETERS) ProcessEnvironmentBlock->ProcessParameters;
     len = ProcessParameters->CommandLine.Length >> 1;
-    wchar_t *pCmdLine = fast_wmemchr(ProcessParameters->CommandLine.Buffer, ' ', len);
+    wchar_t *pCmdLine = wmemchr(ProcessParameters->CommandLine.Buffer, ' ', len);
     wchar_t *pNext = pCmdLine;
 
     if (pCmdLine)
@@ -196,7 +195,7 @@ void __stdcall main(void)
                 strlen(_INVALID_ARGUMENT));
             p += strlen(_INVALID_ARGUMENT);
 
-            temp = _fast_wmemchr(pNext, ' ',
+            temp = wmemchr(pNext, ' ',
                 pCmdLine + len + 1 - pNext) - pNext;
 
             RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
@@ -245,7 +244,7 @@ void __stdcall main(void)
 
     wchar_t ApplicationName[WBUFLEN];
 
-    ptr = _fast_wmemchr(pNext, ' ',
+    ptr = wmemchr(pNext, ' ',
         pCmdLine + len + 1 - pNext);
     *ptr = '\0';
 
@@ -286,7 +285,7 @@ void __stdcall main(void)
         else
         {
             // Should - 8 and () >> 1
-            pos = _fast_wmemchr((wchar_t*) Entry->Text, '%', Entry->Length);
+            pos = wmemchr((wchar_t*) Entry->Text, '%', Entry->Length);
             RtlUnicodeToUTF8N(buffer, BUFLEN, &UTF8StringActualByteCount,
                 (PCWCH) Entry->Text, pos - (wchar_t*) Entry->Text);
             p = buffer + UTF8StringActualByteCount;
@@ -297,7 +296,7 @@ void __stdcall main(void)
             pNext, (ptr - pNext) << 1);
         p += UTF8StringActualByteCount;
 
-        pos = _fast_wmemchr(pos + 1, '1', Entry->Length) + 1;
+        pos = wmemchr(pos + 1, '1', Entry->Length) + 1;
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &UTF8StringActualByteCount,
             pos, Entry->Length - 8 - ((pos - (wchar_t*) Entry->Text) << 1));
