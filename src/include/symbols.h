@@ -53,8 +53,6 @@ int __builtin_sprintf(
     return _Result;
 }
 
-#include "cvconst.h"
-
 [[deprecated]]
 static __forceinline DWORD64 _GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext)
 {

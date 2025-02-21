@@ -3,7 +3,7 @@
     Licensed under the BSD-3-Clause.
 */
 
-#include "config.h"
+#include "include\config.h"
 
 /* Required headers */
 
@@ -16,15 +16,17 @@
 #include <dbghelp.h>
 #include <psapi.h>
 
-#include "jeaii.h"
+#include "..\include\jeaiii_to_text.h"
 using namespace jeaiii;
 #define dtoa(value, buffer) to_ascii_chars(buffer, value)
 
-#include "ntdll.h"
-#include "string\hex.h"
-#include "string\format.h"
-#include "symbols.h"
-#include "timeout.h"
+#include "..\include\cvconst.h"
+#include "..\include\ntdll.h"
+
+#include "include\hex.h"
+#include "include\format.h"
+#include "include\symbols.h"
+#include "include\timeout.h"
 
 // https://hero.handmade.network/forums/code-discussion/t/94-guide_-_how_to_avoid_c_c++_runtime_on_windows
 
