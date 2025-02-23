@@ -16,8 +16,7 @@
 #include <psapi.h>
 
 #include "..\include\jeaiii_to_text.h"
-using namespace jeaiii;
-#define dtoa(value, buffer) to_ascii_chars(buffer, value)
+#define dtoa(value, buffer) jeaiii::to_ascii_chars(buffer, value)
 
 #include "..\include\cvconst.h"
 #include "..\include\ntdll.h"
@@ -261,7 +260,7 @@ void __stdcall main(void)
     { // Check if executable exists
         PMESSAGE_RESOURCE_ENTRY Entry;
 
-        FindCoreMessage(ProcessEnvironmentBlock, ERROR_FILE_NOT_FOUND,
+        FindCoreMessage(ProcessEnvironmentBlock->Ldr, ERROR_FILE_NOT_FOUND,
             MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(buffer, BUFLEN, &UTF8StringActualByteCount,
@@ -279,7 +278,7 @@ void __stdcall main(void)
         wchar_t *pos;
         PMESSAGE_RESOURCE_ENTRY Entry;
 
-        FindCoreMessage(ProcessEnvironmentBlock, ERROR_BAD_EXE_FORMAT,
+        FindCoreMessage(ProcessEnvironmentBlock->Ldr, ERROR_BAD_EXE_FORMAT,
             MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
 
         // Convert error message to UTF-8
@@ -347,7 +346,7 @@ void __stdcall main(void)
             start ? CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE
                   : CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
             ProcessParameters->Environment, ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
-        AssignProcessToJobObject(hJob, processInfo.hProcess);
+        NtAssignProcessToJobObject(hJob, processInfo.hProcess);
         NtClose(processInfo.hThread);
         NtClose(processInfo.hProcess);
         WaitForDebugEventEx(&DebugEvent, INFINITE);
@@ -364,7 +363,7 @@ void __stdcall main(void)
                   : CREATIONFLAGS | CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP,
             ProcessParameters->Environment, ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
         DebugActiveProcess(processInfo.dwProcessId);
-        AssignProcessToJobObject(hJob, processInfo.hProcess);
+        NtAssignProcessToJobObject(hJob, processInfo.hProcess);
         NtResumeProcess(processInfo.hProcess);
         WaitForDebugEventEx(&DebugEvent, INFINITE);
         NtClose(DebugEvent.u.CreateProcessInfo.hFile);
@@ -610,7 +609,7 @@ void __stdcall main(void)
 
                 PMESSAGE_RESOURCE_ENTRY Entry;
 
-                FindNativeMessage(ProcessEnvironmentBlock,
+                FindNativeMessage(ProcessEnvironmentBlock->Ldr,
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode,
                     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
                 // Convert error message to UTF-8
@@ -728,7 +727,7 @@ void __stdcall main(void)
                     CreateProcessW(ApplicationName, CommandLine, NULL, NULL,
                         FALSE, CREATIONFLAGS, ProcessParameters->Environment,
                         ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
-                    AssignProcessToJobObject(hJob, processInfo.hProcess);
+                    NtAssignProcessToJobObject(hJob, processInfo.hProcess);
                     NtClose(processInfo.hThread);
                     NtClose(hThread[0]);
 
@@ -777,7 +776,7 @@ void __stdcall main(void)
                             (PVOID) GDB_QUIT, strlen(GDB_QUIT), NULL, NULL);
                     }
 
-                    NtWaitForMultipleObjects(1, &processInfo.hProcess, WaitAll, FALSE, NULL);
+                    NtWaitForSingleObject(processInfo.hProcess, FALSE, NULL);
                     NtClose(processInfo.hProcess);
 
                     if (verbose >= 2)
@@ -967,7 +966,7 @@ void __stdcall main(void)
                                 Line.LineNumber, temp - DirLen, buffer + BUFLEN - p, p, Console);
                         else p = FormatFileLine(Line.FileName,
                             Line.LineNumber, temp, buffer + BUFLEN - p, p, Console);
-                        if (verbose >= 1) p = FormatSourceCode(ProcessEnvironmentBlock, Line.FileName,
+                        if (verbose >= 1) p = FormatSourceCode(ProcessEnvironmentBlock->Ldr, Line.FileName,
                             Line.LineNumber, temp, buffer + BUFLEN - p, p, verbose);
                     } else
                     {
@@ -1039,7 +1038,7 @@ void __stdcall main(void)
                     p = dtoa(DebugEvent.dwThreadId, p + 1);
                     *p++ = '\n';
 
-                    FindCoreMessage(ProcessEnvironmentBlock, DebugEvent.u.RipInfo.dwError,
+                    FindCoreMessage(ProcessEnvironmentBlock->Ldr, DebugEvent.u.RipInfo.dwError,
                         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
                     // Convert error message to UTF-8
                     RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &UTF8StringActualByteCount,

@@ -129,14 +129,14 @@ static __forceinline VOID WaitForInputOrTimeout(
             { // Infinite loop waiting for valid input
                 ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
             } while (IsInputInvalidate(InputRecord));
-        } else NtWaitForMultipleObjects(1, &hStdin, WaitAll, FALSE, NULL);
+        } else NtWaitForSingleObject(hStdin, FALSE, NULL);
     } else
     {
         char *p;
         char buffer[64];
 
         memcpy(buffer, _FiniteMessage, strlen(_FiniteMessage));
-        p = to_ascii_chars(buffer + strlen(_FiniteMessage), (unsigned long) timeout, VALID_TIMEOUT);
+        p = jeaiii::to_ascii_chars(buffer + strlen(_FiniteMessage), (unsigned long) timeout, VALID_TIMEOUT);
         memcpy(p, FiniteMessage_, strlen(FiniteMessage_));
 
         if (Console)
@@ -157,8 +157,7 @@ static __forceinline VOID WaitForInputOrTimeout(
 
             do
             { // Wait for either timeout or input
-                if (NtWaitForMultipleObjects(1, &hStdin, WaitAll,
-                    FALSE, &DelayInterval) == STATUS_TIMEOUT) break;
+                if (NtWaitForSingleObject(hStdin, FALSE, &DelayInterval) == STATUS_TIMEOUT) break;
                 ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
             } while (IsInputInvalidate(InputRecord));
             DeleteTimerQueueTimer(NULL, hTimer, NULL);
@@ -168,7 +167,7 @@ static __forceinline VOID WaitForInputOrTimeout(
             LARGE_INTEGER DelayInterval = {.QuadPart=-SecToMiliSec(timeout)};
             NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
                 buffer, p - buffer + strlen(FiniteMessage_) - 5, NULL, NULL);
-            NtWaitForMultipleObjects(1, &hStdin, WaitAll, FALSE, &DelayInterval); // Relative time
+            NtWaitForSingleObject(hStdin, FALSE, &DelayInterval); // Relative time
         }
     }
 

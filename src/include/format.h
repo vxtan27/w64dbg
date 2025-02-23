@@ -5,6 +5,32 @@
 
 #pragma once
 
+static __forceinline VOID FindNativeMessage(
+    PPEB_LDR_DATA Ldr,
+    DWORD dwMessageId,
+    DWORD dwLanguageId,
+    PMESSAGE_RESOURCE_ENTRY *Entry
+    )
+{
+    // Retrieve the base address of the second loaded module (kernel32.dll)
+    // Locate the message resource entry
+    RtlFindMessage(((PLDR_DATA_TABLE_ENTRY) ((PLIST_ENTRY) Ldr->Reserved2[1])->Flink)->DllBase,
+        (ULONG)(ULONG_PTR) RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
+}
+
+static __forceinline VOID FindCoreMessage(
+    PPEB_LDR_DATA Ldr,
+    DWORD dwMessageId,
+    DWORD dwLanguageId,
+    PMESSAGE_RESOURCE_ENTRY *Entry
+    )
+{
+    // Retrieve the base address of the fifth loaded module (ntdll.dll)
+    // Locate the message resource entry
+    RtlFindMessage(((PLDR_DATA_TABLE_ENTRY) ((PLIST_ENTRY) Ldr->Reserved2[1])->Flink->Flink->Flink)->DllBase,
+        (ULONG)(ULONG_PTR) RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
+}
+
 static __forceinline LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG BufLength, LPSTR p, BOOL Console)
 {
     ULONG UTF8StringActualByteCount;
@@ -29,7 +55,7 @@ static __forceinline LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULO
     return p + 1;
 }
 
-static __forceinline LPSTR FormatSourceCode(PPEB ProcessEnvironmentBlock, LPWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, LPSTR p, BOOL verbose)
+static __forceinline LPSTR FormatSourceCode(PPEB_LDR_DATA Ldr, LPWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, LPSTR p, BOOL verbose)
 {
     // Prepend Object Manager namespace to the file name
     memcpy(FileName - OBJECT_MANAGER_NAMESPACE_WLEN,
@@ -104,7 +130,7 @@ static __forceinline LPSTR FormatSourceCode(PPEB ProcessEnvironmentBlock, LPWSTR
         PMESSAGE_RESOURCE_ENTRY Entry;
         ULONG UTF8StringActualByteCount;
 
-        FindNativeMessage(ProcessEnvironmentBlock, ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+        FindNativeMessage(Ldr, ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(p, BufLength, &UTF8StringActualByteCount,
             (PCWCH) Entry->Text, Entry->Length - 8);
