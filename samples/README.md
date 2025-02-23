@@ -1,1 +1,1 @@
-This folder contains sample C/C++ code snippets and preview screenshots demonstrating compiling and debugging with MSVC or MinGW.
+This directory contains sample C/C++ code snippets designed to generate various exceptions, allowing for testing and demonstration of debugging capabilities. These samples are compiled using different toolchains and configurations to illustrate diverse debugging scenarios.
