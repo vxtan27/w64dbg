@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2024, vxtan27, all rights reserved.
+    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
     Licensed under the BSD-3-Clause.
 */
 
@@ -130,7 +130,7 @@ static __forceinline LPSTR FormatSourceCode(PPEB_LDR_DATA Ldr, LPWSTR FileName, 
         PMESSAGE_RESOURCE_ENTRY Entry;
         ULONG UTF8StringActualByteCount;
 
-        FindNativeMessage(Ldr, ERROR_FILE_NOT_FOUND, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+        FindNativeMessage(Ldr, ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &Entry);
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(p, BufLength, &UTF8StringActualByteCount,
             (PCWCH) Entry->Text, Entry->Length - 8);

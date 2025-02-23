@@ -1,3 +1,8 @@
+/*
+    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
+    Licensed under the BSD-3-Clause.
+*/
+
 /* Configuration */
 #define DEFAULT_DEBUG_DWARF   FALSE
 #define DEFAULT_BREAKPOINT    TRUE

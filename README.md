@@ -181,4 +181,4 @@ See [LICENSE](LICENSE) for more details.
 
 ## Copyright
 
-Copyright (c) 2024, vxtan27, all rights reserved.
+Copyright (c) 2024-2025 Xuan Tan. All rights reserved.

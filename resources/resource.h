@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2024, vxtan27, all rights reserved.
+    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
     Licensed under the BSD-3-Clause.
 */
 
@@ -42,7 +42,7 @@
 #define VER_FILEDESCRIPTION_STR     L"Native x64 Windows Debugging Utility"
 #define VER_FILEVERSION_STR         VERSION_TO_WSTR(VER_MAJOR, VER_MINOR, VER_PATCH, VER_BUILD)
 #define VER_INTERNALNAME_STR        L"w64dbg"
-#define VER_LEGALCOPYRIGHT_STR      L"© 2024, vxtan27, all rights reserved."
+#define VER_LEGALCOPYRIGHT_STR      L"© 2024-2025 Xuan Tan. All rights reserved."
 #define VER_LEGALTRADEMARKS_STR     L"Licensed under the BSD-3-Clause."
 #define VER_ORIGINALFILENAME_STR    L"w64dbg.exe"
 #define VER_PRODUCTNAME_STR         L"w64dbg"

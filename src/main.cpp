@@ -1,5 +1,5 @@
 /*
-    Copyright (c) 2024, vxtan27, all rights reserved.
+    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
     Licensed under the BSD-3-Clause.
 */
 
@@ -260,8 +260,7 @@ void __stdcall main(void)
     { // Check if executable exists
         PMESSAGE_RESOURCE_ENTRY Entry;
 
-        FindCoreMessage(ProcessEnvironmentBlock->Ldr, ERROR_FILE_NOT_FOUND,
-            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+        FindCoreMessage(ProcessEnvironmentBlock->Ldr, ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &Entry);
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(buffer, BUFLEN, &UTF8StringActualByteCount,
             (PCWCH) Entry->Text, Entry->Length - 8);
@@ -278,8 +277,7 @@ void __stdcall main(void)
         wchar_t *pos;
         PMESSAGE_RESOURCE_ENTRY Entry;
 
-        FindCoreMessage(ProcessEnvironmentBlock->Ldr, ERROR_BAD_EXE_FORMAT,
-            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+        FindCoreMessage(ProcessEnvironmentBlock->Ldr, ERROR_BAD_EXE_FORMAT, LANG_USER_DEFAULT, &Entry);
 
         // Convert error message to UTF-8
         if (*Entry->Text == '%')
@@ -610,8 +608,7 @@ void __stdcall main(void)
                 PMESSAGE_RESOURCE_ENTRY Entry;
 
                 FindNativeMessage(ProcessEnvironmentBlock->Ldr,
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode,
-                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, LANG_USER_DEFAULT, &Entry);
                 // Convert error message to UTF-8
                 RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
                     &UTF8StringActualByteCount, (PCWCH) Entry->Text, Entry->Length - 8);
@@ -1038,8 +1035,7 @@ void __stdcall main(void)
                     p = dtoa(DebugEvent.dwThreadId, p + 1);
                     *p++ = '\n';
 
-                    FindCoreMessage(ProcessEnvironmentBlock->Ldr, DebugEvent.u.RipInfo.dwError,
-                        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), &Entry);
+                    FindCoreMessage(ProcessEnvironmentBlock->Ldr, DebugEvent.u.RipInfo.dwError, LANG_USER_DEFAULT, &Entry);
                     // Convert error message to UTF-8
                     RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &UTF8StringActualByteCount,
                         (PCWCH) Entry->Text, Entry->Length - 8);
