@@ -11,21 +11,19 @@
 #include "helper.h"
 
 
-/* Version Information Resource */
+/*
+    Version Information Resource
+*/
 
 #define VER_MAJOR                   2
 #define VER_MINOR                   0
 #define VER_PATCH                   0
 #define VER_BUILD                   0
 
-#ifndef _DEBUG
-#ifndef VER_FILEFLAGS
-#define VER_FILEFLAGS               0x00000000L
-#endif
-#else
-#ifndef VER_FILEFLAGS
+#ifdef _DEBUG
 #define VER_FILEFLAGS               VS_FF_DEBUG
-#endif
+#else
+#define VER_FILEFLAGS               0x00000000L
 #endif
 
 #define VER_FILEVERSION             VER_MAJOR, VER_MINOR, VER_PATCH, VER_BUILD
@@ -37,10 +35,10 @@
 
 
 /* String Information Block */
-#define VER_VERSION_UNICODE_LANG    "040904B0" /* LANG_ENGLISH/SUBLANG_ENGLISH_US, Unicode CP */
+#define VER_VERSION_UNICODE_LANG    L"040904B0" /* LANG_ENGLISH/SUBLANG_ENGLISH_US, Unicode CP */
 #define VER_COMPANYNAME_STR         L"Xuan Tan"
 #define VER_FILEDESCRIPTION_STR     L"Native x64 Windows Debugging Utility"
-#define VER_FILEVERSION_STR         VERSION_TO_WSTR(VER_MAJOR, VER_MINOR, VER_PATCH, VER_BUILD)
+#define VER_FILEVERSION_STR         VER_STRINGIFY_W(VER_MAJOR, VER_MINOR, VER_PATCH, VER_BUILD)
 #define VER_INTERNALNAME_STR        L"w64dbg"
 #define VER_LEGALCOPYRIGHT_STR      L"© 2024-2025 Xuan Tan. All rights reserved."
 #define VER_LEGALTRADEMARKS_STR     L"Licensed under the BSD-3-Clause."

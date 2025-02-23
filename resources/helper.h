@@ -5,5 +5,5 @@
 
 #pragma once
 
-#define _VERSION_TO_WSTR(a, b, c, d) L###a "." #b "." #c "." #d
-#define VERSION_TO_WSTR(a, b, c, d) _VERSION_TO_WSTR(a, b, c, d)
+#define _VER_STRINGIFY_W(a, b, c, d) L###a "." #b "." #c "." #d
+#define VER_STRINGIFY_W(a, b, c, d) _VER_STRINGIFY_W(a, b, c, d)
