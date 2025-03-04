@@ -3,13 +3,12 @@
     Licensed under the BSD-3-Clause.
 */
 
-#include "include\config.h"
+/* Build config & linking */
+#include "include\config\build.h"
 
 /* Required headers */
 
-#include <stdio.h>
 #include <stdlib.h>
-
 #include <windows.h>
 #include <devioctl.h>
 #include <dbghelp.h>
@@ -21,17 +20,15 @@
 #include "..\include\cvconst.h"
 #include "..\include\ntdll.h"
 
+#include "include\config\core.h"
 #include "include\hex.h"
 #include "include\format.h"
 #include "include\symbols.h"
 #include "include\timeout.h"
 
-// https://hero.handmade.network/forums/code-discussion/t/94-guide_-_how_to_avoid_c_c++_runtime_on_windows
 
-#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4326)
-#endif
 
 __declspec(noreturn)
 void __stdcall main(void)
@@ -49,19 +46,19 @@ void __stdcall main(void)
     verbose = DEFAULT_VERBOSE,
     output = DEFAULT_OUTPUT,
     start = DEFAULT_START,
-    help = DEFAULT_HELP;
+    help = FALSE;
 
     char *p = buffer;
-    PPEB ProcessEnvironmentBlock = (PPEB) __readgsqword(0x60);
-    PZWRTL_USER_PROCESS_PARAMETERS ProcessParameters =
-        (PZWRTL_USER_PROCESS_PARAMETERS) ProcessEnvironmentBlock->ProcessParameters;
-    len = ProcessParameters->CommandLine.Length >> 1;
-    wchar_t *pCmdLine = wmemchr(ProcessParameters->CommandLine.Buffer, ' ', len);
+    PPEB pPeb = (PPEB) __readgsqword(0x60);
+    PZWRTL_USER_PROCESS_PARAMETERS pProcessParameters =
+        (PZWRTL_USER_PROCESS_PARAMETERS) pPeb->ProcessParameters;
+    len = pProcessParameters->CommandLine.Length >> 1;
+    wchar_t *pCmdLine = wmemchr(pProcessParameters->CommandLine.Buffer, ' ', len);
     wchar_t *pNext = pCmdLine;
 
     if (pCmdLine)
     {
-        len -= pCmdLine - ProcessParameters->CommandLine.Buffer;
+        len -= pCmdLine - pProcessParameters->CommandLine.Buffer;
         // Modified for processing command-line arguments
         *(pCmdLine + len) = ' ';
 
@@ -228,7 +225,7 @@ void __stdcall main(void)
     BOOL Console;
     IO_STATUS_BLOCK IoStatusBlock;
     FILE_FS_DEVICE_INFORMATION FFDI;
-    HANDLE hStdout = ProcessParameters->StandardOutput;
+    HANDLE hStdout = pProcessParameters->StandardOutput;
 
     NtQueryVolumeInformationFile(hStdout, &IoStatusBlock, &FFDI, sizeof(FFDI), FileFsDeviceInformation);
     Console = FFDI.DeviceType == FILE_DEVICE_CONSOLE;
@@ -260,7 +257,7 @@ void __stdcall main(void)
     { // Check if executable exists
         PMESSAGE_RESOURCE_ENTRY Entry;
 
-        FindCoreMessage(ProcessEnvironmentBlock->Ldr, ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &Entry);
+        FindCoreMessage(pPeb->Ldr, ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &Entry);
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(buffer, BUFLEN, &UTF8StringActualByteCount,
             (PCWCH) Entry->Text, Entry->Length - 8);
@@ -277,7 +274,7 @@ void __stdcall main(void)
         wchar_t *pos;
         PMESSAGE_RESOURCE_ENTRY Entry;
 
-        FindCoreMessage(ProcessEnvironmentBlock->Ldr, ERROR_BAD_EXE_FORMAT, LANG_USER_DEFAULT, &Entry);
+        FindCoreMessage(pPeb->Ldr, ERROR_BAD_EXE_FORMAT, LANG_USER_DEFAULT, &Entry);
 
         // Convert error message to UTF-8
         if (*Entry->Text == '%')
@@ -343,7 +340,7 @@ void __stdcall main(void)
         CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
             start ? CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE
                   : CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
-            ProcessParameters->Environment, ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
+            pProcessParameters->Environment, pProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
         NtAssignProcessToJobObject(hJob, processInfo.hProcess);
         NtClose(processInfo.hThread);
         NtClose(processInfo.hProcess);
@@ -359,7 +356,7 @@ void __stdcall main(void)
         CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
             start ? CREATIONFLAGS | CREATE_SUSPENDED | CREATE_NEW_CONSOLE
                   : CREATIONFLAGS | CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP,
-            ProcessParameters->Environment, ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
+            pProcessParameters->Environment, pProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
         DebugActiveProcess(processInfo.dwProcessId);
         NtAssignProcessToJobObject(hJob, processInfo.hProcess);
         NtResumeProcess(processInfo.hProcess);
@@ -523,7 +520,7 @@ void __stdcall main(void)
                     if (BaseOfDll[i]) NtClose(hFile[i]);
 
                 if (timeout)
-                    WaitForInputOrTimeout(ProcessParameters->StandardInput, hStdout, timeout, Console);
+                    WaitForInputOrTimeout(pProcessParameters->StandardInput, hStdout, timeout, Console);
 
                 ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
                 NtClose(hJob);
@@ -607,7 +604,7 @@ void __stdcall main(void)
 
                 PMESSAGE_RESOURCE_ENTRY Entry;
 
-                FindNativeMessage(ProcessEnvironmentBlock->Ldr,
+                FindNativeMessage(pPeb->Ldr,
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, LANG_USER_DEFAULT, &Entry);
                 // Convert error message to UTF-8
                 RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
@@ -623,7 +620,7 @@ void __stdcall main(void)
                 if (dwarf && !*PATH)
                 {
                     SIZE_T ReturnLength;
-                    RtlQueryEnvironmentVariable(ProcessParameters->Environment, PATHENV,
+                    RtlQueryEnvironmentVariable(pProcessParameters->Environment, PATHENV,
                         wcslen(PATHENV), PATH, WBUFLEN, &ReturnLength);
                     Path.Length = ReturnLength << 1;
                     Path.Buffer = PATH;
@@ -656,7 +653,7 @@ void __stdcall main(void)
                     wchar_t CommandLine[(sizeof(GDB_COMMAND_LINE) >> 1) - 1 + MAX_PATH];
 
                     memcpy(CommandLine, GDB_COMMAND_LINE, wcslen(GDB_COMMAND_LINE) << 1);
-                    RtlQueryEnvironmentVariable(ProcessParameters->Environment, TMPENV,
+                    RtlQueryEnvironmentVariable(pProcessParameters->Environment, TMPENV,
                         wcslen(TMPENV), &CommandLine[wcslen(GDB_COMMAND_LINE)],
                         (sizeof(CommandLine) >> 1) - wcslen(GDB_COMMAND_LINE), &temp);
 
@@ -722,8 +719,8 @@ void __stdcall main(void)
                         memcpy(&CommandLine[wcslen(GDB_COMMAND_LINE) + temp + 6], GDB_BATCH, wcslen(GDB_BATCH) << 1);
 
                     CreateProcessW(ApplicationName, CommandLine, NULL, NULL,
-                        FALSE, CREATIONFLAGS, ProcessParameters->Environment,
-                        ProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
+                        FALSE, CREATIONFLAGS, pProcessParameters->Environment,
+                        pProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
                     NtAssignProcessToJobObject(hJob, processInfo.hProcess);
                     NtClose(processInfo.hThread);
                     NtClose(hThread[0]);
@@ -767,7 +764,7 @@ void __stdcall main(void)
                             InputRecord[1].Event.KeyEvent.wRepeatCount = 1;
                             InputRecord[1].Event.KeyEvent.uChar.AsciiChar = '\n';
 
-                            WriteConsoleInputW(ProcessParameters->StandardInput,
+                            WriteConsoleInputW(pProcessParameters->StandardInput,
                                 InputRecord, 2, &dwWriten);
                         } else NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
                             (PVOID) GDB_QUIT, strlen(GDB_QUIT), NULL, NULL);
@@ -788,7 +785,7 @@ void __stdcall main(void)
                     }
 
                     if (timeout) WaitForInputOrTimeout(
-                        ProcessParameters->StandardInput, hStdout, timeout, Console);
+                        pProcessParameters->StandardInput, hStdout, timeout, Console);
 
                     NtClose(hJob);
                     RtlExitUserProcess(EXIT_SUCCESS);
@@ -870,7 +867,7 @@ void __stdcall main(void)
                 UserContext.pBase = &StackFrame.AddrFrame.Offset;
                 UserContext.is_64bit = is_64bit;
                 UserContext.Console = Console;
-                DirLen = ProcessParameters->CurrentDirectory.DosPath.Length;
+                DirLen = pProcessParameters->CurrentDirectory.DosPath.Length;
 
                 while (TRUE)
                 {
@@ -958,12 +955,12 @@ void __stdcall main(void)
 
                         // Skip %dir%/
                         if (temp > DirLen && !memcmp(Line.FileName,
-                                ProcessParameters->CurrentDirectory.DosPath.Buffer, DirLen))
+                                pProcessParameters->CurrentDirectory.DosPath.Buffer, DirLen))
                             p = FormatFileLine(Line.FileName + (DirLen >> 1),
                                 Line.LineNumber, temp - DirLen, buffer + BUFLEN - p, p, Console);
                         else p = FormatFileLine(Line.FileName,
                             Line.LineNumber, temp, buffer + BUFLEN - p, p, Console);
-                        if (verbose >= 1) p = FormatSourceCode(ProcessEnvironmentBlock->Ldr, Line.FileName,
+                        if (verbose >= 1) p = FormatSourceCode(pPeb->Ldr, Line.FileName,
                             Line.LineNumber, temp, buffer + BUFLEN - p, p, verbose);
                     } else
                     {
@@ -1035,7 +1032,7 @@ void __stdcall main(void)
                     p = dtoa(DebugEvent.dwThreadId, p + 1);
                     *p++ = '\n';
 
-                    FindCoreMessage(ProcessEnvironmentBlock->Ldr, DebugEvent.u.RipInfo.dwError, LANG_USER_DEFAULT, &Entry);
+                    FindCoreMessage(pPeb->Ldr, DebugEvent.u.RipInfo.dwError, LANG_USER_DEFAULT, &Entry);
                     // Convert error message to UTF-8
                     RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &UTF8StringActualByteCount,
                         (PCWCH) Entry->Text, Entry->Length - 8);
@@ -1068,6 +1065,4 @@ void __stdcall main(void)
     }
 }
 
-#ifdef _MSC_VER
 #pragma warning(pop)
-#endif

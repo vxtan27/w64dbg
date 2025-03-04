@@ -3,6 +3,8 @@
     Licensed under the BSD-3-Clause.
 */
 
+#pragma once
+
 static __forceinline long process_timeout(wchar_t *str, wchar_t **p, size_t len)
 {
     BOOL is_signed = FALSE; // Tracks if the value is negative

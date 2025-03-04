@@ -3,6 +3,8 @@
     Licensed under the BSD-3-Clause.
 */
 
+#pragma once
+
 _Success_(return >= 0)
 _Check_return_opt_
 static
