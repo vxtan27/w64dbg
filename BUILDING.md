@@ -24,7 +24,7 @@ Navigate to the source directory:
 
 Compile the source code:
 
-    cl /std:c++latest main.cpp /link ntdll.lib kernel32.lib ucrt.lib vcruntime.lib dbghelp.lib /ENTRY:main
+    cl /std:c++latest main.cpp /link /ENTRY:main
 
 ## Customization
 
