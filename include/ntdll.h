@@ -229,6 +229,14 @@ NtSuspendProcess(
 NTSYSCALLAPI
 NTSTATUS
 NTAPI
+NtTerminateProcess(
+    _In_opt_ HANDLE ProcessHandle,
+    _In_ NTSTATUS ExitStatus
+    );
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
 NtWriteFile(
     _In_ HANDLE FileHandle,
     _In_opt_ HANDLE Event,
