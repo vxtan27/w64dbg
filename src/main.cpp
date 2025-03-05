@@ -3,10 +3,14 @@
     Licensed under the BSD-3-Clause.
 */
 
-/* Build config & linking */
+
+/* Compiler & Linker Config */
 #include "include\config\build.h"
 
-/* Required headers */
+
+/*
+    Required Headers
+*/
 
 #include <stdlib.h>
 #include <windows.h>
@@ -14,21 +18,22 @@
 #include <dbghelp.h>
 #include <psapi.h>
 
-#include "..\include\jeaiii_to_text.h"
-#define dtoa(value, buffer) jeaiii::to_ascii_chars(buffer, value)
+#pragma warning(push)
+#pragma warning(disable: 4464)
 
+#include "..\include\jeaiii_to_text.h"
 #include "..\include\cvconst.h"
 #include "..\include\ntdll.h"
-
 #include "include\config\core.h"
 #include "include\hex.h"
-#include "include\format.h"
+#include "include\fmt.h"
+#include "include\log.h"
 #include "include\symbols.h"
 #include "include\timeout.h"
 
 
-#pragma warning(push)
 #pragma warning(disable: 4326)
+#pragma warning(disable: 5045)
 
 __declspec(noreturn)
 void __stdcall main(void)
@@ -37,7 +42,7 @@ void __stdcall main(void)
     DWORD ExitStatus;
     size_t temp, len;
     char buffer[BUFLEN];
-    ULONG UTF8StringActualByteCount;
+    ULONG ActualByteCount;
 
     LONG timeout = DEFAULT_TIMEOUT;
     BOOL breakpoint = DEFAULT_BREAKPOINT,
@@ -201,8 +206,8 @@ void __stdcall main(void)
                 pCmdLine + len + 1 - pNext) - pNext;
 
             RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                &UTF8StringActualByteCount, pNext, temp << 1);
-            p += UTF8StringActualByteCount;
+                &ActualByteCount, pNext, temp << 1);
+            p += ActualByteCount;
             pNext += temp + 1;
 
             memcpy(p, INVALID_ARGUMENT_, 3);
@@ -259,10 +264,10 @@ void __stdcall main(void)
 
         FindCoreMessage(pPeb->Ldr, ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &Entry);
         // Convert error message to UTF-8
-        RtlUnicodeToUTF8N(buffer, BUFLEN, &UTF8StringActualByteCount,
+        RtlUnicodeToUTF8N(buffer, BUFLEN, &ActualByteCount,
             (PCWCH) Entry->Text, Entry->Length - 8);
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-            buffer, UTF8StringActualByteCount, NULL, NULL);
+            buffer, ActualByteCount, NULL, NULL);
         RtlExitUserProcess(ERROR_FILE_NOT_FOUND);
     }
 
@@ -286,21 +291,21 @@ void __stdcall main(void)
         {
             // Should - 8 and () >> 1
             pos = wmemchr((wchar_t*) Entry->Text, '%', Entry->Length);
-            RtlUnicodeToUTF8N(buffer, BUFLEN, &UTF8StringActualByteCount,
+            RtlUnicodeToUTF8N(buffer, BUFLEN, &ActualByteCount,
                 (PCWCH) Entry->Text, pos - (wchar_t*) Entry->Text);
-            p = buffer + UTF8StringActualByteCount;
+            p = buffer + ActualByteCount;
         }
 
         // Convert filename to UTF-8
-        RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &UTF8StringActualByteCount,
+        RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &ActualByteCount,
             pNext, (ptr - pNext) << 1);
-        p += UTF8StringActualByteCount;
+        p += ActualByteCount;
 
         pos = wmemchr(pos + 1, '1', Entry->Length) + 1;
         // Convert error message to UTF-8
-        RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &UTF8StringActualByteCount,
+        RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &ActualByteCount,
             pos, Entry->Length - 8 - ((pos - (wchar_t*) Entry->Text) << 1));
-        p += UTF8StringActualByteCount;
+        p += ActualByteCount;
 
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, p - buffer, NULL, NULL);
@@ -333,49 +338,29 @@ void __stdcall main(void)
     NtCreateJobObject(&hJob, JOB_OBJECT_ALL_ACCESS, &ObjectAttributes);
     NtSetInformationJobObject(hJob, JobObjectBasicLimitInformation, &jobInfo, sizeof(jobInfo));
 
+    CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
+        start ? CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE
+              : CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
+        pProcessParameters->Environment, pProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
+    NtAssignProcessToJobObject(hJob, processInfo.hProcess);
+    WaitForDebugEventEx(&DebugEvent, INFINITE);
+
     if (!dwarf)
     {
-        // The system closes the handles to the process and thread
-        // when the debugger calls the ContinueDebugEvent function
-        CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
-            start ? CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE
-                  : CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
-            pProcessParameters->Environment, pProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
-        NtAssignProcessToJobObject(hJob, processInfo.hProcess);
         NtClose(processInfo.hThread);
         NtClose(processInfo.hProcess);
-        WaitForDebugEventEx(&DebugEvent, INFINITE);
         hFile[0] = DebugEvent.u.CreateProcessInfo.hFile;
         BaseOfDll[0] = DebugEvent.u.CreateProcessInfo.lpBaseOfImage;
         hProcess = DebugEvent.u.CreateProcessInfo.hProcess;
         hThread[0] = DebugEvent.u.CreateProcessInfo.hThread;
     } else
     {
-        // The system closes the handles to the process and thread
-        // when the debugger calls the DebugActiveProcessStop function
-        CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
-            start ? CREATIONFLAGS | CREATE_SUSPENDED | CREATE_NEW_CONSOLE
-                  : CREATIONFLAGS | CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP,
-            pProcessParameters->Environment, pProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
-        DebugActiveProcess(processInfo.dwProcessId);
-        NtAssignProcessToJobObject(hJob, processInfo.hProcess);
-        NtResumeProcess(processInfo.hProcess);
-        WaitForDebugEventEx(&DebugEvent, INFINITE);
         NtClose(DebugEvent.u.CreateProcessInfo.hFile);
         hThread[0] = processInfo.hThread;
         hProcess = processInfo.hProcess;
     }
 
-    if (verbose >= 2)
-    {
-        memcpy(buffer, CREATE_PROCESS, strlen(CREATE_PROCESS));
-        p = dtoa(DebugEvent.dwProcessId, buffer + strlen(CREATE_PROCESS));
-        *p = 'x';
-        p = dtoa(DebugEvent.dwThreadId, p + 1);
-        *p = '\n';
-        NtWriteFile(hStdout, NULL, NULL, NULL,
-            &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
-    }
+    if (verbose >= 2) TraceDebugEvent(&DebugEvent, CREATE_PROCESS, strlen(CREATE_PROCESS), hStdout);
 
     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
 
@@ -400,21 +385,7 @@ void __stdcall main(void)
         {
 
             case LOAD_DLL_DEBUG_EVENT:
-                if (verbose >= 2)
-                {
-                    wchar_t Tmp[WBUFLEN];
-
-                    memcpy(buffer, LOAD_DLL, strlen(LOAD_DLL));
-                    len = GetFinalPathNameByHandleW(DebugEvent.u.LoadDll.hFile,
-                        Tmp, WBUFLEN, FILE_NAME_OPENED);
-                    RtlUnicodeToUTF8N(buffer + strlen(LOAD_DLL),
-                        BUFLEN - strlen(LOAD_DLL), &UTF8StringActualByteCount,
-                        Tmp + 4, (len << 1) - 8); /* Skip \\?\ */
-                    buffer[UTF8StringActualByteCount + strlen(LOAD_DLL)] = '\n';
-
-                    NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, buffer,
-                        UTF8StringActualByteCount + strlen(LOAD_DLL) + 1, NULL, NULL);
-                }
+                if (verbose >= 2) TraceModuleEvent(&DebugEvent, LOAD_DLL, strlen(LOAD_DLL), hStdout);
 
                 // Find storage position
                 for (i = 0; i < MAX_DLL; ++i) if (!BaseOfDll[i])
@@ -428,24 +399,9 @@ void __stdcall main(void)
 
             case UNLOAD_DLL_DEBUG_EVENT:
                 // Find specific DLL
-                for (i = 0; i < MAX_DLL; ++i)
-                    if (DebugEvent.u.UnloadDll.lpBaseOfDll == BaseOfDll[i])
+                for (i = 0; i < MAX_DLL; ++i) if (DebugEvent.u.UnloadDll.lpBaseOfDll == BaseOfDll[i])
                 {
-                    if (verbose >= 2)
-                    {
-                        wchar_t Tmp[WBUFLEN];
-
-                        memcpy(buffer, UNLOAD_DLL, strlen(UNLOAD_DLL));
-                        len = GetFinalPathNameByHandleW(hFile[i],
-                            Tmp, WBUFLEN, FILE_NAME_OPENED);
-                        RtlUnicodeToUTF8N(buffer + strlen(UNLOAD_DLL),
-                            BUFLEN - strlen(UNLOAD_DLL), &UTF8StringActualByteCount,
-                            Tmp + 4, (len << 1) - 8); /* Skip \\?\ */
-                        buffer[UTF8StringActualByteCount + strlen(UNLOAD_DLL)] = '\n';
-
-                        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, buffer,
-                            UTF8StringActualByteCount + strlen(UNLOAD_DLL) + 1, NULL, NULL);
-                    }
+                    if (verbose >= 2) TraceModuleEvent(&DebugEvent, UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout);
 
                     NtClose(hFile[i]);
                     BaseOfDll[i] = 0;
@@ -455,16 +411,7 @@ void __stdcall main(void)
                 break;
 
             case CREATE_THREAD_DEBUG_EVENT:
-                if (verbose >= 2)
-                {
-                    memcpy(buffer, CREATE_THREAD, strlen(CREATE_THREAD));
-                    p = dtoa(DebugEvent.dwProcessId, buffer + strlen(CREATE_THREAD));
-                    *p = 'x';
-                    p = dtoa(DebugEvent.dwThreadId, p + 1);
-                    *p = '\n';
-                    NtWriteFile(hStdout, NULL, NULL, NULL,
-                        &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
-                }
+                if (verbose >= 2) TraceDebugEvent(&DebugEvent, CREATE_THREAD, strlen(CREATE_THREAD), hStdout);
 
                 // Find storage position
                 for (i = 0; i < MAX_THREAD; ++i) if (!dwThreadId[i])
@@ -477,16 +424,7 @@ void __stdcall main(void)
                 break;
 
             case EXIT_THREAD_DEBUG_EVENT:
-                if (verbose >= 2)
-                {
-                    memcpy(buffer, EXIT_THREAD, strlen(EXIT_THREAD));
-                    p = dtoa(DebugEvent.dwProcessId, buffer + strlen(EXIT_THREAD));
-                    *p = 'x';
-                    p = dtoa(DebugEvent.dwThreadId, p + 1);
-                    *p = '\n';
-                    NtWriteFile(hStdout, NULL, NULL, NULL,
-                        &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
-                }
+                if (verbose >= 2) TraceDebugEvent(&DebugEvent, EXIT_THREAD, strlen(EXIT_THREAD), hStdout);
 
                 // Find specific thread
                 for (i = 0; i < MAX_THREAD; ++i) if (DebugEvent.dwThreadId == dwThreadId[i])
@@ -498,16 +436,7 @@ void __stdcall main(void)
                 break;
 
             case EXIT_PROCESS_DEBUG_EVENT:
-                if (verbose >= 2)
-                {
-                    memcpy(buffer, EXIT_PROCESS, strlen(EXIT_PROCESS));
-                    p = dtoa(DebugEvent.dwProcessId, buffer + strlen(EXIT_PROCESS));
-                    *p = 'x';
-                    p = dtoa(DebugEvent.dwThreadId, p + 1);
-                    *p = '\n';
-                    NtWriteFile(hStdout, NULL, NULL, NULL,
-                        &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
-                }
+                if (verbose >= 2) TraceDebugEvent(&DebugEvent, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout);
 
                 // Cleanup
                 if (dwarf)
@@ -528,16 +457,7 @@ void __stdcall main(void)
 
             [[fallthrough]];
             case OUTPUT_DEBUG_STRING_EVENT:
-                if (verbose >= 2)
-                {
-                    memcpy(buffer, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG));
-                    p = dtoa(DebugEvent.dwProcessId, buffer + strlen(OUTPUT_DEBUG));
-                    *p = 'x';
-                    p = dtoa(DebugEvent.dwThreadId, p + 1);
-                    *p = '\n';
-                    NtWriteFile(hStdout, NULL, NULL, NULL,
-                        &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
-                }
+                if (verbose >= 2) TraceDebugEvent(&DebugEvent, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout);
 
                 if (output == TRUE)
                 {
@@ -548,10 +468,10 @@ void __stdcall main(void)
                         NtReadVirtualMemory(hProcess,
                             DebugEvent.u.DebugString.lpDebugStringData,
                             Tmp, DebugEvent.u.DebugString.nDebugStringLength - 2, NULL);
-                        RtlUnicodeToUTF8N(buffer, BUFLEN, &UTF8StringActualByteCount,
+                        RtlUnicodeToUTF8N(buffer, BUFLEN, &ActualByteCount,
                             Tmp, DebugEvent.u.DebugString.nDebugStringLength - 2);
                         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-                            buffer, UTF8StringActualByteCount, NULL, NULL);
+                            buffer, ActualByteCount, NULL, NULL);
                     } else
                     {
                         NtReadVirtualMemory(hProcess,
@@ -574,6 +494,7 @@ void __stdcall main(void)
                 // Check if not first-chance
                 if (!DebugEvent.u.Exception.dwFirstChance)
                 {
+                    NtTerminateProcess(hProcess, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode);
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001);
                     continue;
                 }
@@ -588,7 +509,7 @@ void __stdcall main(void)
                     buffer[strlen(THREAD_NUMBER)] = '0' + (i + 1) / 10;
                     buffer[strlen(THREAD_NUMBER) + 1] = '0' + (i + 1) % 10;
                     p = buffer + strlen(THREAD_NUMBER) + 2;
-                } else p = dtoa(DebugEvent.dwThreadId, buffer + strlen(THREAD_NUMBER) - 1);
+                } else p = jeaiii::to_ascii_chars(buffer + strlen(THREAD_NUMBER) - 1, DebugEvent.dwThreadId);
 
                 wchar_t Tmp[WBUFLEN];
 
@@ -608,8 +529,8 @@ void __stdcall main(void)
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, LANG_USER_DEFAULT, &Entry);
                 // Convert error message to UTF-8
                 RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                    &UTF8StringActualByteCount, (PCWCH) Entry->Text, Entry->Length - 8);
-                p += UTF8StringActualByteCount;
+                    &ActualByteCount, (PCWCH) Entry->Text, Entry->Length - 8);
+                p += ActualByteCount;
 
                 if (Console)
                 {
@@ -679,7 +600,7 @@ void __stdcall main(void)
                         NtWriteFile(hTemp, NULL, NULL, NULL, &IoStatusBlock,
                             (PVOID) GDB_DEFAULT, strlen(GDB_DEFAULT), NULL, NULL);
 
-                    p = dtoa(DebugEvent.dwProcessId, buffer);
+                    p = jeaiii::to_ascii_chars(buffer, DebugEvent.dwProcessId);
 
                     if (dwarf == MINGW_NOKEEP)
                     {
@@ -773,16 +694,7 @@ void __stdcall main(void)
                     NtWaitForSingleObject(processInfo.hProcess, FALSE, NULL);
                     NtClose(processInfo.hProcess);
 
-                    if (verbose >= 2)
-                    {
-                        memcpy(buffer, EXIT_PROCESS, strlen(EXIT_PROCESS));
-                        p = dtoa(DebugEvent.dwProcessId, buffer + strlen(EXIT_PROCESS));
-                        *p = 'x';
-                        p = dtoa(DebugEvent.dwThreadId, p + 1);
-                        *p = '\n';
-                        NtWriteFile(hStdout, NULL, NULL, NULL,
-                            &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
-                    }
+                    if (verbose >= 2) TraceDebugEvent(&DebugEvent, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout);
 
                     if (timeout) WaitForInputOrTimeout(
                         pProcessParameters->StandardInput, hStdout, timeout, Console);
@@ -913,8 +825,8 @@ void __stdcall main(void)
                     }
 
                     RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                        &UTF8StringActualByteCount, pSymInfo->Name, pSymInfo->NameLen << 1);
-                    p += UTF8StringActualByteCount;
+                        &ActualByteCount, pSymInfo->Name, pSymInfo->NameLen << 1);
+                    p += ActualByteCount;
 
                     if (Console)
                     {
@@ -976,8 +888,8 @@ void __stdcall main(void)
                         len = GetModuleFileNameExW(hProcess,
                             (HMODULE) pSymInfo->ModBase, Tmp, WBUFLEN);
                         RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                            &UTF8StringActualByteCount, Tmp, len << 1);
-                        p += UTF8StringActualByteCount;
+                            &ActualByteCount, Tmp, len << 1);
+                        p += ActualByteCount;
 
                         if (Console)
                         {
@@ -1026,17 +938,13 @@ void __stdcall main(void)
                 {
                     PMESSAGE_RESOURCE_ENTRY Entry;
 
-                    memcpy(buffer, RIP, strlen(RIP));
-                    p = dtoa(DebugEvent.dwProcessId, buffer + strlen(RIP));
-                    *p = 'x';
-                    p = dtoa(DebugEvent.dwThreadId, p + 1);
-                    *p++ = '\n';
+                    p = buffer + FormatModuleEvent(&DebugEvent, RIP, strlen(RIP), buffer);
 
                     FindCoreMessage(pPeb->Ldr, DebugEvent.u.RipInfo.dwError, LANG_USER_DEFAULT, &Entry);
                     // Convert error message to UTF-8
-                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &UTF8StringActualByteCount,
+                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &ActualByteCount,
                         (PCWCH) Entry->Text, Entry->Length - 8);
-                    p += UTF8StringActualByteCount;
+                    p += ActualByteCount;
 
                     if (DebugEvent.u.RipInfo.dwType == 1)
                     {

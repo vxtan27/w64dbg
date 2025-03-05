@@ -226,10 +226,10 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, 
         User->p += 5;
     }
 
-    ULONG UTF8StringActualByteCount;
+    ULONG ActualByteCount;
     RtlUnicodeToUTF8N(User->p, BUFLEN,
-        &UTF8StringActualByteCount, pSymInfo->Name, (pSymInfo->NameLen - 1) << 1);
-    User->p += UTF8StringActualByteCount;
+        &ActualByteCount, pSymInfo->Name, (pSymInfo->NameLen - 1) << 1);
+    User->p += ActualByteCount;
 
     if (User->Console)
     {
@@ -242,8 +242,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, 
 
     if (pSymInfo->Flags & SYMFLAG_REGREL)
         Base = GetRegisterBase(pSymInfo, User->pContext, User->is_64bit);
-    else if (pSymInfo->Flags & SYMFLAG_FRAMEREL)
-        Base = *User->pBase;
+    else Base = *User->pBase; // if (pSymInfo->Flags & SYMFLAG_FRAMEREL)
 
     DWORD DTag;
 
@@ -270,16 +269,16 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, 
             switch (BaseType)
             {
                 case btChar:
-                    User->p = dtoa(bt.c, User->p);
+                    User->p = jeaiii::to_ascii_chars(User->p, bt.c);
                     break;
                 case btWChar:
-                    User->p = dtoa(bt.wc, User->p);
+                    User->p = jeaiii::to_ascii_chars(User->p, bt.wc);
                     break;
                 case btInt:
-                    User->p = dtoa(bt.i64, User->p);
+                    User->p = jeaiii::to_ascii_chars(User->p, bt.i64);
                     break;
                 case btUInt:
-                    User->p = dtoa(bt.ui64, User->p);
+                    User->p = jeaiii::to_ascii_chars(User->p, bt.ui64);
                     break;
                 case btFloat:
                     User->p += __builtin_sprintf(User->p, LONGDOUBLE_FORMAT, bt.d);
@@ -296,10 +295,10 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, 
                     }
                     break;
                 case btLong:
-                    User->p = dtoa(bt.l, User->p);
+                    User->p = jeaiii::to_ascii_chars(User->p, bt.l);
                     break;
                 case btULong:
-                    User->p = dtoa(bt.ul, User->p);
+                    User->p = jeaiii::to_ascii_chars(User->p, bt.ul);
                     break;
                 case btHresult:
                     User->p = _ultoa16u(bt.ul, User->p);

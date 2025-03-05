@@ -31,14 +31,50 @@ static __forceinline VOID FindCoreMessage(
         (ULONG)(ULONG_PTR) RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
 }
 
+static
+FORCEINLINE
+ULONG
+FormatModuleEvent(LPDEBUG_EVENT lpDebugEvent, LPCSTR szDebugEventName, SIZE_T DebugEventNameLength, LPSTR Buffer)
+{
+    DWORD Length;
+    ULONG ActualByteCount;
+    wchar_t Temp[MAX_PATH];
+
+    // %s%s\n
+    memcpy(Buffer, szDebugEventName, DebugEventNameLength);
+    Length = GetFinalPathNameByHandleW(lpDebugEvent->u.LoadDll.hFile, Temp, MAX_PATH, FILE_NAME_OPENED);
+    RtlUnicodeToUTF8N(Buffer + DebugEventNameLength, MAX_PATH,
+        &ActualByteCount, Temp + 4, (Length << 1) - 8); /* Skip \\?\ */
+    Buffer[ActualByteCount + DebugEventNameLength] = '\n';
+
+    return ActualByteCount + DebugEventNameLength + 1;
+}
+
+static
+FORCEINLINE
+ULONG
+FormatDebugEvent(LPDEBUG_EVENT lpDebugEvent, LPCSTR szDebugEventName, SIZE_T DebugEventNameLength, LPSTR Buffer)
+{
+    char *p;
+
+    // %s%ux%u\n
+    memcpy(Buffer, szDebugEventName, DebugEventNameLength);
+    p = jeaiii::to_ascii_chars(Buffer + DebugEventNameLength, lpDebugEvent->dwProcessId);
+    *p = 'x';
+    p = jeaiii::to_ascii_chars(p + 1, lpDebugEvent->dwThreadId);
+    *p = '\n';
+
+    return p - Buffer + 1;
+}
+
 static __forceinline LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG BufLength, LPSTR p, BOOL Console)
 {
-    ULONG UTF8StringActualByteCount;
+    ULONG ActualByteCount;
 
     // Convert file name from Unicode to UTF-8
     RtlUnicodeToUTF8N(p, BufLength,
-        &UTF8StringActualByteCount, FileName, FileLength);
-    p += UTF8StringActualByteCount;
+        &ActualByteCount, FileName, FileLength);
+    p += ActualByteCount;
 
     // Optionally apply color formatting
     if (Console)
@@ -49,7 +85,7 @@ static __forceinline LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULO
     }
 
     *p = ':'; // Add a colon separator
-    p = dtoa(LineNumber, p + 1);
+    p = jeaiii::to_ascii_chars(p + 1, LineNumber);
     *p = '\n'; // Terminate with a newline
 
     return p + 1;
@@ -94,7 +130,7 @@ static __forceinline LPSTR FormatSourceCode(PPEB_LDR_DATA Ldr, LPWSTR FileName, 
                     size_t temp;
 
                     // Format line number and spacing
-                    p = dtoa(line, p);
+                    p = jeaiii::to_ascii_chars(p, line);
                     memset(p, ' ', 6);
                     p += 6;
                     // Extract content for the target line
@@ -128,13 +164,13 @@ static __forceinline LPSTR FormatSourceCode(PPEB_LDR_DATA Ldr, LPWSTR FileName, 
     } else if (verbose >= 1)
     {  // Handle file not found error in verbose mode
         PMESSAGE_RESOURCE_ENTRY Entry;
-        ULONG UTF8StringActualByteCount;
+        ULONG ActualByteCount;
 
         FindNativeMessage(Ldr, ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &Entry);
         // Convert error message to UTF-8
-        RtlUnicodeToUTF8N(p, BufLength, &UTF8StringActualByteCount,
+        RtlUnicodeToUTF8N(p, BufLength, &ActualByteCount,
             (PCWCH) Entry->Text, Entry->Length - 8);
-        p += UTF8StringActualByteCount;
+        p += ActualByteCount;
     }
 
     return p;
