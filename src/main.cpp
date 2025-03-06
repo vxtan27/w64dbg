@@ -27,6 +27,7 @@
 #include "include\config\core.h"
 #include "include\hex.h"
 #include "include\fmt.h"
+#include "include\dbg.h"
 #include "include\log.h"
 #include "include\symbols.h"
 #include "include\timeout.h"
@@ -494,7 +495,7 @@ void __stdcall main(void)
                 if (!DebugEvent.u.Exception.dwFirstChance)
                 {
                     NtTerminateProcess(hProcess, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode);
-                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001);
+                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_EXCEPTION_NOT_HANDLED);
                     continue;
                 }
 
@@ -524,12 +525,14 @@ void __stdcall main(void)
 
                 PMESSAGE_RESOURCE_ENTRY Entry;
 
-                LookupNtdllMessage(pPeb->Ldr,
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, LANG_USER_DEFAULT, &Entry);
-                // Convert error message to UTF-8
-                RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                    &ActualByteCount, (PCWSTR) Entry->Text, Entry->Length - 8);
-                p += ActualByteCount;
+                if (NT_SUCCESS(LookupNtdllMessage(pPeb->Ldr,
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, LANG_USER_DEFAULT, &Entry)))
+                {
+                    // Convert error message to UTF-8
+                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
+                        &ActualByteCount, (PCWSTR) Entry->Text, Entry->Length - 8);
+                    p += ActualByteCount;
+                }
 
                 if (Console)
                 {
@@ -700,7 +703,7 @@ void __stdcall main(void)
 
                     NtClose(hJob);
                     RtlExitUserProcess(EXIT_SUCCESS);
-                } else ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, 0x80010001L);
+                } else ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_EXCEPTION_NOT_HANDLED);
 
                 if (DebugEvent.dwThreadId != dwThreadId[i])
                 {
@@ -842,9 +845,8 @@ void __stdcall main(void)
                         Success = TRUE;
                         UserContext.p = p;
                         UserContext.DataIsParam = TRUE;
-                        UserContext.IsFirst = TRUE;
                         SymEnumSymbolsExW(hProcess, 0, NULL, EnumCallbackProc, &UserContext, SYMENUM_OPTIONS_DEFAULT);
-                        p = UserContext.p;
+                        if (p != UserContext.p) p = UserContext.p - 2;
                     } else Success = FALSE;
 
                     *p++ = ')';
@@ -927,7 +929,10 @@ void __stdcall main(void)
                 continue;
 
             case RIP_EVENT:
-                if (verbose >= 2) TraceRIPEvent(&DebugEvent, pPeb->Ldr, hStdout);
+                if (verbose >= 2) TraceDebugEvent(&DebugEvent, RIP, strlen(RIP), hStdout);
+
+                HandleRIPEvent(&DebugEvent, pPeb->Ldr, hStdout);
+                break;
         }
 
         ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);

@@ -176,7 +176,6 @@ typedef struct
     DWORD is_64bit;
     BOOL Console;
     BOOL DataIsParam;
-    BOOL IsFirst;
 } USERCONTEXT, *PUSERCONTEXT;
 
 typedef union
@@ -210,14 +209,7 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, 
         (User->DataIsParam && !(pSymInfo->Flags & SYMFLAG_PARAMETER)) ||
         (!User->DataIsParam && pSymInfo->Flags & SYMFLAG_PARAMETER)) return FALSE; // Stop enumeration
 
-    if (User->DataIsParam)
-    {
-        if (!User->IsFirst)
-        {
-            *User->p++ = ',';
-            *User->p++ = ' ';
-        } else User->IsFirst = FALSE;
-    } else
+    if (!User->DataIsParam)
     {
         memset(User->p, ' ', 8);
         User->p += 8;
@@ -313,7 +305,11 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, 
         }
     }
 
-    if (!User->DataIsParam) *User->p++ = '\n';
+    if (User->DataIsParam)
+    {
+        *User->p++ = ',';
+        *User->p++ = ' ';
+    } else *User->p++ = '\n';
 
     return TRUE; // Continue enumeration
 }

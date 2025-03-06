@@ -97,7 +97,7 @@ FormatModuleEvent(
 
 /*
     Formats a RIP (Raise an Exception) debug event message into a buffer.
-    Output format: "<RIP><ModulePath><ErrorMessage><SeverityIndicator>\n"
+    Output format: "<ErrorMessage><ErrorType>\n"
 */
 
 static
@@ -110,16 +110,12 @@ FormatRIPEvent(
     ULONG         BufLen)
 {
     char *p;
-    ULONG Length;
     ULONG ActualByteCount;
     PMESSAGE_RESOURCE_ENTRY Entry;
 
-    Length = FormatModuleEvent(lpDebugEvent, RIP, strlen(RIP), Buffer);
-    p = Buffer + Length;
-
     LookupSystemMessage(Ldr, lpDebugEvent->u.RipInfo.dwError, LANG_USER_DEFAULT, &Entry);
-    RtlUnicodeToUTF8N(p, BufLen - Length, &ActualByteCount, (PCWSTR) Entry->Text, Entry->Length - 8);
-    p += ActualByteCount;
+    RtlUnicodeToUTF8N(Buffer, BufLen, &ActualByteCount, (PCWSTR) Entry->Text, Entry->Length - 8);
+    p = Buffer + ActualByteCount;
 
     if (lpDebugEvent->u.RipInfo.dwType == 1)
     {

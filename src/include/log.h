@@ -6,9 +6,7 @@
 #pragma once
 
 #define DEBUG_EVENT_NAME_MAX_LEN 18
-#define DEBUG_EVENT_RIP_SLE_MAX_LEN 102
 #define TRACE_DEBUG_EVENT_BUFFER_SIZE (DEBUG_EVENT_NAME_MAX_LEN + 22)
-#define TRACE_DEBUG_RIP_EVENT_BUFFER_SIZE (DEBUG_EVENT_RIP_SLE_MAX_LEN + 900)
 
 /*
     Writes a formatted debug event message to the specified handle.
@@ -50,24 +48,4 @@ TraceModuleEvent(
 
     return NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer,
         FormatModuleEvent(lpDebugEvent, szDebugEventName, DebugEventNameLength, Buffer), NULL, NULL);
-}
-
-/*
-    Captures RIP (Raise an Exception) events with extended event details.
-    Employs a large preallocated buffer to ensure full event context retention.
-*/
-
-static
-FORCEINLINE
-NTSTATUS
-TraceRIPEvent(
-    LPDEBUG_EVENT lpDebugEvent,
-    PPEB_LDR_DATA Ldr,
-    HANDLE        hStdout)
-{
-    IO_STATUS_BLOCK IoStatusBlock;
-    char Buffer[TRACE_DEBUG_RIP_EVENT_BUFFER_SIZE];
-
-    return NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer,
-        FormatRIPEvent(lpDebugEvent, Ldr, Buffer, TRACE_DEBUG_RIP_EVENT_BUFFER_SIZE), NULL, NULL);
 }
