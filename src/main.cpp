@@ -262,10 +262,10 @@ void __stdcall main(void)
     { // Check if executable exists
         PMESSAGE_RESOURCE_ENTRY Entry;
 
-        FindCoreMessage(pPeb->Ldr, ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &Entry);
+        LookupSystemMessage(pPeb->Ldr, ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &Entry);
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(buffer, BUFLEN, &ActualByteCount,
-            (PCWCH) Entry->Text, Entry->Length - 8);
+            (PCWSTR) Entry->Text, Entry->Length - 8);
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, ActualByteCount, NULL, NULL);
         RtlExitUserProcess(ERROR_FILE_NOT_FOUND);
@@ -279,7 +279,7 @@ void __stdcall main(void)
         wchar_t *pos;
         PMESSAGE_RESOURCE_ENTRY Entry;
 
-        FindCoreMessage(pPeb->Ldr, ERROR_BAD_EXE_FORMAT, LANG_USER_DEFAULT, &Entry);
+        LookupSystemMessage(pPeb->Ldr, ERROR_BAD_EXE_FORMAT, LANG_USER_DEFAULT, &Entry);
 
         // Convert error message to UTF-8
         if (*Entry->Text == '%')
@@ -292,7 +292,7 @@ void __stdcall main(void)
             // Should - 8 and () >> 1
             pos = wmemchr((wchar_t*) Entry->Text, '%', Entry->Length);
             RtlUnicodeToUTF8N(buffer, BUFLEN, &ActualByteCount,
-                (PCWCH) Entry->Text, pos - (wchar_t*) Entry->Text);
+                (PCWSTR) Entry->Text, pos - (wchar_t*) Entry->Text);
             p = buffer + ActualByteCount;
         }
 
@@ -438,7 +438,6 @@ void __stdcall main(void)
             case EXIT_PROCESS_DEBUG_EVENT:
                 if (verbose >= 2) TraceDebugEvent(&DebugEvent, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout);
 
-                // Cleanup
                 if (dwarf)
                 {
                     NtClose(hProcess);
@@ -525,11 +524,11 @@ void __stdcall main(void)
 
                 PMESSAGE_RESOURCE_ENTRY Entry;
 
-                FindNativeMessage(pPeb->Ldr,
+                LookupNtdllMessage(pPeb->Ldr,
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, LANG_USER_DEFAULT, &Entry);
                 // Convert error message to UTF-8
                 RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                    &ActualByteCount, (PCWCH) Entry->Text, Entry->Length - 8);
+                    &ActualByteCount, (PCWSTR) Entry->Text, Entry->Length - 8);
                 p += ActualByteCount;
 
                 if (Console)
@@ -873,7 +872,7 @@ void __stdcall main(void)
                         else p = FormatFileLine(Line.FileName,
                             Line.LineNumber, temp, buffer + BUFLEN - p, p, Console);
                         if (verbose >= 1) p = FormatSourceCode(pPeb->Ldr, Line.FileName,
-                            Line.LineNumber, temp, buffer + BUFLEN - p, p, verbose);
+                            Line.LineNumber, temp, buffer + BUFLEN - p, p);
                     } else
                     {
                         memcpy(p, EXCEPTION_FROM, strlen(EXCEPTION_FROM));
@@ -923,52 +922,14 @@ void __stdcall main(void)
                 NtWriteFile(hStdout, NULL, NULL, NULL,
                     &IoStatusBlock, buffer, p - buffer, NULL, NULL);
 
-                /*
-                for (i = 0; i < MAX_DLL; ++i) if (BaseOfDll[i])
-                    SymUnloadModule64(hProcess,
-                        (DWORD64) BaseOfDll[i]);
-                */
-
                 SymCleanup(hProcess);
 
                 continue;
 
             case RIP_EVENT:
-                if (verbose >= 2)
-                {
-                    PMESSAGE_RESOURCE_ENTRY Entry;
-
-                    p = buffer + FormatModuleEvent(&DebugEvent, RIP, strlen(RIP), buffer);
-
-                    FindCoreMessage(pPeb->Ldr, DebugEvent.u.RipInfo.dwError, LANG_USER_DEFAULT, &Entry);
-                    // Convert error message to UTF-8
-                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &ActualByteCount,
-                        (PCWCH) Entry->Text, Entry->Length - 8);
-                    p += ActualByteCount;
-
-                    if (DebugEvent.u.RipInfo.dwType == 1)
-                    {
-                        memcpy(p, _SLE_ERROR, strlen(_SLE_ERROR));
-                        p += strlen(_SLE_ERROR);
-                    } else if (DebugEvent.u.RipInfo.dwType == 2)
-                    {
-                        memcpy(p, _SLE_MINORERROR, strlen(_SLE_MINORERROR));
-                        p += strlen(_SLE_MINORERROR);
-                    } else if (DebugEvent.u.RipInfo.dwType == 3)
-                    {
-                        memcpy(p, _SLE_WARNING, strlen(_SLE_WARNING));
-                        p += strlen(_SLE_WARNING);
-                    }
-
-                    if (DebugEvent.u.RipInfo.dwType) *p++ = '.';
-                    *p = '\n';
-
-                    NtWriteFile(hStdout, NULL, NULL, NULL,
-                        &IoStatusBlock, buffer, p - buffer + 1, NULL, NULL);
-                }
-
-                break;
+                if (verbose >= 2) TraceRIPEvent(&DebugEvent, pPeb->Ldr, hStdout);
         }
+
         ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
     }
 }

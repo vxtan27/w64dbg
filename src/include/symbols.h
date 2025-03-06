@@ -5,6 +5,11 @@
 
 #pragma once
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4715)
+#endif
+
 _Success_(return >= 0)
 _Check_return_opt_
 static
@@ -23,8 +28,6 @@ int __builtin_sprintf(
     __crt_va_end(_ArgList);
     return _Result;
 }
-
-#pragma warning(disable: 4715)
 
 static __forceinline DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext)
 {
@@ -242,7 +245,8 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, 
 
     if (pSymInfo->Flags & SYMFLAG_REGREL)
         Base = GetRegisterBase(pSymInfo, User->pContext, User->is_64bit);
-    else Base = *User->pBase; // if (pSymInfo->Flags & SYMFLAG_FRAMEREL)
+    else if (pSymInfo->Flags & SYMFLAG_FRAMEREL)
+        Base = *User->pBase;
 
     DWORD DTag;
 
@@ -255,15 +259,17 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, 
         User->p = _ui64toaddr(pSymInfo->Address + Base, User->p, User->is_64bit);
     else
     {
+        ULONG64 Len;
         BASIC_TYPE bt = {};
 
         // add SYMFLAG_VALUEPRESENT
-        NtReadVirtualMemory(User->hProcess, (PVOID) (pSymInfo->Address + Base), &bt, SymbolSize, NULL); // pSymInfo->Size
+        SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_LENGTH, &Len);
+        NtReadVirtualMemory(User->hProcess, (PVOID) (pSymInfo->Address + Base), &bt, Len, NULL); // pSymInfo->Size
 
         if (DTag == SymTagPointerType) User->p = _ui64toaddr(bt.ui64, User->p, User->is_64bit);
         else
         {
-            DWORD BaseType;
+            DWORD BaseType = 0;
             SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_BASETYPE, &BaseType);
 
             switch (BaseType)
@@ -322,3 +328,7 @@ BOOL NTAPI ReadMemoryRoutineLocal(HANDLE hProcess, DWORD64 qwBaseAddress, PVOID 
 
     return TRUE;
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif

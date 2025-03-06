@@ -5,63 +5,137 @@
 
 #pragma once
 
-static __forceinline VOID FindNativeMessage(
-    PPEB_LDR_DATA Ldr,
-    DWORD dwMessageId,
-    DWORD dwLanguageId,
-    PMESSAGE_RESOURCE_ENTRY *Entry
-    )
+/*
+    Retrieves a localized system message from ntdll.dll.
+    Leverages direct access to the second loaded module in the PEB loader data.
+*/
+
+static
+__forceinline
+NTSTATUS
+LookupNtdllMessage(
+    PPEB_LDR_DATA            Ldr,
+    DWORD                    dwMessageId,
+    DWORD                    dwLanguageId,
+    PMESSAGE_RESOURCE_ENTRY *Entry)
 {
-    // Retrieve the base address of the second loaded module (kernel32.dll)
-    // Locate the message resource entry
-    RtlFindMessage(((PLDR_DATA_TABLE_ENTRY) ((PLIST_ENTRY) Ldr->Reserved2[1])->Flink)->DllBase,
+    return RtlFindMessage(
+        ((PLDR_DATA_TABLE_ENTRY) ((PLIST_ENTRY) Ldr->Reserved2[1])->Flink)->DllBase,
         (ULONG)(ULONG_PTR) RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
 }
 
-static __forceinline VOID FindCoreMessage(
-    PPEB_LDR_DATA Ldr,
-    DWORD dwMessageId,
-    DWORD dwLanguageId,
-    PMESSAGE_RESOURCE_ENTRY *Entry
-    )
+/*
+    Retrieves a localized system message from KernelBase.dll.
+    Leverages direct access to the fourth loaded module in the PEB loader data.
+*/
+
+static
+__forceinline
+NTSTATUS
+LookupSystemMessage(
+    PPEB_LDR_DATA            Ldr,
+    DWORD                    dwMessageId,
+    DWORD                    dwLanguageId,
+    PMESSAGE_RESOURCE_ENTRY *Entry)
 {
-    // Retrieve the base address of the fifth loaded module (ntdll.dll)
-    // Locate the message resource entry
-    RtlFindMessage(((PLDR_DATA_TABLE_ENTRY) ((PLIST_ENTRY) Ldr->Reserved2[1])->Flink->Flink->Flink)->DllBase,
+    return RtlFindMessage(
+        ((PLDR_DATA_TABLE_ENTRY) ((PLIST_ENTRY) Ldr->Reserved2[1])->Flink->Flink->Flink)->DllBase,
         (ULONG)(ULONG_PTR) RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
 }
+
+/*
+    Formats a debug event message into a buffer.
+    Output format: "<EventName><ProcessID>x<ThreadID>\n"
+*/
 
 static
 FORCEINLINE
 ULONG
-FormatModuleEvent(LPDEBUG_EVENT lpDebugEvent, LPCSTR szDebugEventName, SIZE_T DebugEventNameLength, LPSTR Buffer)
+FormatDebugEvent(
+    LPDEBUG_EVENT lpDebugEvent,
+    LPCSTR        szDebugEventName,
+    SIZE_T        DebugEventNameLength,
+    LPSTR         Buffer)
+{
+    char *p;
+    
+    memcpy(Buffer, szDebugEventName, DebugEventNameLength);
+    p = jeaiii::to_ascii_chars(Buffer + DebugEventNameLength, lpDebugEvent->dwProcessId);
+    *p = 'x';
+    p = jeaiii::to_ascii_chars(p + 1, lpDebugEvent->dwThreadId);
+    *p = '\n';
+
+    return (ULONG)(p - Buffer + 1);
+}
+
+/*
+    Formats a module-related debug event message into a buffer.
+    Output format: "<EventName><ModulePath>\n"
+*/
+
+static
+FORCEINLINE
+ULONG
+FormatModuleEvent(
+    LPDEBUG_EVENT lpDebugEvent,
+    LPCSTR        szDebugEventName,
+    SIZE_T        DebugEventNameLength,
+    LPSTR         Buffer)
 {
     DWORD Length;
     ULONG ActualByteCount;
     wchar_t Temp[MAX_PATH];
 
-    // %s%s\n
     memcpy(Buffer, szDebugEventName, DebugEventNameLength);
     Length = GetFinalPathNameByHandleW(lpDebugEvent->u.LoadDll.hFile, Temp, MAX_PATH, FILE_NAME_OPENED);
     RtlUnicodeToUTF8N(Buffer + DebugEventNameLength, MAX_PATH,
         &ActualByteCount, Temp + 4, (Length << 1) - 8); /* Skip \\?\ */
     Buffer[ActualByteCount + DebugEventNameLength] = '\n';
 
-    return ActualByteCount + DebugEventNameLength + 1;
+    return (ULONG)(ActualByteCount + DebugEventNameLength + 1);
 }
+
+/*
+    Formats a RIP (Raise an Exception) debug event message into a buffer.
+    Output format: "<RIP><ModulePath><ErrorMessage><SeverityIndicator>\n"
+*/
 
 static
 FORCEINLINE
 ULONG
-FormatDebugEvent(LPDEBUG_EVENT lpDebugEvent, LPCSTR szDebugEventName, SIZE_T DebugEventNameLength, LPSTR Buffer)
+FormatRIPEvent(
+    LPDEBUG_EVENT lpDebugEvent,
+    PPEB_LDR_DATA Ldr,
+    LPSTR         Buffer,
+    ULONG         BufLen)
 {
     char *p;
+    ULONG Length;
+    ULONG ActualByteCount;
+    PMESSAGE_RESOURCE_ENTRY Entry;
 
-    // %s%ux%u\n
-    memcpy(Buffer, szDebugEventName, DebugEventNameLength);
-    p = jeaiii::to_ascii_chars(Buffer + DebugEventNameLength, lpDebugEvent->dwProcessId);
-    *p = 'x';
-    p = jeaiii::to_ascii_chars(p + 1, lpDebugEvent->dwThreadId);
+    Length = FormatModuleEvent(lpDebugEvent, RIP, strlen(RIP), Buffer);
+    p = Buffer + Length;
+
+    LookupSystemMessage(Ldr, lpDebugEvent->u.RipInfo.dwError, LANG_USER_DEFAULT, &Entry);
+    RtlUnicodeToUTF8N(p, BufLen - Length, &ActualByteCount, (PCWSTR) Entry->Text, Entry->Length - 8);
+    p += ActualByteCount;
+
+    if (lpDebugEvent->u.RipInfo.dwType == 1)
+    {
+        memcpy(p, _SLE_ERROR, strlen(_SLE_ERROR));
+        p += strlen(_SLE_ERROR);
+    } else if (lpDebugEvent->u.RipInfo.dwType == 2)
+    {
+        memcpy(p, _SLE_MINORERROR, strlen(_SLE_MINORERROR));
+        p += strlen(_SLE_MINORERROR);
+    } else if (lpDebugEvent->u.RipInfo.dwType == 3)
+    {
+        memcpy(p, _SLE_WARNING, strlen(_SLE_WARNING));
+        p += strlen(_SLE_WARNING);
+    }
+
+    if (lpDebugEvent->u.RipInfo.dwType) *p++ = '.';
     *p = '\n';
 
     return p - Buffer + 1;
@@ -91,7 +165,7 @@ static __forceinline LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULO
     return p + 1;
 }
 
-static __forceinline LPSTR FormatSourceCode(PPEB_LDR_DATA Ldr, LPWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, LPSTR p, BOOL verbose)
+static __forceinline LPSTR FormatSourceCode(PPEB_LDR_DATA Ldr, LPWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, LPSTR p)
 {
     // Prepend Object Manager namespace to the file name
     memcpy(FileName - OBJECT_MANAGER_NAMESPACE_WLEN,
@@ -161,15 +235,15 @@ static __forceinline LPSTR FormatSourceCode(PPEB_LDR_DATA Ldr, LPWSTR FileName, 
         }
 
         NtClose(hFile); // Close the file handle
-    } else if (verbose >= 1)
+    } else
     {  // Handle file not found error in verbose mode
         PMESSAGE_RESOURCE_ENTRY Entry;
         ULONG ActualByteCount;
 
-        FindNativeMessage(Ldr, ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &Entry);
+        LookupSystemMessage(Ldr, ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &Entry);
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(p, BufLength, &ActualByteCount,
-            (PCWCH) Entry->Text, Entry->Length - 8);
+            (PCWSTR) Entry->Text, Entry->Length - 8);
         p += ActualByteCount;
     }
 
