@@ -10,12 +10,26 @@
     Required Libraries
 */
 
+#ifdef _DEBUG
+
+#pragma comment(lib, "ucrtd.lib")
+
+#ifdef _MD
+#pragma comment(lib, "vcruntime.lib")
+#else
+#pragma comment(lib, "libvcruntime.lib")
+#endif
+
+#else
+
 #ifdef _MD
 #pragma comment(lib, "ucrt.lib")
 #pragma comment(lib, "vcruntime.lib")
-#elif defined(_MT)
+#else
 #pragma comment(lib, "libucrt.lib")
 #pragma comment(lib, "libvcruntime.lib")
+#endif
+
 #endif
 
 #pragma comment(lib, "ntdll.lib")
