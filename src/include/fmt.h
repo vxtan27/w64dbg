@@ -82,17 +82,35 @@ FormatModuleEvent(
     SIZE_T        DebugEventNameLength,
     LPSTR         Buffer)
 {
-    DWORD Length;
+    SIZE_T Length;
     ULONG ActualByteCount;
-    wchar_t Temp[MAX_PATH];
+    WCHAR Target[MAX_PATH];
+    WCHAR Drive[3] = L"A:";
+    CHAR Temp[sizeof(OBJECT_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR)];
+    POBJECT_NAME_INFORMATION NameInfo = (POBJECT_NAME_INFORMATION) &Temp;
 
     memcpy(Buffer, szDebugEventName, DebugEventNameLength);
-    Length = GetFinalPathNameByHandleW(lpDebugEvent->u.LoadDll.hFile, Temp, MAX_PATH, FILE_NAME_OPENED);
-    RtlUnicodeToUTF8N(Buffer + DebugEventNameLength, MAX_PATH,
-        &ActualByteCount, Temp + 4, (Length << 1) - 8); /* Skip \\?\ */
-    Buffer[ActualByteCount + DebugEventNameLength] = '\n';
+    NtQueryObject(lpDebugEvent->u.LoadDll.hFile, ObjectNameInformation, NameInfo, sizeof(Temp), NULL);
 
-    return (ULONG)(ActualByteCount + DebugEventNameLength + 1);
+    for (WCHAR Letter = L'A'; Letter <= L'L'; ++Letter)
+    {
+        Drive[0] = Letter;
+        if (QueryDosDeviceW(Drive, Target, MAX_PATH))
+        {
+            Length = wcslen(Target);
+            if (memcmp(NameInfo->Name.Buffer, Target, Length << 1) == 0)
+            {
+                Buffer[DebugEventNameLength] = Letter;
+                Buffer[DebugEventNameLength + 1] = ':';
+            }
+        }
+    }
+
+    RtlUnicodeToUTF8N(Buffer + DebugEventNameLength + 2, MAX_PATH,
+        &ActualByteCount, NameInfo->Name.Buffer + Length, NameInfo->Name.Length - (Length << 1));
+    Buffer[ActualByteCount + DebugEventNameLength + 2] = '\n';
+
+    return (ULONG)(ActualByteCount + DebugEventNameLength + 2 + 1);
 }
 
 /*
@@ -187,8 +205,8 @@ static __forceinline LPSTR FormatSourceCode(PPEB_LDR_DATA Ldr, LPWSTR FileName, 
 
         while (TRUE)
         { // Read file content in chunks
-            if (NtReadFile(hFile, NULL, NULL, NULL, &IoStatusBlock,
-                buffer, sizeof(buffer), NULL, NULL) != 0) break; // STATUS_SUCCESS
+            if (NtReadFile(hFile, NULL, NULL, NULL,
+                &IoStatusBlock, buffer, sizeof(buffer), NULL, NULL)) break;
 
             ptr = buffer;
 
@@ -212,8 +230,8 @@ static __forceinline LPSTR FormatSourceCode(PPEB_LDR_DATA Ldr, LPWSTR FileName, 
                         temp = buffer + IoStatusBlock.Information - ptr;
                         memcpy(p, ptr, temp);
                         p += temp;
-                        if (NtReadFile(hFile, NULL, NULL, NULL, &IoStatusBlock, buffer,
-                            sizeof(buffer), NULL, NULL) != 0) break; // STATUS_SUCCESS
+                        if (NtReadFile(hFile, NULL, NULL, NULL, &IoStatusBlock,
+                            buffer, sizeof(buffer), NULL, NULL)) break;
                         ptr = buffer;
                         _ptr = (char*) memchr(buffer, '\n', IoStatusBlock.Information);
                         if (_ptr) temp = buffer + IoStatusBlock.Information - _ptr;

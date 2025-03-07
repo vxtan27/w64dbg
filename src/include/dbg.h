@@ -11,6 +11,73 @@
 static
 FORCEINLINE
 NTSTATUS
+IsConsoleHandle(HANDLE hHandle, PBOOL Result)
+{
+    NTSTATUS NtStatus;
+    IO_STATUS_BLOCK IoStatusBlock;
+    FILE_FS_DEVICE_INFORMATION DeviceInfo;
+
+    NtStatus = NtQueryVolumeInformationFile(hHandle, &IoStatusBlock, &DeviceInfo,
+        sizeof(DeviceInfo), FileFsDeviceInformation);
+    *Result = DeviceInfo.DeviceType == FILE_DEVICE_CONSOLE;
+
+    return NtStatus;
+}
+
+static
+FORCEINLINE
+VOID
+HandleODSEvent(
+    LPDEBUG_EVENT lpDebugEvent,
+    HANDLE        hProcess,
+    HANDLE        hStdout)
+{
+    char Buffer[BUFLEN];
+    SIZE_T NumberOfBytesToRead;
+    IO_STATUS_BLOCK IoStatusBlock;
+
+    if (lpDebugEvent->u.DebugString.fUnicode)
+    {
+        ULONG ActualByteCount;
+        wchar_t Temp[BUFLEN >> 2];
+
+        lpDebugEvent->u.DebugString.nDebugStringLength -= 2;
+
+        while (lpDebugEvent->u.DebugString.nDebugStringLength > 0)
+        {
+            NumberOfBytesToRead = lpDebugEvent->u.DebugString.nDebugStringLength < sizeof(Temp) ? lpDebugEvent->u.DebugString.nDebugStringLength : sizeof(Temp);
+
+            NtReadVirtualMemory(hProcess,
+                lpDebugEvent->u.DebugString.lpDebugStringData,
+                Temp, NumberOfBytesToRead, NULL);
+            RtlUnicodeToUTF8N(Buffer, BUFLEN, &ActualByteCount,
+                Temp, NumberOfBytesToRead);
+            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
+                Buffer, ActualByteCount, NULL, NULL);
+
+            lpDebugEvent->u.DebugString.lpDebugStringData += NumberOfBytesToRead;
+            lpDebugEvent->u.DebugString.nDebugStringLength -= NumberOfBytesToRead;
+        }
+    } else
+    {
+        --lpDebugEvent->u.DebugString.nDebugStringLength;
+
+        while (lpDebugEvent->u.DebugString.nDebugStringLength > 0)
+        {
+            NumberOfBytesToRead = lpDebugEvent->u.DebugString.nDebugStringLength < sizeof(Buffer) ? lpDebugEvent->u.DebugString.nDebugStringLength : sizeof(Buffer);
+
+            NtReadVirtualMemory(hProcess, lpDebugEvent->u.DebugString.lpDebugStringData, Buffer, NumberOfBytesToRead, NULL);
+            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer, NumberOfBytesToRead, NULL, NULL);
+
+            lpDebugEvent->u.DebugString.lpDebugStringData += NumberOfBytesToRead;
+            lpDebugEvent->u.DebugString.nDebugStringLength -= NumberOfBytesToRead;
+        }
+    }
+}
+
+static
+FORCEINLINE
+NTSTATUS
 HandleRIPEvent(
     LPDEBUG_EVENT lpDebugEvent,
     PPEB_LDR_DATA Ldr,
@@ -21,4 +88,17 @@ HandleRIPEvent(
 
     return NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer,
         FormatRIPEvent(lpDebugEvent, Ldr, Buffer, DEBUG_EVENT_RIP_BUFFER_SIZE), NULL, NULL);
+}
+
+static
+FORCEINLINE
+DWORD
+GetModuleSize(HANDLE hModule)
+{
+    IO_STATUS_BLOCK IoStatusBlock;
+    FILE_STANDARD_INFORMATION FileInfo;
+
+    NtQueryInformationFile(hModule, &IoStatusBlock,
+        &FileInfo, sizeof(FileInfo), FileStandardInformation);
+    return FileInfo.EndOfFile.LowPart;
 }

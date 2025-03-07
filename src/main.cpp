@@ -72,8 +72,7 @@ void __stdcall main(void)
         {
             while (*pNext == ' ') ++pNext; // Skip spaces
 
-            if ((*pNext != '/' && *pNext != '-') ||
-                pCmdLine + len < pNext) break;
+            if (*pNext != '/' || pCmdLine + len < pNext) break;
 
             switch (*(pNext + 1))
             {
@@ -230,18 +229,10 @@ void __stdcall main(void)
 
     BOOL Console;
     IO_STATUS_BLOCK IoStatusBlock;
-    FILE_FS_DEVICE_INFORMATION FFDI;
     HANDLE hStdout = pProcessParameters->StandardOutput;
 
-    NtQueryVolumeInformationFile(hStdout, &IoStatusBlock, &FFDI, sizeof(FFDI), FileFsDeviceInformation);
-    Console = FFDI.DeviceType == FILE_DEVICE_CONSOLE;
-
-    if (Console)
-    {
-        SetConsoleOutputCP(65001);  /* CP_UTF8 */
-        SetConsoleMode(hStdout, ENABLE_PROCESSED_OUTPUT |
-            ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-    }
+    IsConsoleHandle(hStdout, &Console);
+    if (Console) SetConsoleOutputCP(65001);  /* CP_UTF8 */
 
     if (p != buffer)
     {
@@ -459,28 +450,7 @@ void __stdcall main(void)
             case OUTPUT_DEBUG_STRING_EVENT:
                 if (verbose >= 2) TraceDebugEvent(&DebugEvent, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout);
 
-                if (output == TRUE)
-                {
-                    if (DebugEvent.u.DebugString.fUnicode)
-                    {
-                        wchar_t Tmp[WBUFLEN];
-
-                        NtReadVirtualMemory(hProcess,
-                            DebugEvent.u.DebugString.lpDebugStringData,
-                            Tmp, DebugEvent.u.DebugString.nDebugStringLength - 2, NULL);
-                        RtlUnicodeToUTF8N(buffer, BUFLEN, &ActualByteCount,
-                            Tmp, DebugEvent.u.DebugString.nDebugStringLength - 2);
-                        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-                            buffer, ActualByteCount, NULL, NULL);
-                    } else
-                    {
-                        NtReadVirtualMemory(hProcess,
-                            DebugEvent.u.DebugString.lpDebugStringData,
-                            buffer, DebugEvent.u.DebugString.nDebugStringLength - 1, NULL);
-                        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, buffer,
-                            DebugEvent.u.DebugString.nDebugStringLength - 1, NULL, NULL);
-                    }
-                }
+                if (output == TRUE) HandleODSEvent(&DebugEvent, hProcess, hStdout);
 
                 break;
 
@@ -495,8 +465,7 @@ void __stdcall main(void)
                 if (!DebugEvent.u.Exception.dwFirstChance)
                 {
                     NtTerminateProcess(hProcess, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode);
-                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_EXCEPTION_NOT_HANDLED);
-                    continue;
+                    break;
                 }
 
                 // Find thread where exception occured
@@ -521,6 +490,8 @@ void __stdcall main(void)
                 {
                     memcpy(p, CONSOLE_NRED_FORMAT, strlen(CONSOLE_NRED_FORMAT));
                     p += strlen(CONSOLE_NRED_FORMAT);
+                    SetConsoleMode(hStdout, ENABLE_PROCESSED_OUTPUT |
+                        ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
                 } else *p++ = '\n';
 
                 PMESSAGE_RESOURCE_ENTRY Entry;
@@ -554,14 +525,11 @@ void __stdcall main(void)
                     FoundFile.Buffer = ApplicationName;
                 }
 
-                // Check if critical exception
-                if (!(DebugEvent.u.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE) &&
-                    // https://learn.microsoft.com/visualstudio/debugger/tips-for-debugging-threads?view=vs-2022&tabs=csharp#set-a-thread-name-by-throwing-an-exception
-                    (DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x406D1388 || // MS_VC_EXCEPTION
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE06D7363 || // STATUS_CPP_EH_EXCEPTION
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE0434f4D)) // STATUS_CLR_EXCEPTION
-                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
-                else if (dwarf && NT_SUCCESS(RtlDosSearchPath_Ustr(RTL_DOS_SEARCH_PATH_FLAG_DISALLOW_DOT_RELATIVE_PATH_SEARCH,
+                if (dwarf && DebugEvent.u.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE &&
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode != 0x406D1388 && // MS_VC_EXCEPTION
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode != 0xE06D7363 && // STATUS_CPP_EH_EXCEPTION
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode != 0xE0434f4D && // STATUS_CLR_EXCEPTION
+                    NT_SUCCESS(RtlDosSearchPath_Ustr(RTL_DOS_SEARCH_PATH_FLAG_DISALLOW_DOT_RELATIVE_PATH_SEARCH,
                     &Path, &FileName, NULL, &FoundFile, NULL, NULL, NULL, NULL)))
                 { // Check if executable exists
                     NtWriteFile(hStdout, NULL, NULL, NULL,
@@ -635,7 +603,7 @@ void __stdcall main(void)
 
                     ByteOffset.QuadPart +=  p - buffer;
                     NtSetInformationFile(hTemp, &IoStatusBlock, &ByteOffset,
-                        sizeof(LARGE_INTEGER), (FILE_INFORMATION_CLASS) 20); // FileEndOfFileInformation
+                        sizeof(LARGE_INTEGER), FileEndOfFileInformation);
                     NtClose(hTemp);
 
                     if (dwarf == MINGW_KEEP && !timeout)
@@ -703,7 +671,7 @@ void __stdcall main(void)
 
                     NtClose(hJob);
                     RtlExitUserProcess(EXIT_SUCCESS);
-                } else ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_EXCEPTION_NOT_HANDLED);
+                }
 
                 if (DebugEvent.dwThreadId != dwThreadId[i])
                 {
@@ -712,24 +680,18 @@ void __stdcall main(void)
                     continue;
                 }
 
-                FILE_STANDARD_INFORMATION FileInfo;
-
                 SymSetOptions(SYMOPTIONS);
                 SymInitializeW(hProcess, NULL, FALSE);
 
                 for (DWORD j = 0; j < MAX_DLL; ++j) if (BaseOfDll[j])
-                {
-                    NtQueryInformationFile(hFile[j], &IoStatusBlock,
-                        &FileInfo, sizeof(FileInfo), (FILE_INFORMATION_CLASS) 5); // FileStandardInformation
                     SymLoadModuleExW(hProcess,
                         hFile[j],
                         NULL,
                         NULL,
                         (DWORD64) BaseOfDll[j],
-                        FileInfo.EndOfFile.LowPart,
+                        GetModuleSize(hFile[j]),
                         NULL,
                         0);
-                }
 
                 CONTEXT Context;
                 DWORD MachineType;
@@ -749,7 +711,7 @@ void __stdcall main(void)
                 {
                     MachineType = IMAGE_FILE_MACHINE_I386;
                     ((PWOW64_CONTEXT) &Context)->ContextFlags = WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER;
-                    NtQueryInformationThread(hThread[i], (THREADINFOCLASS) 29, // ThreadWow64Context
+                    NtQueryInformationThread(hThread[i], ThreadWow64Context,
                         &Context, sizeof(WOW64_CONTEXT), NULL);
                     StackFrame.AddrPC.Offset = ((PWOW64_CONTEXT) &Context)->Eip;
                     StackFrame.AddrFrame.Offset = ((PWOW64_CONTEXT) &Context)->Ebp;
@@ -911,7 +873,7 @@ void __stdcall main(void)
                     }
 
                     // Release buffer
-                    if (p > buffer + PAGESIZE)
+                    if (p > buffer + (sizeof(buffer) >> 1))
                     {
                         NtWriteFile(hStdout, NULL, NULL, NULL,
                             &IoStatusBlock, buffer, p - buffer, NULL, NULL);
@@ -926,7 +888,18 @@ void __stdcall main(void)
 
                 SymCleanup(hProcess);
 
-                continue;
+                // Check if critical exception
+                if (!(DebugEvent.u.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE) &&
+                    // https://learn.microsoft.com/visualstudio/debugger/tips-for-debugging-threads?view=vs-2022&tabs=csharp#set-a-thread-name-by-throwing-an-exception
+                    (DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x406D1388 || // MS_VC_EXCEPTION
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE06D7363 || // STATUS_CPP_EH_EXCEPTION
+                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE0434f4D)) // STATUS_CLR_EXCEPTION
+                {
+                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
+                    continue;
+                }
+
+                break;
 
             case RIP_EVENT:
                 if (verbose >= 2) TraceDebugEvent(&DebugEvent, RIP, strlen(RIP), hStdout);
@@ -935,7 +908,7 @@ void __stdcall main(void)
                 break;
         }
 
-        ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
+        ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_EXCEPTION_NOT_HANDLED);
     }
 }
 
