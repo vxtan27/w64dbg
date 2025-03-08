@@ -1,20 +1,20 @@
 # Building
 
-## Requirements
+## System Requirements
 
-System type: **64-bit**
+Architecture: 64-bit
 
-Windows version: **10+**
+Supported OS: Windows 10 or later
 
 ## Prerequisites
 
 Ensure the following dependencies are installed:
 
-- A C/C++ compiler compatible with Microsoft Visual C++ (MSVC).
+- Microsoft Visual C++ (MSVC) or a compatible C/C++ compiler.
 
-- Windows SDK.
+- Windows SDK (latest version recommended).
 
-## Instructions
+## Build Instructions
 
 Open the Microsoft Visual Studio Developer Command Prompt.
 
@@ -22,10 +22,18 @@ Navigate to the source directory:
 
     cd src
 
-Compile the source code:
+Compile the source code using the following command:
 
-    cl /std:c++latest main.cpp /link /ENTRY:main
+    cl /std:c++latest main.cpp /link /SUBSYSTEM:CONSOLE /ENTRY:DbgMain
 
-## Customization
+## Customization & Optimization
 
-Adjust compiler and linker options as needed to align with specific performance, compatibility, or debugging requirements.
+You can modify compiler and linker options to optimize for specific use cases:
+
+* Performance tuning: Enable optimization flags such as /O2 or /Ox.
+
+* Debugging support: Use /Zi for debug symbols and /DEBUG for better debugging experience.
+
+* Compatibility adjustments: Modify subsystem settings or use specific Windows SDK versions.
+
+Refer to the MSVC documentation for a comprehensive list of available options.

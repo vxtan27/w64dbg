@@ -37,7 +37,7 @@
 #pragma warning(disable: 5045)
 
 __declspec(noreturn)
-void __stdcall main(void)
+void __stdcall DbgMain(void)
 {
     wchar_t *ptr;
     DWORD ExitStatus;
@@ -372,7 +372,6 @@ void __stdcall main(void)
     {
         WaitForDebugEventEx(&DebugEvent, INFINITE);
 
-        // https://learn.microsoft.com/windows/win32/debug/debugging-events
         switch (DebugEvent.dwDebugEventCode)
         {
 
