@@ -24,7 +24,7 @@ Navigate to the source directory:
 
 Compile the source code using the following command:
 
-    cl /std:c++latest main.cpp /link /SUBSYSTEM:CONSOLE /ENTRY:DbgMain
+    cl /std:c++latest main.cpp /link /SUBSYSTEM:CONSOLE /ENTRY:wmain
 
 ## Customization & Optimization
 

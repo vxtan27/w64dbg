@@ -36,8 +36,13 @@
 #pragma warning(disable: 4326)
 #pragma warning(disable: 5045)
 
-__declspec(noreturn)
-void __stdcall DbgMain(void)
+int
+#if defined(_M_CEE_PURE)
+__clrcall
+#else
+WINAPI
+#endif
+wmain(void)
 {
     wchar_t *ptr;
     DWORD ExitStatus;
@@ -238,7 +243,7 @@ void __stdcall DbgMain(void)
     {
         NtWriteFile(hStdout, NULL, NULL, NULL,
             &IoStatusBlock, buffer, p - buffer, NULL, NULL);
-        RtlExitUserProcess(ExitStatus);
+        return ExitStatus;
     }
 
     wchar_t ApplicationName[WBUFLEN];
@@ -260,7 +265,7 @@ void __stdcall DbgMain(void)
             (PCWSTR) Entry->Text, Entry->Length - 8);
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, ActualByteCount, NULL, NULL);
-        RtlExitUserProcess(ERROR_FILE_NOT_FOUND);
+        return ERROR_FILE_NOT_FOUND;
     }
 
     DWORD is_64bit; // Is 64-bit application
@@ -301,7 +306,7 @@ void __stdcall DbgMain(void)
 
         NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
             buffer, p - buffer, NULL, NULL);
-        RtlExitUserProcess(ERROR_BAD_EXE_FORMAT);
+        return ERROR_BAD_EXE_FORMAT;
     }
 
     HANDLE hFile[MAX_DLL];
@@ -444,7 +449,7 @@ void __stdcall DbgMain(void)
 
                 ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess), HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_CONTINUE);
                 NtClose(hJob);
-                RtlExitUserProcess(EXIT_SUCCESS);
+                return EXIT_SUCCESS;
 
             [[fallthrough]];
             case DbgExceptionStateChange:
@@ -677,7 +682,7 @@ void __stdcall DbgMain(void)
                         pProcessParameters->StandardInput, hStdout, timeout, Console);
 
                     NtClose(hJob);
-                    RtlExitUserProcess(EXIT_SUCCESS);
+                    return EXIT_SUCCESS;
                 }
 
                 if (HandleToUlong(StateChange.AppClientId.UniqueThread) != dwThreadId[i])
