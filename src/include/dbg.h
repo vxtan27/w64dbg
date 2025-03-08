@@ -8,6 +8,8 @@
 #define DEBUG_EVENT_RIP_SLE_MAX_LEN 102
 #define DEBUG_EVENT_RIP_BUFFER_SIZE (DEBUG_EVENT_RIP_SLE_MAX_LEN + 900)
 
+/* Determines whether a given handle is associated with a console device. */
+
 static
 FORCEINLINE
 NTSTATUS
@@ -17,12 +19,14 @@ IsConsoleHandle(HANDLE hHandle, PBOOL Result)
     IO_STATUS_BLOCK IoStatusBlock;
     FILE_FS_DEVICE_INFORMATION DeviceInfo;
 
-    NtStatus = NtQueryVolumeInformationFile(hHandle, &IoStatusBlock, &DeviceInfo,
-        sizeof(DeviceInfo), FileFsDeviceInformation);
-    *Result = DeviceInfo.DeviceType == FILE_DEVICE_CONSOLE;
+    NtStatus = NtQueryVolumeInformationFile(hHandle, &IoStatusBlock,
+        &DeviceInfo, sizeof(DeviceInfo), FileFsDeviceInformation);
 
+    *Result = (DeviceInfo.DeviceType == FILE_DEVICE_CONSOLE);
     return NtStatus;
 }
+
+/* Handles OutputDebugString (ODS) events and writes the debug string to standard output. */
 
 static
 FORCEINLINE
@@ -45,15 +49,13 @@ HandleODSEvent(
 
         while (lpDebugEvent->u.DebugString.nDebugStringLength > 0)
         {
-            NumberOfBytesToRead = lpDebugEvent->u.DebugString.nDebugStringLength < sizeof(Temp) ? lpDebugEvent->u.DebugString.nDebugStringLength : sizeof(Temp);
+            NumberOfBytesToRead = lpDebugEvent->u.DebugString.nDebugStringLength < sizeof(Temp)
+                                ? lpDebugEvent->u.DebugString.nDebugStringLength : sizeof(Temp);
 
             NtReadVirtualMemory(hProcess,
-                lpDebugEvent->u.DebugString.lpDebugStringData,
-                Temp, NumberOfBytesToRead, NULL);
-            RtlUnicodeToUTF8N(Buffer, BUFLEN, &ActualByteCount,
-                Temp, NumberOfBytesToRead);
-            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-                Buffer, ActualByteCount, NULL, NULL);
+                lpDebugEvent->u.DebugString.lpDebugStringData, Temp, NumberOfBytesToRead, NULL);
+            RtlUnicodeToUTF8N(Buffer, BUFLEN, &ActualByteCount, Temp, NumberOfBytesToRead);
+            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer, ActualByteCount, NULL, NULL);
 
             lpDebugEvent->u.DebugString.lpDebugStringData += NumberOfBytesToRead;
             lpDebugEvent->u.DebugString.nDebugStringLength -= NumberOfBytesToRead;
@@ -64,9 +66,11 @@ HandleODSEvent(
 
         while (lpDebugEvent->u.DebugString.nDebugStringLength > 0)
         {
-            NumberOfBytesToRead = lpDebugEvent->u.DebugString.nDebugStringLength < sizeof(Buffer) ? lpDebugEvent->u.DebugString.nDebugStringLength : sizeof(Buffer);
+            NumberOfBytesToRead = lpDebugEvent->u.DebugString.nDebugStringLength < sizeof(Buffer)
+                                ? lpDebugEvent->u.DebugString.nDebugStringLength : sizeof(Buffer);
 
-            NtReadVirtualMemory(hProcess, lpDebugEvent->u.DebugString.lpDebugStringData, Buffer, NumberOfBytesToRead, NULL);
+            NtReadVirtualMemory(hProcess,
+                lpDebugEvent->u.DebugString.lpDebugStringData, Buffer, NumberOfBytesToRead, NULL);
             NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer, NumberOfBytesToRead, NULL, NULL);
 
             lpDebugEvent->u.DebugString.lpDebugStringData += NumberOfBytesToRead;
@@ -74,6 +78,8 @@ HandleODSEvent(
         }
     }
 }
+
+/* Handles RIP (Debugger Error) events and writes diagnostic information. */
 
 static
 FORCEINLINE
@@ -89,6 +95,8 @@ HandleRIPEvent(
     return NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer,
         FormatRIPEvent(lpDebugEvent, Ldr, Buffer, DEBUG_EVENT_RIP_BUFFER_SIZE), NULL, NULL);
 }
+
+/* Retrieves the size of a loaded module. */
 
 static
 FORCEINLINE

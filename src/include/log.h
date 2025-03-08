@@ -38,7 +38,7 @@ static
 FORCEINLINE
 NTSTATUS
 TraceModuleEvent(
-    LPDEBUG_EVENT lpDebugEvent,
+    HANDLE        hModule,
     LPCSTR        szDebugEventName,
     SIZE_T        DebugEventNameLength,
     HANDLE        hStdout)
@@ -47,5 +47,5 @@ TraceModuleEvent(
     IO_STATUS_BLOCK IoStatusBlock;
 
     return NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer,
-        FormatModuleEvent(lpDebugEvent, szDebugEventName, DebugEventNameLength, Buffer), NULL, NULL);
+        FormatModuleEvent(hModule, szDebugEventName, DebugEventNameLength, Buffer), NULL, NULL);
 }

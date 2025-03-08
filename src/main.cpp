@@ -323,6 +323,7 @@ void __stdcall DbgMain(void)
     startupInfo.cbReserved2 = 0;
     startupInfo.lpReserved2 = NULL;
 
+    DBGUI_WAIT_STATE_CHANGE StateChange;
     OBJECT_ATTRIBUTES ObjectAttributes = {sizeof(OBJECT_ATTRIBUTES), NULL, NULL, OBJ_OPENIF, NULL, NULL};
 
     // Avoid resources leak
@@ -335,7 +336,7 @@ void __stdcall DbgMain(void)
               : CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
         pProcessParameters->Environment, pProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
     NtAssignProcessToJobObject(hJob, processInfo.hProcess);
-    WaitForDebugEventEx(&DebugEvent, INFINITE);
+    DbgUiWaitStateChange(&StateChange, NULL);
 
     if (!dwarf)
     {
@@ -370,13 +371,14 @@ void __stdcall DbgMain(void)
 
     while (TRUE)
     {
-        WaitForDebugEventEx(&DebugEvent, INFINITE);
+        DbgUiWaitStateChange(&StateChange, NULL);
+        DbgUiConvertStateChangeStructureEx(&StateChange, &DebugEvent);
 
         switch (DebugEvent.dwDebugEventCode)
         {
 
             case LOAD_DLL_DEBUG_EVENT:
-                if (verbose >= 2) TraceModuleEvent(&DebugEvent, LOAD_DLL, strlen(LOAD_DLL), hStdout);
+                if (verbose >= 2) TraceModuleEvent(DebugEvent.u.LoadDll.hFile, LOAD_DLL, strlen(LOAD_DLL), hStdout);
 
                 // Find storage position
                 for (i = 0; i < MAX_DLL; ++i) if (!BaseOfDll[i])
@@ -392,7 +394,7 @@ void __stdcall DbgMain(void)
                 // Find specific DLL
                 for (i = 0; i < MAX_DLL; ++i) if (DebugEvent.u.UnloadDll.lpBaseOfDll == BaseOfDll[i])
                 {
-                    if (verbose >= 2) TraceModuleEvent(&DebugEvent, UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout);
+                    if (verbose >= 2) TraceModuleEvent(hFile[i], UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout);
 
                     NtClose(hFile[i]);
                     BaseOfDll[i] = 0;
@@ -484,30 +486,31 @@ void __stdcall DbgMain(void)
                 memcpy(p, THREAD_TRIGGERD, strlen(THREAD_TRIGGERD));
                 p += strlen(THREAD_TRIGGERD);
                 p = _ultoa16u(DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, p);
-
-                if (Console)
-                {
-                    memcpy(p, CONSOLE_NRED_FORMAT, strlen(CONSOLE_NRED_FORMAT));
-                    p += strlen(CONSOLE_NRED_FORMAT);
-                    SetConsoleMode(hStdout, ENABLE_PROCESSED_OUTPUT |
-                        ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-                } else *p++ = '\n';
+                *p++ = '\n';
 
                 PMESSAGE_RESOURCE_ENTRY Entry;
 
                 if (NT_SUCCESS(LookupNtdllMessage(pPeb->Ldr,
                     DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, LANG_USER_DEFAULT, &Entry)))
                 {
+                    if (Console)
+                    {
+                        memcpy(p, CONSOLE_NRED_FORMAT, strlen(CONSOLE_NRED_FORMAT));
+                        p += strlen(CONSOLE_NRED_FORMAT);
+                        SetConsoleMode(hStdout, ENABLE_PROCESSED_OUTPUT |
+                            ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+                    }
+
                     // Convert error message to UTF-8
                     RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
                         &ActualByteCount, (PCWSTR) Entry->Text, Entry->Length - 8);
                     p += ActualByteCount;
-                }
 
-                if (Console)
-                {
-                    memcpy(p, CONSOLE_DEFAULT_FORMAT, strlen(CONSOLE_DEFAULT_FORMAT));
-                    p += strlen(CONSOLE_DEFAULT_FORMAT);
+                    if (Console)
+                    {
+                        memcpy(p, CONSOLE_DEFAULT_FORMAT, strlen(CONSOLE_DEFAULT_FORMAT));
+                        p += strlen(CONSOLE_DEFAULT_FORMAT);
+                    }
                 }
 
                 if (dwarf && !*PATH)
@@ -535,7 +538,7 @@ void __stdcall DbgMain(void)
                         &IoStatusBlock, buffer, p - buffer, NULL, NULL);
                     NtSuspendProcess(hProcess);
                     ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_REPLY_LATER);
-                    DebugActiveProcessStop(DebugEvent.dwProcessId);
+                    DbgUiStopDebugging(hProcess);
 
                     HANDLE hTemp;
                     UNICODE_STRING String;
@@ -634,7 +637,6 @@ void __stdcall DbgMain(void)
                     }
 
                     NtResumeProcess(hProcess);
-                    // marks deletion on close, prevent writting to disk
                     NtClose(hProcess);
 
                     if (timeout)

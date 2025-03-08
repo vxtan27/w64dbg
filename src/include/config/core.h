@@ -103,7 +103,7 @@
 
 /* Console Formatting */
 #define CONSOLE_DEFAULT_FORMAT "\x1b[m"
-#define CONSOLE_NRED_FORMAT "\n\x1b[31m"
+#define CONSOLE_NRED_FORMAT "\x1b[31m"
 #define CONSOLE_BLUE_FORMAT "\x1b[34m"
 #define CONSOLE_GREEN_FORMAT "\x1b[32m"
 

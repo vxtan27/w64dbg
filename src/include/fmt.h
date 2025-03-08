@@ -77,7 +77,7 @@ static
 FORCEINLINE
 ULONG
 FormatModuleEvent(
-    LPDEBUG_EVENT lpDebugEvent,
+    HANDLE        hModule,
     LPCSTR        szDebugEventName,
     SIZE_T        DebugEventNameLength,
     LPSTR         Buffer)
@@ -90,7 +90,7 @@ FormatModuleEvent(
     POBJECT_NAME_INFORMATION NameInfo = (POBJECT_NAME_INFORMATION) &Temp;
 
     memcpy(Buffer, szDebugEventName, DebugEventNameLength);
-    NtQueryObject(lpDebugEvent->u.LoadDll.hFile, ObjectNameInformation, NameInfo, sizeof(Temp), NULL);
+    NtQueryObject(hModule, ObjectNameInformation, NameInfo, sizeof(Temp), NULL);
 
     for (WCHAR Letter = L'A'; Letter <= L'L'; ++Letter)
     {

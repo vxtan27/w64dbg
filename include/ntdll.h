@@ -93,6 +93,98 @@ typedef enum _FSINFOCLASS
 } FSINFOCLASS, *PFSINFOCLASS;
 typedef enum _FSINFOCLASS FS_INFORMATION_CLASS;
 
+// Definitions
+
+typedef struct _DBGKM_EXCEPTION
+{
+    EXCEPTION_RECORD ExceptionRecord;
+    ULONG FirstChance;
+} DBGKM_EXCEPTION, *PDBGKM_EXCEPTION;
+
+typedef struct _DBGKM_CREATE_THREAD
+{
+    ULONG SubSystemKey;
+    PVOID StartAddress;
+} DBGKM_CREATE_THREAD, *PDBGKM_CREATE_THREAD;
+
+typedef struct _DBGKM_CREATE_PROCESS
+{
+    ULONG SubSystemKey;
+    HANDLE FileHandle;
+    PVOID BaseOfImage;
+    ULONG DebugInfoFileOffset;
+    ULONG DebugInfoSize;
+    DBGKM_CREATE_THREAD InitialThread;
+} DBGKM_CREATE_PROCESS, *PDBGKM_CREATE_PROCESS;
+
+typedef struct _DBGKM_EXIT_THREAD
+{
+    NTSTATUS ExitStatus;
+} DBGKM_EXIT_THREAD, *PDBGKM_EXIT_THREAD;
+
+typedef struct _DBGKM_EXIT_PROCESS
+{
+    NTSTATUS ExitStatus;
+} DBGKM_EXIT_PROCESS, *PDBGKM_EXIT_PROCESS;
+
+typedef struct _DBGKM_LOAD_DLL
+{
+    HANDLE FileHandle;
+    PVOID BaseOfDll;
+    ULONG DebugInfoFileOffset;
+    ULONG DebugInfoSize;
+    PVOID NamePointer;
+} DBGKM_LOAD_DLL, *PDBGKM_LOAD_DLL;
+
+typedef struct _DBGKM_UNLOAD_DLL
+{
+    PVOID BaseAddress;
+} DBGKM_UNLOAD_DLL, *PDBGKM_UNLOAD_DLL;
+
+typedef enum _DBG_STATE
+{
+    DbgIdle,
+    DbgReplyPending,
+    DbgCreateThreadStateChange,
+    DbgCreateProcessStateChange,
+    DbgExitThreadStateChange,
+    DbgExitProcessStateChange,
+    DbgExceptionStateChange,
+    DbgBreakpointStateChange,
+    DbgSingleStepStateChange,
+    DbgLoadDllStateChange,
+    DbgUnloadDllStateChange
+} DBG_STATE, *PDBG_STATE;
+
+typedef struct _DBGUI_CREATE_THREAD
+{
+    HANDLE HandleToThread;
+    DBGKM_CREATE_THREAD NewThread;
+} DBGUI_CREATE_THREAD, *PDBGUI_CREATE_THREAD;
+
+typedef struct _DBGUI_CREATE_PROCESS
+{
+    HANDLE HandleToProcess;
+    HANDLE HandleToThread;
+    DBGKM_CREATE_PROCESS NewProcess;
+} DBGUI_CREATE_PROCESS, *PDBGUI_CREATE_PROCESS;
+
+typedef struct _DBGUI_WAIT_STATE_CHANGE
+{
+    DBG_STATE NewState;
+    CLIENT_ID AppClientId;
+    union
+    {
+        DBGKM_EXCEPTION Exception;
+        DBGUI_CREATE_THREAD CreateThread;
+        DBGUI_CREATE_PROCESS CreateProcessInfo;
+        DBGKM_EXIT_THREAD ExitThread;
+        DBGKM_EXIT_PROCESS ExitProcess;
+        DBGKM_LOAD_DLL LoadDll;
+        DBGKM_UNLOAD_DLL UnloadDll;
+    } StateInfo;
+} DBGUI_WAIT_STATE_CHANGE, *PDBGUI_WAIT_STATE_CHANGE;
+
 typedef struct _OBJECT_NAME_INFORMATION
 {
     UNICODE_STRING Name; // The object name (when present) includes a NULL-terminator and all path separators "\" in the name.
@@ -121,6 +213,29 @@ typedef struct _FILE_STANDARD_INFORMATION
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+DbgUiConvertStateChangeStructureEx(
+    _In_ PDBGUI_WAIT_STATE_CHANGE StateChange,
+    _Out_ LPDEBUG_EVENT DebugEvent
+    );
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+DbgUiStopDebugging(
+    _In_ HANDLE Process
+    );
+
+NTSYSAPI
+NTSTATUS
+NTAPI
+DbgUiWaitStateChange(
+    _Out_ PDBGUI_WAIT_STATE_CHANGE StateChange,
+    _In_opt_ PLARGE_INTEGER Timeout
+    );
 
 NTSYSCALLAPI
 NTSTATUS
