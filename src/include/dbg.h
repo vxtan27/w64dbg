@@ -32,49 +32,49 @@ static
 FORCEINLINE
 VOID
 HandleODSEvent(
-    LPDEBUG_EVENT lpDebugEvent,
-    HANDLE        hProcess,
-    HANDLE        hStdout)
+    PDBGUI_WAIT_STATE_CHANGE pStateChange,
+    HANDLE                   hProcess,
+    HANDLE                   hStdout)
 {
     char Buffer[BUFLEN];
     SIZE_T NumberOfBytesToRead;
     IO_STATUS_BLOCK IoStatusBlock;
 
-    if (lpDebugEvent->u.DebugString.fUnicode)
+    --pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0];
+
+    if (pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_PRINTEXCEPTION_WIDE_C)
     {
         ULONG ActualByteCount;
         wchar_t Temp[BUFLEN >> 2];
 
-        lpDebugEvent->u.DebugString.nDebugStringLength -= 2;
+        pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] <<= 1;
 
-        while (lpDebugEvent->u.DebugString.nDebugStringLength > 0)
+        while (pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] > 0)
         {
-            NumberOfBytesToRead = lpDebugEvent->u.DebugString.nDebugStringLength < sizeof(Temp)
-                                ? lpDebugEvent->u.DebugString.nDebugStringLength : sizeof(Temp);
+            NumberOfBytesToRead = pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] < sizeof(Temp)
+                                ? pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] : sizeof(Temp);
 
             NtReadVirtualMemory(hProcess,
-                lpDebugEvent->u.DebugString.lpDebugStringData, Temp, NumberOfBytesToRead, NULL);
+                (PVOID) pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[1], Temp, NumberOfBytesToRead, NULL);
             RtlUnicodeToUTF8N(Buffer, BUFLEN, &ActualByteCount, Temp, NumberOfBytesToRead);
             NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer, ActualByteCount, NULL, NULL);
 
-            lpDebugEvent->u.DebugString.lpDebugStringData += NumberOfBytesToRead;
-            lpDebugEvent->u.DebugString.nDebugStringLength -= NumberOfBytesToRead;
+            pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[1] += NumberOfBytesToRead;
+            pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] -= NumberOfBytesToRead;
         }
     } else
     {
-        --lpDebugEvent->u.DebugString.nDebugStringLength;
-
-        while (lpDebugEvent->u.DebugString.nDebugStringLength > 0)
+        while (pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] > 0)
         {
-            NumberOfBytesToRead = lpDebugEvent->u.DebugString.nDebugStringLength < sizeof(Buffer)
-                                ? lpDebugEvent->u.DebugString.nDebugStringLength : sizeof(Buffer);
+            NumberOfBytesToRead = pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] < sizeof(Buffer)
+                                ? pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] : sizeof(Buffer);
 
             NtReadVirtualMemory(hProcess,
-                lpDebugEvent->u.DebugString.lpDebugStringData, Buffer, NumberOfBytesToRead, NULL);
+                (PVOID) pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[1], Buffer, NumberOfBytesToRead, NULL);
             NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer, NumberOfBytesToRead, NULL, NULL);
 
-            lpDebugEvent->u.DebugString.lpDebugStringData += NumberOfBytesToRead;
-            lpDebugEvent->u.DebugString.nDebugStringLength -= NumberOfBytesToRead;
+            pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[1] += NumberOfBytesToRead;
+            pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] -= NumberOfBytesToRead;
         }
     }
 }
@@ -85,15 +85,15 @@ static
 FORCEINLINE
 NTSTATUS
 HandleRIPEvent(
-    LPDEBUG_EVENT lpDebugEvent,
-    PPEB_LDR_DATA Ldr,
-    HANDLE        hStdout)
+    PDBGUI_WAIT_STATE_CHANGE pStateChange,
+    PPEB_LDR_DATA            Ldr,
+    HANDLE                   hStdout)
 {
     IO_STATUS_BLOCK IoStatusBlock;
     char Buffer[DEBUG_EVENT_RIP_BUFFER_SIZE];
 
     return NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer,
-        FormatRIPEvent(lpDebugEvent, Ldr, Buffer, DEBUG_EVENT_RIP_BUFFER_SIZE), NULL, NULL);
+        FormatRIPEvent(pStateChange, Ldr, Buffer, DEBUG_EVENT_RIP_BUFFER_SIZE), NULL, NULL);
 }
 
 /* Retrieves the size of a loaded module. */

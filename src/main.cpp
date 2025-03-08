@@ -306,7 +306,6 @@ void __stdcall DbgMain(void)
 
     HANDLE hFile[MAX_DLL];
     HANDLE hJob, hProcess;
-    DEBUG_EVENT DebugEvent;
     STARTUPINFOW startupInfo;
     HANDLE hThread[MAX_THREAD];
     PROCESS_INFORMATION processInfo;
@@ -342,20 +341,21 @@ void __stdcall DbgMain(void)
     {
         NtClose(processInfo.hThread);
         NtClose(processInfo.hProcess);
-        hFile[0] = DebugEvent.u.CreateProcessInfo.hFile;
-        BaseOfDll[0] = DebugEvent.u.CreateProcessInfo.lpBaseOfImage;
-        hProcess = DebugEvent.u.CreateProcessInfo.hProcess;
-        hThread[0] = DebugEvent.u.CreateProcessInfo.hThread;
+        hFile[0] = StateChange.StateInfo.CreateProcessInfo.NewProcess.FileHandle;
+        BaseOfDll[0] = StateChange.StateInfo.CreateProcessInfo.NewProcess.BaseOfImage;
+        hProcess = StateChange.StateInfo.CreateProcessInfo.HandleToProcess;
+        hThread[0] = StateChange.StateInfo.CreateProcessInfo.HandleToThread;
     } else
     {
-        NtClose(DebugEvent.u.CreateProcessInfo.hFile);
+        NtClose(StateChange.StateInfo.CreateProcessInfo.NewProcess.FileHandle);
         hThread[0] = processInfo.hThread;
         hProcess = processInfo.hProcess;
     }
 
-    if (verbose >= 2) TraceDebugEvent(&DebugEvent, CREATE_PROCESS, strlen(CREATE_PROCESS), hStdout);
+    if (verbose >= 2) TraceDebugEvent(&StateChange, CREATE_PROCESS, strlen(CREATE_PROCESS), hStdout);
 
-    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
+    ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess),
+        HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_CONTINUE);
 
     // x86 process / MinGW64 G++ trigger
     // more than one breakpoints at start-up
@@ -367,32 +367,31 @@ void __stdcall DbgMain(void)
     DWORD dwThreadId[MAX_THREAD] = {};
 
     *PATH = '\0';
-    dwThreadId[0] = DebugEvent.dwThreadId;
+    dwThreadId[0] = HandleToUlong(StateChange.AppClientId.UniqueThread);
 
     while (TRUE)
     {
         DbgUiWaitStateChange(&StateChange, NULL);
-        DbgUiConvertStateChangeStructureEx(&StateChange, &DebugEvent);
 
-        switch (DebugEvent.dwDebugEventCode)
+        switch (StateChange.NewState)
         {
 
-            case LOAD_DLL_DEBUG_EVENT:
-                if (verbose >= 2) TraceModuleEvent(DebugEvent.u.LoadDll.hFile, LOAD_DLL, strlen(LOAD_DLL), hStdout);
+            case DbgLoadDllStateChange:
+                if (verbose >= 2) TraceModuleEvent(StateChange.StateInfo.LoadDll.FileHandle, LOAD_DLL, strlen(LOAD_DLL), hStdout);
 
                 // Find storage position
                 for (i = 0; i < MAX_DLL; ++i) if (!BaseOfDll[i])
                 {
-                    hFile[i] = DebugEvent.u.LoadDll.hFile;
-                    BaseOfDll[i] = DebugEvent.u.LoadDll.lpBaseOfDll;
+                    hFile[i] = StateChange.StateInfo.LoadDll.FileHandle;
+                    BaseOfDll[i] = StateChange.StateInfo.LoadDll.BaseOfDll;
                     break;
                 }
 
                 break;
 
-            case UNLOAD_DLL_DEBUG_EVENT:
+            case DbgUnloadDllStateChange:
                 // Find specific DLL
-                for (i = 0; i < MAX_DLL; ++i) if (DebugEvent.u.UnloadDll.lpBaseOfDll == BaseOfDll[i])
+                for (i = 0; i < MAX_DLL; ++i) if (StateChange.StateInfo.UnloadDll.BaseAddress == BaseOfDll[i])
                 {
                     if (verbose >= 2) TraceModuleEvent(hFile[i], UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout);
 
@@ -403,24 +402,24 @@ void __stdcall DbgMain(void)
 
                 break;
 
-            case CREATE_THREAD_DEBUG_EVENT:
-                if (verbose >= 2) TraceDebugEvent(&DebugEvent, CREATE_THREAD, strlen(CREATE_THREAD), hStdout);
+            case DbgCreateThreadStateChange:
+                if (verbose >= 2) TraceDebugEvent(&StateChange, CREATE_THREAD, strlen(CREATE_THREAD), hStdout);
 
                 // Find storage position
                 for (i = 0; i < MAX_THREAD; ++i) if (!dwThreadId[i])
                 {
-                    hThread[i] = DebugEvent.u.CreateThread.hThread;
-                    dwThreadId[i] = DebugEvent.dwThreadId;
+                    hThread[i] = StateChange.StateInfo.CreateThread.HandleToThread;
+                    dwThreadId[i] = HandleToUlong(StateChange.AppClientId.UniqueThread);
                     break;
                 }
 
                 break;
 
-            case EXIT_THREAD_DEBUG_EVENT:
-                if (verbose >= 2) TraceDebugEvent(&DebugEvent, EXIT_THREAD, strlen(EXIT_THREAD), hStdout);
+            case DbgExitThreadStateChange:
+                if (verbose >= 2) TraceDebugEvent(&StateChange, EXIT_THREAD, strlen(EXIT_THREAD), hStdout);
 
                 // Find specific thread
-                for (i = 0; i < MAX_THREAD; ++i) if (DebugEvent.dwThreadId == dwThreadId[i])
+                for (i = 0; i < MAX_THREAD; ++i) if (dwThreadId[i] == HandleToUlong(StateChange.AppClientId.UniqueThread))
                 {
                     dwThreadId[i] = 0;
                     break;
@@ -428,8 +427,8 @@ void __stdcall DbgMain(void)
 
                 break;
 
-            case EXIT_PROCESS_DEBUG_EVENT:
-                if (verbose >= 2) TraceDebugEvent(&DebugEvent, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout);
+            case DbgExitProcessStateChange:
+                if (verbose >= 2) TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout);
 
                 if (dwarf)
                 {
@@ -443,55 +442,62 @@ void __stdcall DbgMain(void)
                 if (timeout)
                     WaitForInputOrTimeout(pProcessParameters->StandardInput, hStdout, timeout, Console);
 
-                ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
+                ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess), HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_CONTINUE);
                 NtClose(hJob);
                 RtlExitUserProcess(EXIT_SUCCESS);
 
             [[fallthrough]];
-            case OUTPUT_DEBUG_STRING_EVENT:
-                if (verbose >= 2) TraceDebugEvent(&DebugEvent, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout);
+            case DbgExceptionStateChange:
+            case DbgBreakpointStateChange:
+            case DbgSingleStepStateChange:
+                if (StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_PRINTEXCEPTION_WIDE_C ||
+                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_PRINTEXCEPTION_C)
+                {
+                    if (verbose >= 2) TraceDebugEvent(&StateChange, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout);
+                    if (output == TRUE) HandleODSEvent(&StateChange, hProcess, hStdout);
+                    break;
+                } else if (StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_RIPEXCEPTION)
+                {
+                    if (verbose >= 2) TraceDebugEvent(&StateChange, RIP, strlen(RIP), hStdout);
+                    HandleRIPEvent(&StateChange, pPeb->Ldr, hStdout);
+                }
 
-                if (output == TRUE) HandleODSEvent(&DebugEvent, hProcess, hStdout);
-
-                break;
-
-            case EXCEPTION_DEBUG_EVENT:
                 // Skip first-chance breakpoints
-                if ((DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x80000003 || // STATUS_BREAKPOINT
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x4000001F) && // STATUS_WX86_BREAKPOINT
+                if ((StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == 0x80000003 || // STATUS_BREAKPOINT
+                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == 0x4000001F) && // STATUS_WX86_BREAKPOINT
                     ((breakpoint == FALSE) || (breakpoint == TRUE && ++firstbreak <= 1)))
                     break;
 
                 // Check if not first-chance
-                if (!DebugEvent.u.Exception.dwFirstChance)
+                if (!StateChange.StateInfo.Exception.FirstChance)
                 {
-                    NtTerminateProcess(hProcess, DebugEvent.u.Exception.ExceptionRecord.ExceptionCode);
+                    NtTerminateProcess(hProcess, StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode);
                     break;
                 }
 
                 // Find thread where exception occured
-                for (i = 0; i < MAX_THREAD; ++i) if (DebugEvent.dwThreadId == dwThreadId[i])
+                for (i = 0; i < MAX_THREAD; ++i) if (HandleToUlong(StateChange.AppClientId.UniqueThread) == dwThreadId[i])
                     break;
 
                 memcpy(buffer, THREAD_NUMBER, strlen(THREAD_NUMBER));
-                if (DebugEvent.dwThreadId == dwThreadId[i])
+                if (HandleToUlong(StateChange.AppClientId.UniqueThread) == dwThreadId[i])
                 {
                     buffer[strlen(THREAD_NUMBER)] = '0' + (i + 1) / 10;
                     buffer[strlen(THREAD_NUMBER) + 1] = '0' + (i + 1) % 10;
                     p = buffer + strlen(THREAD_NUMBER) + 2;
-                } else p = jeaiii::to_ascii_chars(buffer + strlen(THREAD_NUMBER) - 1, DebugEvent.dwThreadId);
+                } else p = jeaiii::to_ascii_chars(buffer + strlen(THREAD_NUMBER) - 1, HandleToUlong(StateChange.AppClientId.UniqueThread));
 
                 wchar_t Tmp[WBUFLEN];
 
                 memcpy(p, THREAD_TRIGGERD, strlen(THREAD_TRIGGERD));
                 p += strlen(THREAD_TRIGGERD);
-                p = _ultoa16u(DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, p);
+                p = _ultoa16u(StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode, p);
                 *p++ = '\n';
 
                 PMESSAGE_RESOURCE_ENTRY Entry;
 
                 if (NT_SUCCESS(LookupNtdllMessage(pPeb->Ldr,
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode, LANG_USER_DEFAULT, &Entry)))
+                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode, LANG_USER_DEFAULT, &Entry)))
                 {
                     if (Console)
                     {
@@ -527,17 +533,17 @@ void __stdcall DbgMain(void)
                     FoundFile.Buffer = ApplicationName;
                 }
 
-                if (dwarf && DebugEvent.u.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE &&
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode != 0x406D1388 && // MS_VC_EXCEPTION
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode != 0xE06D7363 && // STATUS_CPP_EH_EXCEPTION
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode != 0xE0434f4D && // STATUS_CLR_EXCEPTION
+                if (dwarf && StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE &&
+                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode != 0x406D1388 && // MS_VC_EXCEPTION
+                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode != 0xE06D7363 && // STATUS_CPP_EH_EXCEPTION
+                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode != 0xE0434f4D && // STATUS_CLR_EXCEPTION
                     NT_SUCCESS(RtlDosSearchPath_Ustr(RTL_DOS_SEARCH_PATH_FLAG_DISALLOW_DOT_RELATIVE_PATH_SEARCH,
                     &Path, &FileName, NULL, &FoundFile, NULL, NULL, NULL, NULL)))
                 { // Check if executable exists
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer, NULL, NULL);
                     NtSuspendProcess(hProcess);
-                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_REPLY_LATER);
+                    ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess), HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_REPLY_LATER);
                     DbgUiStopDebugging(hProcess);
 
                     HANDLE hTemp;
@@ -572,7 +578,7 @@ void __stdcall DbgMain(void)
                         NtWriteFile(hTemp, NULL, NULL, NULL, &IoStatusBlock,
                             (PVOID) GDB_DEFAULT, strlen(GDB_DEFAULT), NULL, NULL);
 
-                    p = jeaiii::to_ascii_chars(buffer, DebugEvent.dwProcessId);
+                    p = jeaiii::to_ascii_chars(buffer, HandleToUlong(StateChange.AppClientId.UniqueProcess));
 
                     if (dwarf == MINGW_NOKEEP)
                     {
@@ -665,7 +671,7 @@ void __stdcall DbgMain(void)
                     NtWaitForSingleObject(processInfo.hProcess, FALSE, NULL);
                     NtClose(processInfo.hProcess);
 
-                    if (verbose >= 2) TraceDebugEvent(&DebugEvent, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout);
+                    if (verbose >= 2) TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout);
 
                     if (timeout) WaitForInputOrTimeout(
                         pProcessParameters->StandardInput, hStdout, timeout, Console);
@@ -674,7 +680,7 @@ void __stdcall DbgMain(void)
                     RtlExitUserProcess(EXIT_SUCCESS);
                 }
 
-                if (DebugEvent.dwThreadId != dwThreadId[i])
+                if (HandleToUlong(StateChange.AppClientId.UniqueThread) != dwThreadId[i])
                 {
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer, NULL, NULL);
@@ -890,26 +896,22 @@ void __stdcall DbgMain(void)
                 SymCleanup(hProcess);
 
                 // Check if critical exception
-                if (!(DebugEvent.u.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE) &&
+                if (!(StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE) &&
                     // https://learn.microsoft.com/visualstudio/debugger/tips-for-debugging-threads?view=vs-2022&tabs=csharp#set-a-thread-name-by-throwing-an-exception
-                    (DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0x406D1388 || // MS_VC_EXCEPTION
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE06D7363 || // STATUS_CPP_EH_EXCEPTION
-                    DebugEvent.u.Exception.ExceptionRecord.ExceptionCode == 0xE0434f4D)) // STATUS_CLR_EXCEPTION
+                    (StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == 0x406D1388 || // MS_VC_EXCEPTION
+                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == 0xE06D7363 || // STATUS_CPP_EH_EXCEPTION
+                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == 0xE0434f4D)) // STATUS_CLR_EXCEPTION
+                    break;
+                else
                 {
-                    ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
+                    ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess), HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_EXCEPTION_NOT_HANDLED);
                     continue;
                 }
 
                 break;
-
-            case RIP_EVENT:
-                if (verbose >= 2) TraceDebugEvent(&DebugEvent, RIP, strlen(RIP), hStdout);
-
-                HandleRIPEvent(&DebugEvent, pPeb->Ldr, hStdout);
-                break;
         }
 
-        ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_EXCEPTION_NOT_HANDLED);
+        ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess), HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_CONTINUE);
     }
 }
 

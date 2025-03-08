@@ -52,7 +52,7 @@ static
 FORCEINLINE
 ULONG
 FormatDebugEvent(
-    LPDEBUG_EVENT lpDebugEvent,
+    PDBGUI_WAIT_STATE_CHANGE pStateChange,
     LPCSTR        szDebugEventName,
     SIZE_T        DebugEventNameLength,
     LPSTR         Buffer)
@@ -60,9 +60,10 @@ FormatDebugEvent(
     char *p;
     
     memcpy(Buffer, szDebugEventName, DebugEventNameLength);
-    p = jeaiii::to_ascii_chars(Buffer + DebugEventNameLength, lpDebugEvent->dwProcessId);
+    p = jeaiii::to_ascii_chars(Buffer + DebugEventNameLength,
+        HandleToUlong(pStateChange->AppClientId.UniqueProcess));
     *p = 'x';
-    p = jeaiii::to_ascii_chars(p + 1, lpDebugEvent->dwThreadId);
+    p = jeaiii::to_ascii_chars(p + 1, HandleToUlong(pStateChange->AppClientId.UniqueThread));
     *p = '\n';
 
     return (ULONG)(p - Buffer + 1);
@@ -122,34 +123,34 @@ static
 FORCEINLINE
 ULONG
 FormatRIPEvent(
-    LPDEBUG_EVENT lpDebugEvent,
-    PPEB_LDR_DATA Ldr,
-    LPSTR         Buffer,
-    ULONG         BufLen)
+    PDBGUI_WAIT_STATE_CHANGE pStateChange,
+    PPEB_LDR_DATA            Ldr,
+    LPSTR                    Buffer,
+    ULONG                    BufLen)
 {
     char *p;
     ULONG ActualByteCount;
     PMESSAGE_RESOURCE_ENTRY Entry;
 
-    LookupSystemMessage(Ldr, lpDebugEvent->u.RipInfo.dwError, LANG_USER_DEFAULT, &Entry);
+    LookupSystemMessage(Ldr, pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionFlags, LANG_USER_DEFAULT, &Entry);
     RtlUnicodeToUTF8N(Buffer, BufLen, &ActualByteCount, (PCWSTR) Entry->Text, Entry->Length - 8);
     p = Buffer + ActualByteCount;
 
-    if (lpDebugEvent->u.RipInfo.dwType == 1)
+    if (PtrToUlong(pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionRecord) == 1)
     {
         memcpy(p, _SLE_ERROR, strlen(_SLE_ERROR));
         p += strlen(_SLE_ERROR);
-    } else if (lpDebugEvent->u.RipInfo.dwType == 2)
+    } else if (PtrToUlong(pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionRecord) == 2)
     {
         memcpy(p, _SLE_MINORERROR, strlen(_SLE_MINORERROR));
         p += strlen(_SLE_MINORERROR);
-    } else if (lpDebugEvent->u.RipInfo.dwType == 3)
+    } else if (PtrToUlong(pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionRecord) == 3)
     {
         memcpy(p, _SLE_WARNING, strlen(_SLE_WARNING));
         p += strlen(_SLE_WARNING);
     }
 
-    if (lpDebugEvent->u.RipInfo.dwType) *p++ = '.';
+    if (PtrToUlong(pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionRecord)) *p++ = '.';
     *p = '\n';
 
     return p - Buffer + 1;

@@ -17,16 +17,16 @@ static
 FORCEINLINE
 NTSTATUS
 TraceDebugEvent(
-    LPDEBUG_EVENT lpDebugEvent,
-    LPCSTR        szDebugEventName,
-    SIZE_T        DebugEventNameLength,
-    HANDLE        hStdout)
+    PDBGUI_WAIT_STATE_CHANGE pStateChange,
+    LPCSTR                   szDebugEventName,
+    SIZE_T                   DebugEventNameLength,
+    HANDLE                   hStdout)
 {
     IO_STATUS_BLOCK IoStatusBlock;
     char Buffer[TRACE_DEBUG_EVENT_BUFFER_SIZE];
 
     return NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer,
-        FormatDebugEvent(lpDebugEvent, szDebugEventName, DebugEventNameLength, Buffer), NULL, NULL);
+        FormatDebugEvent(pStateChange, szDebugEventName, DebugEventNameLength, Buffer), NULL, NULL);
 }
 
 /*
