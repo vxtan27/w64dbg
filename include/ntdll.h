@@ -383,17 +383,6 @@ RtlDosSearchPath_Ustr(
     _Out_opt_ SIZE_T *BytesRequired
     );
 
-#if _WIN32_WINNT >= _WIN32_WINNT_VISTA
-_Analysis_noreturn_
-DECLSPEC_NORETURN
-NTSYSAPI
-VOID
-NTAPI
-RtlExitUserProcess(
-    _In_ NTSTATUS ExitStatus
-    );
-#endif
-
 NTSYSAPI
 NTSTATUS
 NTAPI
