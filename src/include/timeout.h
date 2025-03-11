@@ -7,15 +7,6 @@
 
 static __forceinline long process_timeout(wchar_t *str, wchar_t **p, size_t len)
 {
-    BOOL is_signed = FALSE; // Tracks if the value is negative
-
-    // Handle optional sign at the start
-    while (*str == '-' || *str == '+')
-    {
-        is_signed = *str == '-';
-        ++str;
-    }
-
     long value = 0;
     unsigned char c;
 
@@ -31,8 +22,6 @@ static __forceinline long process_timeout(wchar_t *str, wchar_t **p, size_t len)
     } while (*++str != ' ');
 
     *p = str + 1; // Update pointer to next position after the space
-
-    if (is_signed) value = -value;
 
     return value;
 }

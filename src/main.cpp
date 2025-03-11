@@ -143,10 +143,10 @@ wmain(void)
 
                 case 'T':
                 case 't':
-                    ptr = pNext + 2;
-
                     while (*pNext == ' ') ++pNext; // Skip spaces
 
+                    pNext += 2;
+                    ptr = pNext;
                     temp = pCmdLine + len + 1 - pNext;
 
                     if (temp <= 0)
@@ -160,15 +160,14 @@ wmain(void)
                         *p++ = *(ptr + 1);
                         *p++ = '\'';
                         *p++ = '\n';
-                    } else
+                    } else if ((timeout = process_timeout(pNext, &pNext, temp)) > VALID_TIMEOUT)
                     {
-                        if ((timeout = process_timeout(pNext, &pNext, temp)) > VALID_TIMEOUT)
-                        {
-                            memcpy(p, TIMEOUT_INVALID, strlen(TIMEOUT_INVALID));
-                            p += strlen(TIMEOUT_INVALID);
-                            *(p - 43) = *ptr;
-                            *(p - 42) = *(ptr + 1);
-                        }
+                        memcpy(p, _TIMEOUT_INVALID, strlen(_TIMEOUT_INVALID));
+                        p += strlen(_TIMEOUT_INVALID);
+                        *p++ = *ptr;
+                        *p++ = *(ptr + 1);
+                        memcpy(p, TIMEOUT_INVALID_, strlen(TIMEOUT_INVALID_));
+                        p += strlen(TIMEOUT_INVALID_);
                     }
 
                     continue;
@@ -237,7 +236,12 @@ wmain(void)
     HANDLE hStdout = pProcessParameters->StandardOutput;
 
     IsConsoleHandle(hStdout, &Console);
-    if (Console) SetConsoleOutputCP(65001);  /* CP_UTF8 */
+    if (Console)
+    {
+        SetConsoleOutputCP(65001);  /* CP_UTF8 */
+        SetConsoleMode(hStdout, ENABLE_PROCESSED_OUTPUT |
+            ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    }
 
     if (p != buffer)
     {
@@ -447,11 +451,11 @@ wmain(void)
                 if (timeout)
                     WaitForInputOrTimeout(pProcessParameters->StandardInput, hStdout, timeout, Console);
 
-                ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess), HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_CONTINUE);
+                ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess),
+                    HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_CONTINUE);
                 NtClose(hJob);
                 return EXIT_SUCCESS;
 
-            [[fallthrough]];
             case DbgExceptionStateChange:
             case DbgBreakpointStateChange:
             case DbgSingleStepStateChange:
@@ -465,19 +469,25 @@ wmain(void)
                 {
                     if (verbose >= 2) TraceDebugEvent(&StateChange, RIP, strlen(RIP), hStdout);
                     HandleRIPEvent(&StateChange, pPeb->Ldr, hStdout);
+                    break;
                 }
 
-                // Skip first-chance breakpoints
+                /* Ignore thread naming exception */
+                if (StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == 0x406D1388) // MS_VC_EXCEPTION
+                    break;
+
+                /* Ignore first-chance breakpoints */
                 if ((StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == 0x80000003 || // STATUS_BREAKPOINT
                     StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == 0x4000001F) && // STATUS_WX86_BREAKPOINT
                     ((breakpoint == FALSE) || (breakpoint == TRUE && ++firstbreak <= 1)))
                     break;
 
-                // Check if not first-chance
-                if (!StateChange.StateInfo.Exception.FirstChance)
+                /* Ignore other first change exceptions */
+                if (StateChange.StateInfo.Exception.FirstChance)
                 {
-                    NtTerminateProcess(hProcess, StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode);
-                    break;
+                    ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess),
+                        HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_EXCEPTION_NOT_HANDLED);
+                    continue;
                 }
 
                 // Find thread where exception occured
@@ -501,6 +511,8 @@ wmain(void)
 
                 PMESSAGE_RESOURCE_ENTRY Entry;
 
+                /* Add messages for STATUS_APPLICATION_HANG, STATUS_CPP_EH_EXCEPTION, STATUS_CLR_EXCEPTION */
+
                 if (NT_SUCCESS(LookupNtdllMessage(pPeb->Ldr,
                     StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode, LANG_USER_DEFAULT, &Entry)))
                 {
@@ -508,8 +520,6 @@ wmain(void)
                     {
                         memcpy(p, CONSOLE_NRED_FORMAT, strlen(CONSOLE_NRED_FORMAT));
                         p += strlen(CONSOLE_NRED_FORMAT);
-                        SetConsoleMode(hStdout, ENABLE_PROCESSED_OUTPUT |
-                            ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
                     }
 
                     // Convert error message to UTF-8
@@ -538,17 +548,14 @@ wmain(void)
                     FoundFile.Buffer = ApplicationName;
                 }
 
-                if (dwarf && StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE &&
-                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode != 0x406D1388 && // MS_VC_EXCEPTION
-                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode != 0xE06D7363 && // STATUS_CPP_EH_EXCEPTION
-                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode != 0xE0434f4D && // STATUS_CLR_EXCEPTION
-                    NT_SUCCESS(RtlDosSearchPath_Ustr(RTL_DOS_SEARCH_PATH_FLAG_DISALLOW_DOT_RELATIVE_PATH_SEARCH,
+                if (dwarf && NT_SUCCESS(RtlDosSearchPath_Ustr(RTL_DOS_SEARCH_PATH_FLAG_DISALLOW_DOT_RELATIVE_PATH_SEARCH,
                     &Path, &FileName, NULL, &FoundFile, NULL, NULL, NULL, NULL)))
                 { // Check if executable exists
                     NtWriteFile(hStdout, NULL, NULL, NULL,
                         &IoStatusBlock, buffer, p - buffer, NULL, NULL);
                     NtSuspendProcess(hProcess);
-                    ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess), HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_REPLY_LATER);
+                    ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess),
+                        HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_REPLY_LATER);
                     DbgUiStopDebugging(hProcess);
 
                     HANDLE hTemp;
@@ -764,9 +771,6 @@ wmain(void)
                     if (!StackWalk2(MachineType, hProcess, hThread[i], &StackFrame, &Context,
                         ReadMemoryRoutineLocal, NULL, NULL, NULL, NULL, SYM_STKWALK_DEFAULT)) break;
 
-                    if (!SymFromInlineContextW(hProcess, StackFrame.AddrPC.Offset,
-                        INLINE_FRAME_CONTEXT_IGNORE, NULL, pSymInfo)) break;
-
                     *p++ = '#';
 
                     if (count < 10)
@@ -800,9 +804,22 @@ wmain(void)
                         p += 4;
                     }
 
-                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                        &ActualByteCount, pSymInfo->Name, pSymInfo->NameLen << 1);
-                    p += ActualByteCount;
+                    /*
+                        StackFrame.AddrPC.Offset stores the return address rather than the caller's address.  
+                        Adjust StackFrame.AddrPC.Offset by 'count' to resolve the caller's address accurately.
+                    */
+
+                    if (SymFromInlineContextW(hProcess, StackFrame.AddrPC.Offset - count,
+                        INLINE_FRAME_CONTEXT_IGNORE, NULL, pSymInfo))
+                    {
+                        RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
+                            &ActualByteCount, pSymInfo->Name, pSymInfo->NameLen << 1);
+                        p += ActualByteCount;
+                    } else
+                    {
+                        *p++ = '?';
+                        *p++ = '?';
+                    }
 
                     if (Console)
                     {
@@ -827,7 +844,7 @@ wmain(void)
                     *p++ = ' ';
 
                     // Without &Displacement => undefined behavior
-                    if (SymGetLineFromInlineContextW(hProcess, StackFrame.AddrPC.Offset,
+                    if (SymGetLineFromInlineContextW(hProcess, StackFrame.AddrPC.Offset - count,
                         INLINE_FRAME_CONTEXT_IGNORE, NULL, &Displacement, &Line))
                     {
                         memcpy(p, EXCEPTION_AT, strlen(EXCEPTION_AT));
@@ -861,7 +878,7 @@ wmain(void)
                         }
 
                         len = GetModuleFileNameExW(hProcess,
-                            (HMODULE) pSymInfo->ModBase, Tmp, WBUFLEN);
+                            (HMODULE) SymGetModuleBase64(hProcess, StackFrame.AddrPC.Offset), Tmp, WBUFLEN);
                         RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
                             &ActualByteCount, Tmp, len << 1);
                         p += ActualByteCount;
@@ -899,24 +916,12 @@ wmain(void)
                     &IoStatusBlock, buffer, p - buffer, NULL, NULL);
 
                 SymCleanup(hProcess);
-
-                // Check if critical exception
-                if (!(StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode & EXCEPTION_NONCONTINUABLE) &&
-                    // https://learn.microsoft.com/visualstudio/debugger/tips-for-debugging-threads?view=vs-2022&tabs=csharp#set-a-thread-name-by-throwing-an-exception
-                    (StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == 0x406D1388 || // MS_VC_EXCEPTION
-                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == 0xE06D7363 || // STATUS_CPP_EH_EXCEPTION
-                    StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == 0xE0434f4D)) // STATUS_CLR_EXCEPTION
-                    break;
-                else
-                {
-                    ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess), HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_EXCEPTION_NOT_HANDLED);
-                    continue;
-                }
-
+                NtTerminateProcess(hProcess, StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode);
                 break;
         }
 
-        ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess), HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_CONTINUE);
+        ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess),
+            HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_CONTINUE);
     }
 }
 

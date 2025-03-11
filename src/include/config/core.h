@@ -80,7 +80,8 @@
 
 /* Error Messages */
 #define VALUE_EXPECTED "Value expected for '"
-#define TIMEOUT_INVALID "Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n"
+#define _TIMEOUT_INVALID "Invalid value for timeout ("
+#define TIMEOUT_INVALID_ ") specified. Valid range is -1 to 99999.\n"
 #define _INVALID_ARGUMENT "Invalid argument/option - '"
 #define INVALID_ARGUMENT_ "'.\n"
 
