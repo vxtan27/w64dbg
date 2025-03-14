@@ -1,14 +1,14 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+//
+//  SPDX-License-Identifier: BSD-3-Clause
+//  Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
+//
 
 #pragma once
 
 #define DEBUG_EVENT_RIP_SLE_MAX_LEN 102
 #define DEBUG_EVENT_RIP_BUFFER_SIZE (DEBUG_EVENT_RIP_SLE_MAX_LEN + 900)
 
-/* Determines whether a given handle is associated with a console device. */
+// Determines whether a given handle is associated with a console device
 
 static
 FORCEINLINE
@@ -26,7 +26,7 @@ IsConsoleHandle(HANDLE hHandle, PBOOL Result)
     return NtStatus;
 }
 
-/* Handles OutputDebugString (ODS) events and writes the debug string to standard output. */
+// Handles OutputDebugString (ODS) events and writes the debug string to standard output
 
 static
 FORCEINLINE
@@ -79,7 +79,7 @@ HandleODSEvent(
     }
 }
 
-/* Handles RIP (Debugger Error) events and writes diagnostic information. */
+// Handles RIP (Debugger Error) events and writes diagnostic information
 
 static
 FORCEINLINE
@@ -96,7 +96,7 @@ HandleRIPEvent(
         FormatRIPEvent(pStateChange, Ldr, Buffer, DEBUG_EVENT_RIP_BUFFER_SIZE), NULL, NULL);
 }
 
-/* Retrieves the size of a loaded module. */
+// Retrieves the size of a loaded module
 
 static
 FORCEINLINE

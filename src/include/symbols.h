@@ -1,7 +1,7 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+//
+//  SPDX-License-Identifier: BSD-3-Clause
+//  Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
+//
 
 #pragma once
 
@@ -33,42 +33,42 @@ static __forceinline DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CO
 {
     switch (pSymInfo->Register)
     {
-        case CV_REG_AL:
-        case CV_REG_CL:
-        case CV_REG_DL:
-        case CV_REG_BL:
-            return (&pContext->Ebx)[CV_REG_BL - pSymInfo->Register] & 0xFF;
+    case CV_REG_AL:
+    case CV_REG_CL:
+    case CV_REG_DL:
+    case CV_REG_BL:
+        return (&pContext->Ebx)[CV_REG_BL - pSymInfo->Register] & 0xFF;
 
-        case CV_REG_AX:
-        case CV_REG_CX:
-        case CV_REG_DX:
-        case CV_REG_BX:
-            return (&pContext->Ebx)[CV_REG_BX - pSymInfo->Register] & 0xFFFF;
+    case CV_REG_AX:
+    case CV_REG_CX:
+    case CV_REG_DX:
+    case CV_REG_BX:
+        return (&pContext->Ebx)[CV_REG_BX - pSymInfo->Register] & 0xFFFF;
 
-        case CV_REG_SP:
-            return pContext->Esp & 0xFFFF;
-        case CV_REG_BP:
-            return pContext->Ebp & 0xFFFF;
-        case CV_REG_SI:
-            return pContext->Esi & 0xFFFF;
-        case CV_REG_DI:
-            return pContext->Edi & 0xFFFF;
+    case CV_REG_SP:
+        return pContext->Esp & 0xFFFF;
+    case CV_REG_BP:
+        return pContext->Ebp & 0xFFFF;
+    case CV_REG_SI:
+        return pContext->Esi & 0xFFFF;
+    case CV_REG_DI:
+        return pContext->Edi & 0xFFFF;
 
-        case CV_REG_EAX:
-        case CV_REG_ECX:
-        case CV_REG_EDX:
-        case CV_REG_EBX:
-            return (&pContext->Ebx)[CV_REG_EBX - pSymInfo->Register];
+    case CV_REG_EAX:
+    case CV_REG_ECX:
+    case CV_REG_EDX:
+    case CV_REG_EBX:
+        return (&pContext->Ebx)[CV_REG_EBX - pSymInfo->Register];
 
-        case CV_REG_ESP:
-            return pContext->Esp;
-        case CV_REG_EBP:
-        case CV_ALLREG_VFRAME:
-            return pContext->Ebp;
-        case CV_REG_ESI:
-            return pContext->Esi;
-        case CV_REG_EDI:
-            return pContext->Edi;
+    case CV_REG_ESP:
+        return pContext->Esp;
+    case CV_REG_EBP:
+    case CV_ALLREG_VFRAME:
+        return pContext->Ebp;
+    case CV_REG_ESI:
+        return pContext->Esi;
+    case CV_REG_EDI:
+        return pContext->Edi;
     }
 }
 
@@ -76,88 +76,88 @@ static __forceinline DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT 
 {
     switch (pSymInfo->Register)
     {
-        case CV_AMD64_AL:
-        case CV_AMD64_CL:
-        case CV_AMD64_DL:
-        case CV_AMD64_BL:
-            return (&pContext->Rax)[pSymInfo->Register - CV_AMD64_AL] & 0xFF;
+    case CV_AMD64_AL:
+    case CV_AMD64_CL:
+    case CV_AMD64_DL:
+    case CV_AMD64_BL:
+        return (&pContext->Rax)[pSymInfo->Register - CV_AMD64_AL] & 0xFF;
 
-        case CV_AMD64_AX:
-        case CV_AMD64_CX:
-        case CV_AMD64_DX:
-        case CV_AMD64_BX:
-        case CV_AMD64_SP:
-        case CV_AMD64_BP:
-        case CV_AMD64_SI:
-        case CV_AMD64_DI:
-            return (&pContext->Rax)[pSymInfo->Register - CV_AMD64_AX] & 0xFFFF;
+    case CV_AMD64_AX:
+    case CV_AMD64_CX:
+    case CV_AMD64_DX:
+    case CV_AMD64_BX:
+    case CV_AMD64_SP:
+    case CV_AMD64_BP:
+    case CV_AMD64_SI:
+    case CV_AMD64_DI:
+        return (&pContext->Rax)[pSymInfo->Register - CV_AMD64_AX] & 0xFFFF;
 
-        case CV_AMD64_EAX:
-        case CV_AMD64_ECX:
-        case CV_AMD64_EDX:
-        case CV_AMD64_EBX:
-        case CV_AMD64_ESP:
-        case CV_AMD64_EBP:
-        case CV_AMD64_ESI:
-        case CV_AMD64_EDI:
-            return (&pContext->Rax)[pSymInfo->Register - CV_AMD64_EAX];
+    case CV_AMD64_EAX:
+    case CV_AMD64_ECX:
+    case CV_AMD64_EDX:
+    case CV_AMD64_EBX:
+    case CV_AMD64_ESP:
+    case CV_AMD64_EBP:
+    case CV_AMD64_ESI:
+    case CV_AMD64_EDI:
+        return (&pContext->Rax)[pSymInfo->Register - CV_AMD64_EAX];
 
-        case CV_AMD64_RAX:
-            return pContext->Rax;
-        case CV_AMD64_RBX:
-            return pContext->Rbx;
-        case CV_AMD64_RCX:
-            return pContext->Rcx;
-        case CV_AMD64_RDX:
-            return pContext->Rdx;
-        case CV_AMD64_RSI:
-            return pContext->Rsi;
-        case CV_AMD64_RDI:
-            return pContext->Rdi;
-        case CV_AMD64_RBP:
-            return pContext->Rbp;
-        case CV_AMD64_RSP:
-            return pContext->Rsp;
+    case CV_AMD64_RAX:
+        return pContext->Rax;
+    case CV_AMD64_RBX:
+        return pContext->Rbx;
+    case CV_AMD64_RCX:
+        return pContext->Rcx;
+    case CV_AMD64_RDX:
+        return pContext->Rdx;
+    case CV_AMD64_RSI:
+        return pContext->Rsi;
+    case CV_AMD64_RDI:
+        return pContext->Rdi;
+    case CV_AMD64_RBP:
+        return pContext->Rbp;
+    case CV_AMD64_RSP:
+        return pContext->Rsp;
 
-        case CV_AMD64_R8:
-        case CV_AMD64_R9:
-        case CV_AMD64_R10:
-        case CV_AMD64_R11:
-        case CV_AMD64_R12:
-        case CV_AMD64_R13:
-        case CV_AMD64_R14:
-        case CV_AMD64_R15:
-            return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8];
+    case CV_AMD64_R8:
+    case CV_AMD64_R9:
+    case CV_AMD64_R10:
+    case CV_AMD64_R11:
+    case CV_AMD64_R12:
+    case CV_AMD64_R13:
+    case CV_AMD64_R14:
+    case CV_AMD64_R15:
+        return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8];
 
-        case CV_AMD64_R8B:
-        case CV_AMD64_R9B:
-        case CV_AMD64_R10B:
-        case CV_AMD64_R11B:
-        case CV_AMD64_R12B:
-        case CV_AMD64_R13B:
-        case CV_AMD64_R14B:
-        case CV_AMD64_R15B:
-            return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8B] & 0xFF;
+    case CV_AMD64_R8B:
+    case CV_AMD64_R9B:
+    case CV_AMD64_R10B:
+    case CV_AMD64_R11B:
+    case CV_AMD64_R12B:
+    case CV_AMD64_R13B:
+    case CV_AMD64_R14B:
+    case CV_AMD64_R15B:
+        return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8B] & 0xFF;
 
-        case CV_AMD64_R8W:
-        case CV_AMD64_R9W:
-        case CV_AMD64_R10W:
-        case CV_AMD64_R11W:
-        case CV_AMD64_R12W:
-        case CV_AMD64_R13W:
-        case CV_AMD64_R14W:
-        case CV_AMD64_R15W:
-            return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8W] & 0xFFFF;
+    case CV_AMD64_R8W:
+    case CV_AMD64_R9W:
+    case CV_AMD64_R10W:
+    case CV_AMD64_R11W:
+    case CV_AMD64_R12W:
+    case CV_AMD64_R13W:
+    case CV_AMD64_R14W:
+    case CV_AMD64_R15W:
+        return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8W] & 0xFFFF;
 
-        case CV_AMD64_R8D:
-        case CV_AMD64_R9D:
-        case CV_AMD64_R10D:
-        case CV_AMD64_R11D:
-        case CV_AMD64_R12D:
-        case CV_AMD64_R13D:
-        case CV_AMD64_R14D:
-        case CV_AMD64_R15D:
-            return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8D] & 0xFFFFFFFF;
+    case CV_AMD64_R8D:
+    case CV_AMD64_R9D:
+    case CV_AMD64_R10D:
+    case CV_AMD64_R11D:
+    case CV_AMD64_R12D:
+    case CV_AMD64_R13D:
+    case CV_AMD64_R14D:
+    case CV_AMD64_R15D:
+        return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8D] & 0xFFFFFFFF;
     }
 }
 
@@ -266,41 +266,41 @@ static BOOL CALLBACK EnumCallbackProc(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, 
 
             switch (BaseType)
             {
-                case btChar:
-                    User->p = jeaiii::to_ascii_chars(User->p, bt.c);
-                    break;
-                case btWChar:
-                    User->p = jeaiii::to_ascii_chars(User->p, bt.wc);
-                    break;
-                case btInt:
-                    User->p = jeaiii::to_ascii_chars(User->p, bt.i64);
-                    break;
-                case btUInt:
-                    User->p = jeaiii::to_ascii_chars(User->p, bt.ui64);
-                    break;
-                case btFloat:
-                    User->p += __builtin_sprintf(User->p, LONGDOUBLE_FORMAT, bt.d);
-                    break;
-                case btBool:
-                    if (bt.b)
-                    {
-                        memcpy(User->p, BOOL_TRUE, strlen(BOOL_TRUE));
-                        User->p += strlen(BOOL_TRUE);
-                    } else
-                    {
-                        memcpy(User->p, BOOL_FALSE, strlen(BOOL_FALSE));
-                        User->p += strlen(BOOL_FALSE);
-                    }
-                    break;
-                case btLong:
-                    User->p = jeaiii::to_ascii_chars(User->p, bt.l);
-                    break;
-                case btULong:
-                    User->p = jeaiii::to_ascii_chars(User->p, bt.ul);
-                    break;
-                case btHresult:
-                    User->p = _ultoa16u(bt.ul, User->p);
-                    break;
+            case btChar:
+                User->p = jeaiii::to_ascii_chars(User->p, bt.c);
+                break;
+            case btWChar:
+                User->p = jeaiii::to_ascii_chars(User->p, bt.wc);
+                break;
+            case btInt:
+                User->p = jeaiii::to_ascii_chars(User->p, bt.i64);
+                break;
+            case btUInt:
+                User->p = jeaiii::to_ascii_chars(User->p, bt.ui64);
+                break;
+            case btFloat:
+                User->p += __builtin_sprintf(User->p, LONGDOUBLE_FORMAT, bt.d);
+                break;
+            case btBool:
+                if (bt.b)
+                {
+                    memcpy(User->p, BOOL_TRUE, strlen(BOOL_TRUE));
+                    User->p += strlen(BOOL_TRUE);
+                } else
+                {
+                    memcpy(User->p, BOOL_FALSE, strlen(BOOL_FALSE));
+                    User->p += strlen(BOOL_FALSE);
+                }
+                break;
+            case btLong:
+                User->p = jeaiii::to_ascii_chars(User->p, bt.l);
+                break;
+            case btULong:
+                User->p = jeaiii::to_ascii_chars(User->p, bt.ul);
+                break;
+            case btHresult:
+                User->p = _ultoa16u(bt.ul, User->p);
+                break;
             }
         }
     }

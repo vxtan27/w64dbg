@@ -1,17 +1,17 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+//
+//  SPDX-License-Identifier: BSD-3-Clause
+//  Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
+//
 
 #pragma once
 
 #define DEBUG_EVENT_NAME_MAX_LEN 18
 #define TRACE_DEBUG_EVENT_BUFFER_SIZE (DEBUG_EVENT_NAME_MAX_LEN + 22)
 
-/*
-    Writes a formatted debug event message to the specified handle.
-    Utilizes a preallocated buffer to minimize runtime allocations.
-*/
+//
+//  Writes a formatted debug event message to the specified handle
+//  Utilizes a preallocated buffer to minimize runtime allocations
+//
 
 static
 FORCEINLINE
@@ -29,10 +29,10 @@ TraceDebugEvent(
         FormatDebugEvent(pStateChange, szDebugEventName, DebugEventNameLength, Buffer), NULL, NULL);
 }
 
-/*
-    Logs module-related debug events.
-    Uses a MAX_PATH-sized buffer to accommodate typical module names.
-*/
+//
+//  Logs module-related debug events
+//  Uses a MAX_PATH-sized buffer to accommodate typical module names
+//
 
 static
 FORCEINLINE

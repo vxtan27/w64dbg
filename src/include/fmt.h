@@ -1,14 +1,14 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+//
+//  SPDX-License-Identifier: BSD-3-Clause
+//  Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
+//
 
 #pragma once
 
-/*
-    Retrieves a localized system message from ntdll.dll.
-    Leverages direct access to the second loaded module in the PEB loader data.
-*/
+//
+//  Retrieves a localized system message from ntdll.dll
+//  Leverages direct access to the second loaded module in the PEB loader data
+//
 
 static
 __forceinline
@@ -24,10 +24,10 @@ LookupNtdllMessage(
         (ULONG)(ULONG_PTR) RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
 }
 
-/*
-    Retrieves a localized system message from KernelBase.dll.
-    Leverages direct access to the fourth loaded module in the PEB loader data.
-*/
+//
+//  Retrieves a localized system message from KernelBase.dll
+//  Leverages direct access to the fourth loaded module in the PEB loader data
+//
 
 static
 __forceinline
@@ -43,10 +43,10 @@ LookupSystemMessage(
         (ULONG)(ULONG_PTR) RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
 }
 
-/*
-    Formats a debug event message into a buffer.
-    Output format: "<EventName><ProcessID>x<ThreadID>\n"
-*/
+//
+//  Formats a debug event message into a buffer
+//  Output format: "<EventName><ProcessID>x<ThreadID>\n
+//
 
 static
 FORCEINLINE
@@ -69,10 +69,10 @@ FormatDebugEvent(
     return (ULONG)(p - Buffer + 1);
 }
 
-/*
-    Formats a module-related debug event message into a buffer.
-    Output format: "<EventName><ModulePath>\n"
-*/
+//
+//  Formats a module-related debug event message into a buffer
+//  Output format: "<EventName><ModulePath>\n"
+//
 
 static
 FORCEINLINE
@@ -114,10 +114,10 @@ FormatModuleEvent(
     return (ULONG)(ActualByteCount + DebugEventNameLength + 2 + 1);
 }
 
-/*
-    Formats a RIP (Raise an Exception) debug event message into a buffer.
-    Output format: "<ErrorMessage><ErrorType>\n"
-*/
+//
+//  Formats a RIP (Raise an Exception) debug event message into a buffer
+//  Output format: "<ErrorMessage><ErrorType>\n"
+//
 
 static
 FORCEINLINE

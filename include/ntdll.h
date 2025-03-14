@@ -1,97 +1,56 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+//
+//  SPDX-License-Identifier: BSD-3-Clause
+//  Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
+//
 
 #pragma once
 
 #include <winternl.h>
 
-typedef struct _CURDIR
-{
-    UNICODE_STRING DosPath;
-    HANDLE Handle;
-} CURDIR, *PCURDIR;
+EXTERN_C_START
 
-typedef struct _RTL_DRIVE_LETTER_CURDIR
-{
-    USHORT Flags;
-    USHORT Length;
-    ULONG TimeStamp;
-    UNICODE_STRING DosPath;
-} RTL_DRIVE_LETTER_CURDIR, *PRTL_DRIVE_LETTER_CURDIR;
+//
+// Define the file system information class values
+//
+// WARNING:  The order of the following values are assumed by the I/O system.
+//           Any changes made here should be reflected there as well.
 
-#define RTL_MAX_DRIVE_LETTERS 32
+typedef enum _FSINFOCLASS {
+    FileFsVolumeInformation          = 1,
+    FileFsLabelInformation,         // 2
+    FileFsSizeInformation,          // 3
+    FileFsDeviceInformation,        // 4
+    FileFsAttributeInformation,     // 5
+    FileFsControlInformation,       // 6
+    FileFsFullSizeInformation,      // 7
+    FileFsObjectIdInformation,      // 8
+    FileFsDriverPathInformation,    // 9
+    FileFsVolumeFlagsInformation,   // 10
+    FileFsSectorSizeInformation,    // 11
+    FileFsDataCopyInformation,      // 12
+    FileFsMetadataSizeInformation,  // 13
+    FileFsFullSizeInformationEx,    // 14
+    FileFsGuidInformation,          // 15
+    FileFsMaximumInformation
+} FS_INFORMATION_CLASS, *PFS_INFORMATION_CLASS;
 
-typedef struct
-{
-    ULONG MaximumLength;
-    ULONG Length;
-
-    ULONG Flags;
-    ULONG DebugFlags;
-
-    HANDLE ConsoleHandle;
-    ULONG ConsoleFlags;
-    HANDLE StandardInput;
-    HANDLE StandardOutput;
-    HANDLE StandardError;
-
-    CURDIR CurrentDirectory;
-    UNICODE_STRING DllPath;
-    UNICODE_STRING ImagePathName;
-    UNICODE_STRING CommandLine;
-    PWCHAR Environment;
-
-    ULONG StartingX;
-    ULONG StartingY;
-    ULONG CountX;
-    ULONG CountY;
-    ULONG CountCharsX;
-    ULONG CountCharsY;
-    ULONG FillAttribute;
-
-    ULONG WindowFlags;
-    ULONG ShowWindowFlags;
-    UNICODE_STRING WindowTitle;
-    UNICODE_STRING DesktopInfo;
-    UNICODE_STRING ShellInfo;
-    UNICODE_STRING RuntimeData;
-    RTL_DRIVE_LETTER_CURDIR CurrentDirectories[RTL_MAX_DRIVE_LETTERS];
-
-    ULONG_PTR EnvironmentSize;
-    ULONG_PTR EnvironmentVersion;
-    PVOID PackageDependencyData;
-    ULONG ProcessGroupId;
-    ULONG LoaderThreads;
-} ZWRTL_USER_PROCESS_PARAMETERS, *PZWRTL_USER_PROCESS_PARAMETERS;
-
-typedef struct _FILE_FS_DEVICE_INFORMATION
-{
+typedef struct _FILE_FS_DEVICE_INFORMATION {
     DEVICE_TYPE DeviceType;
     ULONG Characteristics;
 } FILE_FS_DEVICE_INFORMATION, *PFILE_FS_DEVICE_INFORMATION;
 
-typedef enum _FSINFOCLASS
-{
-    FileFsVolumeInformation = 1, // q: FILE_FS_VOLUME_INFORMATION
-    FileFsLabelInformation, // s: FILE_FS_LABEL_INFORMATION (requires FILE_WRITE_DATA to volume)
-    FileFsSizeInformation, // q: FILE_FS_SIZE_INFORMATION
-    FileFsDeviceInformation, // q: FILE_FS_DEVICE_INFORMATION
-    FileFsAttributeInformation, // q: FILE_FS_ATTRIBUTE_INFORMATION
-    FileFsControlInformation, // q, s: FILE_FS_CONTROL_INFORMATION  (q: requires FILE_READ_DATA; s: requires FILE_WRITE_DATA to volume)
-    FileFsFullSizeInformation, // q: FILE_FS_FULL_SIZE_INFORMATION
-    FileFsObjectIdInformation, // q; s: FILE_FS_OBJECTID_INFORMATION (s: requires FILE_WRITE_DATA to volume)
-    FileFsDriverPathInformation, // q: FILE_FS_DRIVER_PATH_INFORMATION
-    FileFsVolumeFlagsInformation, // q; s: FILE_FS_VOLUME_FLAGS_INFORMATION (q: requires FILE_READ_ATTRIBUTES; s: requires FILE_WRITE_ATTRIBUTES to volume) // 10
-    FileFsSectorSizeInformation, // q: FILE_FS_SECTOR_SIZE_INFORMATION // since WIN8
-    FileFsDataCopyInformation, // q: FILE_FS_DATA_COPY_INFORMATION
-    FileFsMetadataSizeInformation, // q: FILE_FS_METADATA_SIZE_INFORMATION // since THRESHOLD
-    FileFsFullSizeInformationEx, // q: FILE_FS_FULL_SIZE_INFORMATION_EX // since REDSTONE5
-    FileFsGuidInformation, // q: FILE_FS_GUID_INFORMATION // since 23H2
-    FileFsMaximumInformation
-} FSINFOCLASS, *PFSINFOCLASS;
-typedef enum _FSINFOCLASS FS_INFORMATION_CLASS;
+#if (NTDDI_VERSION >= NTDDI_WIN2K)
+__kernel_entry NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtQueryVolumeInformationFile (
+    _In_ HANDLE FileHandle,
+    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
+    _Out_writes_bytes_(Length) PVOID FsInformation,
+    _In_ ULONG Length,
+    _In_ FS_INFORMATION_CLASS FsInformationClass
+    );
+#endif
 
 // Definitions
 
@@ -210,16 +169,7 @@ typedef struct _FILE_STANDARD_INFORMATION
 
 #define ThreadWow64Context ((THREADINFOCLASS) 29)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-NTSYSAPI
-NTSTATUS
-NTAPI
-DbgUiStopDebugging(
-    _In_ HANDLE Process
-    );
+// Debugging UI
 
 NTSYSAPI
 NTSTATUS
@@ -271,17 +221,6 @@ NtQueryInformationFile(
     _Out_writes_bytes_(Length) PVOID FileInformation,
     _In_ ULONG Length,
     _In_ FILE_INFORMATION_CLASS FileInformationClass
-    );
-
-NTSYSCALLAPI
-NTSTATUS
-NTAPI
-NtQueryVolumeInformationFile(
-    _In_ HANDLE FileHandle,
-    _Out_ PIO_STATUS_BLOCK IoStatusBlock,
-    _Out_writes_bytes_(Length) PVOID FsInformation,
-    _In_ ULONG Length,
-    _In_ FSINFOCLASS FsInformationClass
     );
 
 NTSYSCALLAPI
@@ -422,6 +361,63 @@ RtlUnicodeToUTF8N(
     );
 #endif
 
-#ifdef __cplusplus
-}
-#endif
+typedef struct _CURDIR
+{
+    UNICODE_STRING DosPath;
+    HANDLE Handle;
+} CURDIR, *PCURDIR;
+
+typedef struct _RTL_DRIVE_LETTER_CURDIR
+{
+    USHORT Flags;
+    USHORT Length;
+    ULONG TimeStamp;
+    UNICODE_STRING DosPath;
+} RTL_DRIVE_LETTER_CURDIR, *PRTL_DRIVE_LETTER_CURDIR;
+
+#define RTL_MAX_DRIVE_LETTERS 32
+
+typedef struct
+{
+    ULONG MaximumLength;
+    ULONG Length;
+
+    ULONG Flags;
+    ULONG DebugFlags;
+
+    HANDLE ConsoleHandle;
+    ULONG ConsoleFlags;
+    HANDLE StandardInput;
+    HANDLE StandardOutput;
+    HANDLE StandardError;
+
+    CURDIR CurrentDirectory;
+    UNICODE_STRING DllPath;
+    UNICODE_STRING ImagePathName;
+    UNICODE_STRING CommandLine;
+    PWCHAR Environment;
+
+    ULONG StartingX;
+    ULONG StartingY;
+    ULONG CountX;
+    ULONG CountY;
+    ULONG CountCharsX;
+    ULONG CountCharsY;
+    ULONG FillAttribute;
+
+    ULONG WindowFlags;
+    ULONG ShowWindowFlags;
+    UNICODE_STRING WindowTitle;
+    UNICODE_STRING DesktopInfo;
+    UNICODE_STRING ShellInfo;
+    UNICODE_STRING RuntimeData;
+    RTL_DRIVE_LETTER_CURDIR CurrentDirectories[RTL_MAX_DRIVE_LETTERS];
+
+    ULONG_PTR EnvironmentSize;
+    ULONG_PTR EnvironmentVersion;
+    PVOID PackageDependencyData;
+    ULONG ProcessGroupId;
+    ULONG LoaderThreads;
+} ZWRTL_USER_PROCESS_PARAMETERS, *PZWRTL_USER_PROCESS_PARAMETERS;
+
+EXTERN_C_END
