@@ -5,25 +5,26 @@
 
 #pragma once
 
-#define DEBUG_EVENT_RIP_SLE_MAX_LEN 102
-#define DEBUG_EVENT_RIP_BUFFER_SIZE (DEBUG_EVENT_RIP_SLE_MAX_LEN + 900)
-
-// Determines whether a given handle is associated with a console device
+// Waits for a debugging event to occur in a process being debugged
 
 static
 FORCEINLINE
 NTSTATUS
-IsConsoleHandle(HANDLE hHandle, PBOOL Result)
+DbgWaitForDebugEvent(PDBGUI_WAIT_STATE_CHANGE pStateChange, PLARGE_INTEGER pTimeout)
 {
-    NTSTATUS NtStatus;
-    IO_STATUS_BLOCK IoStatusBlock;
-    FILE_FS_DEVICE_INFORMATION DeviceInfo;
+    // NtCurrentTeb()->DbgSsReserved[0]
+    return NtWaitForDebugEvent(NtCurrentTeb()->Reserved5[4], FALSE, pTimeout, pStateChange);
+}
 
-    NtStatus = NtQueryVolumeInformationFile(hHandle, &IoStatusBlock,
-        &DeviceInfo, sizeof(DeviceInfo), FileFsDeviceInformation);
+// Enables a debugger to continue a thread that previously reported a debugging event
 
-    *Result = (DeviceInfo.DeviceType == FILE_DEVICE_CONSOLE);
-    return NtStatus;
+static
+FORCEINLINE
+BOOL
+DbgContinueDebugEvent(PDBGUI_WAIT_STATE_CHANGE pStateChange, DWORD dwContinueStatus)
+{
+    return ContinueDebugEvent(HandleToUlong(pStateChange->AppClientId.UniqueProcess),
+            HandleToUlong(pStateChange->AppClientId.UniqueThread), dwContinueStatus);
 }
 
 // Handles OutputDebugString (ODS) events and writes the debug string to standard output
@@ -31,7 +32,7 @@ IsConsoleHandle(HANDLE hHandle, PBOOL Result)
 static
 FORCEINLINE
 VOID
-HandleODSEvent(
+DbgProcessODS(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     HANDLE                   hProcess,
     HANDLE                   hStdout)
@@ -62,29 +63,29 @@ HandleODSEvent(
             pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[1] += NumberOfBytesToRead;
             pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] -= NumberOfBytesToRead;
         }
-    } else
+    } else while (pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] > 0)
     {
-        while (pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] > 0)
-        {
-            NumberOfBytesToRead = pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] < sizeof(Buffer)
-                                ? pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] : sizeof(Buffer);
+        NumberOfBytesToRead = pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] < sizeof(Buffer)
+                            ? pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] : sizeof(Buffer);
 
-            NtReadVirtualMemory(hProcess,
-                (PVOID) pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[1], Buffer, NumberOfBytesToRead, NULL);
-            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer, NumberOfBytesToRead, NULL, NULL);
+        NtReadVirtualMemory(hProcess,
+            (PVOID) pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[1], Buffer, NumberOfBytesToRead, NULL);
+        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer, NumberOfBytesToRead, NULL, NULL);
 
-            pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[1] += NumberOfBytesToRead;
-            pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] -= NumberOfBytesToRead;
-        }
+        pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[1] += NumberOfBytesToRead;
+        pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionInformation[0] -= NumberOfBytesToRead;
     }
 }
+
+#define DEBUG_EVENT_RIP_SLE_MAX_LEN 102
+#define DEBUG_EVENT_RIP_BUFFER_SIZE (DEBUG_EVENT_RIP_SLE_MAX_LEN + 900)
 
 // Handles RIP (Debugger Error) events and writes diagnostic information
 
 static
 FORCEINLINE
 NTSTATUS
-HandleRIPEvent(
+DbgProcessRIP(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     PPEB_LDR_DATA            Ldr,
     HANDLE                   hStdout)
@@ -93,20 +94,5 @@ HandleRIPEvent(
     char Buffer[DEBUG_EVENT_RIP_BUFFER_SIZE];
 
     return NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer,
-        FormatRIPEvent(pStateChange, Ldr, Buffer, DEBUG_EVENT_RIP_BUFFER_SIZE), NULL, NULL);
-}
-
-// Retrieves the size of a loaded module
-
-static
-FORCEINLINE
-DWORD
-GetModuleSize(HANDLE hModule)
-{
-    IO_STATUS_BLOCK IoStatusBlock;
-    FILE_STANDARD_INFORMATION FileInfo;
-
-    NtQueryInformationFile(hModule, &IoStatusBlock,
-        &FileInfo, sizeof(FileInfo), FileStandardInformation);
-    return FileInfo.EndOfFile.LowPart;
+        DbgFormatRIP(pStateChange, Ldr, Buffer, sizeof(Buffer)), NULL, NULL);
 }

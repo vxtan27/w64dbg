@@ -29,7 +29,7 @@ int __builtin_sprintf(
     return _Result;
 }
 
-static __forceinline DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext)
+static FORCEINLINE DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext)
 {
     switch (pSymInfo->Register)
     {
@@ -72,7 +72,7 @@ static __forceinline DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CO
     }
 }
 
-static __forceinline DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext)
+static FORCEINLINE DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext)
 {
     switch (pSymInfo->Register)
     {
@@ -161,7 +161,7 @@ static __forceinline DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT 
     }
 }
 
-static __forceinline DWORD64 GetRegisterBase(PSYMBOL_INFOW pSymInfo, PVOID ContextRecord, DWORD is_64bit)
+static FORCEINLINE DWORD64 GetRegisterBase(PSYMBOL_INFOW pSymInfo, PVOID ContextRecord, DWORD is_64bit)
 {
     return is_64bit ? GetRegisterBase64(pSymInfo, (PCONTEXT) ContextRecord)
                     : GetRegisterBase32(pSymInfo, (PWOW64_CONTEXT) ContextRecord);

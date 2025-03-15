@@ -5,7 +5,7 @@
 
 #pragma once
 
-static __forceinline long process_timeout(wchar_t *str, wchar_t **p, size_t len)
+static FORCEINLINE LONG process_timeout(LPWSTR str, LPWSTR *p, SIZE_T len)
 {
     long value = 0;
     unsigned char c;
@@ -96,7 +96,7 @@ static VOID CALLBACK TimerRoutine(PVOID lpParameter, BOOLEAN TimerOrWaitFired)
 #define _FiniteMessage "\nWaiting for "
 #define FiniteMessage_ " seconds, press a key to continue ...\x1b[37D"
 
-static __forceinline VOID WaitForInputOrTimeout(
+static FORCEINLINE VOID WaitForInputOrTimeout(
     HANDLE     hStdin,
     HANDLE     hStdout,
     LONG       timeout,

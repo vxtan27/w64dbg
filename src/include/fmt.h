@@ -11,7 +11,7 @@
 //
 
 static
-__forceinline
+FORCEINLINE
 NTSTATUS
 LookupNtdllMessage(
     PPEB_LDR_DATA            Ldr,
@@ -21,7 +21,7 @@ LookupNtdllMessage(
 {
     return RtlFindMessage(
         ((PLDR_DATA_TABLE_ENTRY) ((PLIST_ENTRY) Ldr->Reserved2[1])->Flink)->DllBase,
-        (ULONG)(ULONG_PTR) RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
+        PtrToUlong(RT_MESSAGETABLE), dwLanguageId, dwMessageId, Entry);
 }
 
 //
@@ -30,7 +30,7 @@ LookupNtdllMessage(
 //
 
 static
-__forceinline
+FORCEINLINE
 NTSTATUS
 LookupSystemMessage(
     PPEB_LDR_DATA            Ldr,
@@ -40,7 +40,7 @@ LookupSystemMessage(
 {
     return RtlFindMessage(
         ((PLDR_DATA_TABLE_ENTRY) ((PLIST_ENTRY) Ldr->Reserved2[1])->Flink->Flink->Flink)->DllBase,
-        (ULONG)(ULONG_PTR) RT_MESSAGETABLE, dwLanguageId, dwMessageId, Entry);
+        PtrToUlong(RT_MESSAGETABLE), dwLanguageId, dwMessageId, Entry);
 }
 
 //
@@ -51,14 +51,14 @@ LookupSystemMessage(
 static
 FORCEINLINE
 ULONG
-FormatDebugEvent(
+DbgFormatEvent(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     LPCSTR        szDebugEventName,
     SIZE_T        DebugEventNameLength,
     LPSTR         Buffer)
 {
     char *p;
-    
+
     memcpy(Buffer, szDebugEventName, DebugEventNameLength);
     p = jeaiii::to_ascii_chars(Buffer + DebugEventNameLength,
         HandleToUlong(pStateChange->AppClientId.UniqueProcess));
@@ -77,7 +77,7 @@ FormatDebugEvent(
 static
 FORCEINLINE
 ULONG
-FormatModuleEvent(
+DbgFormatModule(
     HANDLE        hModule,
     LPCSTR        szDebugEventName,
     SIZE_T        DebugEventNameLength,
@@ -122,7 +122,7 @@ FormatModuleEvent(
 static
 FORCEINLINE
 ULONG
-FormatRIPEvent(
+DbgFormatRIP(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     PPEB_LDR_DATA            Ldr,
     LPSTR                    Buffer,
@@ -132,7 +132,7 @@ FormatRIPEvent(
     ULONG ActualByteCount;
     PMESSAGE_RESOURCE_ENTRY Entry;
 
-    LookupSystemMessage(Ldr, pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionFlags, LANG_USER_DEFAULT, &Entry);
+    LookupSystemMessage(Ldr, pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionFlags, GetCurrentLangID(), &Entry);
     RtlUnicodeToUTF8N(Buffer, BufLen, &ActualByteCount, (PCWSTR) Entry->Text, Entry->Length - 8);
     p = Buffer + ActualByteCount;
 
@@ -156,7 +156,10 @@ FormatRIPEvent(
     return p - Buffer + 1;
 }
 
-static __forceinline LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG BufLength, LPSTR p, BOOL Console)
+static
+FORCEINLINE
+LPSTR
+FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG BufLength, LPSTR p, BOOL Console)
 {
     ULONG ActualByteCount;
 
@@ -180,7 +183,10 @@ static __forceinline LPSTR FormatFileLine(LPWSTR FileName, DWORD LineNumber, ULO
     return p + 1;
 }
 
-static __forceinline LPSTR FormatSourceCode(PPEB_LDR_DATA Ldr, LPWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, LPSTR p)
+static
+FORCEINLINE
+LPSTR
+FormatSourceCode(PPEB_LDR_DATA Ldr, LPWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, LPSTR p)
 {
     // Prepend Object Manager namespace to the file name
     memcpy(FileName - OBJECT_MANAGER_NAMESPACE_WLEN,
@@ -255,7 +261,7 @@ static __forceinline LPSTR FormatSourceCode(PPEB_LDR_DATA Ldr, LPWSTR FileName, 
         PMESSAGE_RESOURCE_ENTRY Entry;
         ULONG ActualByteCount;
 
-        LookupSystemMessage(Ldr, ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &Entry);
+        LookupSystemMessage(Ldr, ERROR_FILE_NOT_FOUND, GetCurrentLangID(), &Entry);
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(p, BufLength, &ActualByteCount,
             (PCWSTR) Entry->Text, Entry->Length - 8);

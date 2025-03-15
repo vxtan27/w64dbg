@@ -24,6 +24,7 @@
 #include "..\include\cvconst.h"
 #include "..\include\ntdll.h"
 #include "include\config\core.h"
+#include "include\utils.h"
 #include "include\hex.h"
 #include "include\fmt.h"
 #include "include\dbg.h"
@@ -59,7 +60,7 @@ wmain(void)
     help = FALSE;
 
     char *p = buffer;
-    PPEB pPeb = (PPEB) __readgsqword(0x60);
+    PPEB pPeb = GetCurrentPeb();
     PZWRTL_USER_PROCESS_PARAMETERS pProcessParameters =
         (PZWRTL_USER_PROCESS_PARAMETERS) pPeb->ProcessParameters;
     len = pProcessParameters->CommandLine.Length >> 1;
@@ -232,7 +233,9 @@ wmain(void)
 
     BOOL Console;
     IO_STATUS_BLOCK IoStatusBlock;
-    HANDLE hStdout = pProcessParameters->StandardOutput;
+
+    // GetCurrentPeb()->ProcessParameters->StandardOutput
+    HANDLE hStdout = GetCurrentPeb()->ProcessParameters->Reserved2[3];
 
     IsConsoleHandle(hStdout, &Console);
     if (Console)
@@ -262,7 +265,7 @@ wmain(void)
     { // Check if executable exists
         PMESSAGE_RESOURCE_ENTRY Entry;
 
-        LookupSystemMessage(pPeb->Ldr, ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &Entry);
+        LookupSystemMessage(pPeb->Ldr, ERROR_FILE_NOT_FOUND, GetCurrentLangID(), &Entry);
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(buffer, BUFLEN, &ActualByteCount,
             (PCWSTR) Entry->Text, Entry->Length - 8);
@@ -279,7 +282,7 @@ wmain(void)
         wchar_t *pos;
         PMESSAGE_RESOURCE_ENTRY Entry;
 
-        LookupSystemMessage(pPeb->Ldr, ERROR_BAD_EXE_FORMAT, LANG_USER_DEFAULT, &Entry);
+        LookupSystemMessage(pPeb->Ldr, ERROR_BAD_EXE_FORMAT, GetCurrentLangID(), &Entry);
 
         // Convert error message to UTF-8
         if (*Entry->Text == '%')
@@ -343,7 +346,7 @@ wmain(void)
               : CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
         pProcessParameters->Environment, pProcessParameters->CurrentDirectory.DosPath.Buffer, &startupInfo, &processInfo);
     NtAssignProcessToJobObject(hJob, processInfo.hProcess);
-    DbgUiWaitStateChange(&StateChange, NULL);
+    DbgWaitForDebugEvent(&StateChange, NULL);
 
     if (!dwarf)
     {
@@ -360,10 +363,9 @@ wmain(void)
         hProcess = processInfo.hProcess;
     }
 
-    if (verbose >= 2) TraceDebugEvent(&StateChange, CREATE_PROCESS, strlen(CREATE_PROCESS), hStdout);
+    if (verbose >= 2) DbgTraceEvent(&StateChange, CREATE_PROCESS, strlen(CREATE_PROCESS), hStdout);
 
-    ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess),
-        HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_CONTINUE);
+    DbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
 
     // x86 process / MinGW64 G++ trigger
     // more than one breakpoints at start-up
@@ -379,12 +381,12 @@ wmain(void)
 
     while (TRUE)
     {
-        DbgUiWaitStateChange(&StateChange, NULL);
+        DbgWaitForDebugEvent(&StateChange, NULL);
 
         switch (StateChange.NewState)
         {
         case DbgLoadDllStateChange:
-            if (verbose >= 2) TraceModuleEvent(StateChange.StateInfo.LoadDll.FileHandle, LOAD_DLL, strlen(LOAD_DLL), hStdout);
+            if (verbose >= 2) DbgTraceModule(StateChange.StateInfo.LoadDll.FileHandle, LOAD_DLL, strlen(LOAD_DLL), hStdout);
 
             // Find storage position
             for (i = 0; i < MAX_DLL; ++i) if (!BaseOfDll[i])
@@ -400,7 +402,7 @@ wmain(void)
             // Find specific DLL
             for (i = 0; i < MAX_DLL; ++i) if (StateChange.StateInfo.UnloadDll.BaseAddress == BaseOfDll[i])
             {
-                if (verbose >= 2) TraceModuleEvent(hFile[i], UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout);
+                if (verbose >= 2) DbgTraceModule(hFile[i], UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout);
 
                 NtClose(hFile[i]);
                 BaseOfDll[i] = 0;
@@ -410,7 +412,7 @@ wmain(void)
             break;
 
         case DbgCreateThreadStateChange:
-            if (verbose >= 2) TraceDebugEvent(&StateChange, CREATE_THREAD, strlen(CREATE_THREAD), hStdout);
+            if (verbose >= 2) DbgTraceEvent(&StateChange, CREATE_THREAD, strlen(CREATE_THREAD), hStdout);
 
             // Find storage position
             for (i = 0; i < MAX_THREAD; ++i) if (!dwThreadId[i])
@@ -423,7 +425,7 @@ wmain(void)
             break;
 
         case DbgExitThreadStateChange:
-            if (verbose >= 2) TraceDebugEvent(&StateChange, EXIT_THREAD, strlen(EXIT_THREAD), hStdout);
+            if (verbose >= 2) DbgTraceEvent(&StateChange, EXIT_THREAD, strlen(EXIT_THREAD), hStdout);
 
             // Find specific thread
             for (i = 0; i < MAX_THREAD; ++i) if (dwThreadId[i] == HandleToUlong(StateChange.AppClientId.UniqueThread))
@@ -435,7 +437,7 @@ wmain(void)
             break;
 
         case DbgExitProcessStateChange:
-            if (verbose >= 2) TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout);
+            if (verbose >= 2) DbgTraceEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout);
 
             if (dwarf)
             {
@@ -449,8 +451,7 @@ wmain(void)
             if (timeout)
                 WaitForInputOrTimeout(pProcessParameters->StandardInput, hStdout, timeout, Console);
 
-            ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess),
-                HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_CONTINUE);
+            DbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
             NtClose(hJob);
             return EXIT_SUCCESS;
 
@@ -460,13 +461,13 @@ wmain(void)
             if (StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_PRINTEXCEPTION_WIDE_C ||
                 StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_PRINTEXCEPTION_C)
             {
-                if (verbose >= 2) TraceDebugEvent(&StateChange, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout);
-                if (output == TRUE) HandleODSEvent(&StateChange, hProcess, hStdout);
+                if (verbose >= 2) DbgTraceEvent(&StateChange, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout);
+                if (output == TRUE) DbgProcessODS(&StateChange, hProcess, hStdout);
                 break;
             } else if (StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_RIPEXCEPTION)
             {
-                if (verbose >= 2) TraceDebugEvent(&StateChange, RIP, strlen(RIP), hStdout);
-                HandleRIPEvent(&StateChange, pPeb->Ldr, hStdout);
+                if (verbose >= 2) DbgTraceEvent(&StateChange, RIP, strlen(RIP), hStdout);
+                DbgProcessRIP(&StateChange, pPeb->Ldr, hStdout);
                 break;
             }
 
@@ -483,8 +484,7 @@ wmain(void)
             // Ignore other first change exceptions
             if (StateChange.StateInfo.Exception.FirstChance)
             {
-                ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess),
-                    HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_EXCEPTION_NOT_HANDLED);
+                DbgContinueDebugEvent(&StateChange, DBG_EXCEPTION_NOT_HANDLED);
                 continue;
             }
 
@@ -512,7 +512,7 @@ wmain(void)
             // Add messages for STATUS_APPLICATION_HANG, STATUS_CPP_EH_EXCEPTION, STATUS_CLR_EXCEPTION
 
             if (NT_SUCCESS(LookupNtdllMessage(pPeb->Ldr,
-                StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode, LANG_USER_DEFAULT, &Entry)))
+                StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode, GetCurrentLangID(), &Entry)))
             {
                 if (Console)
                 {
@@ -552,8 +552,7 @@ wmain(void)
                 NtWriteFile(hStdout, NULL, NULL, NULL,
                     &IoStatusBlock, buffer, p - buffer, NULL, NULL);
                 NtSuspendProcess(hProcess);
-                ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess),
-                    HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_REPLY_LATER);
+                DbgContinueDebugEvent(&StateChange, DBG_REPLY_LATER);
                 DebugActiveProcessStop(HandleToUlong(StateChange.AppClientId.UniqueProcess));
 
                 HANDLE hTemp;
@@ -681,7 +680,7 @@ wmain(void)
                 NtWaitForSingleObject(processInfo.hProcess, FALSE, NULL);
                 NtClose(processInfo.hProcess);
 
-                if (verbose >= 2) TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout);
+                if (verbose >= 2) DbgTraceEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout);
 
                 if (timeout) WaitForInputOrTimeout(
                     pProcessParameters->StandardInput, hStdout, timeout, Console);
@@ -713,8 +712,6 @@ wmain(void)
             CONTEXT Context;
             DWORD MachineType;
             STACKFRAME_EX StackFrame;
-
-            // memset(&StackFrame, 0, sizeof(StackFrame));
 
             if (is_64bit)
             {
@@ -803,7 +800,7 @@ wmain(void)
                 }
 
                 //
-                //  StackFrame.AddrPC.Offset stores the return address rather than the caller's address.  
+                //  StackFrame.AddrPC.Offset stores the return address rather than the caller's address.
                 //  Adjust StackFrame.AddrPC.Offset by 'count' to resolve the caller's address accurately.
                 //
 
@@ -918,8 +915,7 @@ wmain(void)
             break;
         }
 
-        ContinueDebugEvent(HandleToUlong(StateChange.AppClientId.UniqueProcess),
-            HandleToUlong(StateChange.AppClientId.UniqueThread), DBG_CONTINUE);
+        DbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
     }
 }
 

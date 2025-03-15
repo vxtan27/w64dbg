@@ -144,6 +144,18 @@ typedef struct _DBGUI_WAIT_STATE_CHANGE
     } StateInfo;
 } DBGUI_WAIT_STATE_CHANGE, *PDBGUI_WAIT_STATE_CHANGE;
 
+// System calls
+
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtWaitForDebugEvent(
+    _In_ HANDLE DebugObjectHandle,
+    _In_ BOOLEAN Alertable,
+    _In_opt_ PLARGE_INTEGER Timeout,
+    _Out_ PDBGUI_WAIT_STATE_CHANGE WaitStateChange
+    );
+
 typedef struct _OBJECT_NAME_INFORMATION
 {
     UNICODE_STRING Name; // The object name (when present) includes a NULL-terminator and all path separators "\" in the name.
@@ -168,16 +180,6 @@ typedef struct _FILE_STANDARD_INFORMATION
 #define FileEndOfFileInformation ((FILE_INFORMATION_CLASS) 20)
 
 #define ThreadWow64Context ((THREADINFOCLASS) 29)
-
-// Debugging UI
-
-NTSYSAPI
-NTSTATUS
-NTAPI
-DbgUiWaitStateChange(
-    _Out_ PDBGUI_WAIT_STATE_CHANGE StateChange,
-    _In_opt_ PLARGE_INTEGER Timeout
-    );
 
 NTSYSCALLAPI
 NTSTATUS

@@ -16,7 +16,7 @@
 static
 FORCEINLINE
 NTSTATUS
-TraceDebugEvent(
+DbgTraceEvent(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     LPCSTR                   szDebugEventName,
     SIZE_T                   DebugEventNameLength,
@@ -26,7 +26,7 @@ TraceDebugEvent(
     char Buffer[TRACE_DEBUG_EVENT_BUFFER_SIZE];
 
     return NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer,
-        FormatDebugEvent(pStateChange, szDebugEventName, DebugEventNameLength, Buffer), NULL, NULL);
+        DbgFormatEvent(pStateChange, szDebugEventName, DebugEventNameLength, Buffer), NULL, NULL);
 }
 
 //
@@ -37,7 +37,7 @@ TraceDebugEvent(
 static
 FORCEINLINE
 NTSTATUS
-TraceModuleEvent(
+DbgTraceModule(
     HANDLE        hModule,
     LPCSTR        szDebugEventName,
     SIZE_T        DebugEventNameLength,
@@ -47,5 +47,5 @@ TraceModuleEvent(
     IO_STATUS_BLOCK IoStatusBlock;
 
     return NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer,
-        FormatModuleEvent(hModule, szDebugEventName, DebugEventNameLength, Buffer), NULL, NULL);
+        DbgFormatModule(hModule, szDebugEventName, DebugEventNameLength, Buffer), NULL, NULL);
 }
