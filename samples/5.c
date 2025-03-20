@@ -1,13 +1,10 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
 
 #include <stdio.h>
 #include <stdlib.h>
 
-int main(void)
-{
+int main(void) {
     int numerator = 100;
     int denominator = 0;
 

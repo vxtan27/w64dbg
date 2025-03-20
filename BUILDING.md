@@ -18,13 +18,9 @@ Ensure the following dependencies are installed:
 
 Open the Microsoft Visual Studio Developer Command Prompt.
 
-Navigate to the source directory:
-
-    cd src
-
 Compile the source code using the following command:
 
-    cl /std:c++latest main.cpp /link /SUBSYSTEM:CONSOLE /ENTRY:DbgMain
+    cl /I external /I "%VSINSTALLDIR%\DIA SDK\include" /std:c++20 src\main.cpp /link /SUBSYSTEM:CONSOLE /ENTRY:wmain
 
 ## Customization & Optimization
 

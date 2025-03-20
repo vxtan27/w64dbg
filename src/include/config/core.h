@@ -1,13 +1,9 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
 
 #pragma once
 
-
-/* Configuration Defaults */
-#define DEFAULT_DEBUG_DWARF   FALSE
+// Debugger Configuration Defaults
 #define DEFAULT_BREAKPOINT    TRUE
 #define DEFAULT_FIRSTBREAK    FALSE
 #define DEFAULT_TIMEOUT       0
@@ -15,28 +11,28 @@
 #define DEFAULT_OUTPUT        TRUE
 #define DEFAULT_START         FALSE
 
-/* Timeout Constraints */
+// Timeout Constraints
 #define VALID_TIMEOUT         99999
 #define INVALID_TIMEOUT       100000
 
-/* Debugging Constraints */
+// Debugging Constraints
 #define MAX_THREAD            32
 #define MAX_DLL               16
 #define LATENCY               25
 
-/* Buffer Sizes */
+// Buffer Sizes
 #define PAGESIZE    4096
 #define BUFLEN      8192
 #define WBUFLEN     4096
 
-/* Process Creation Flags */
+// Process Creation Flags
 #define CREATIONFLAGS \
     CREATE_UNICODE_ENVIRONMENT | \
     CREATE_BREAKAWAY_FROM_JOB | \
     CREATE_PRESERVE_CODE_AUTHZ_LEVEL | \
     CREATE_DEFAULT_ERROR_MODE
 
-/* Symbol Options */
+// Symbol Loading Options
 #define SYMOPTIONS \
     SYMOPT_UNDNAME | \
     SYMOPT_DEFERRED_LOADS | \
@@ -52,46 +48,42 @@
     SYMOPT_DISABLE_SYMSRV_AUTODETECT | \
     SYMOPT_SYMPATH_LAST
 
-/* MinGW Options */
-#define MINGW_KEEP 1
-#define MINGW_NOKEEP 2
-
-/* Help Message */
+// Help Message
 #define HELP \
-    "Invalid syntax.\n" \
-    "Usage: W64DBG [options] <executable> [exec-args]\n" \
-    "\n" \
-    "Description:\n" \
-    "    A native debugging utility for x64 Windows.\n" \
-    "\n" \
-    "Entries:\n" \
-    "    options       Options control behavior.\n" \
-    "    executable    Target executable file.\n" \
-    "    exec-args     Target executable arguments.\n" \
-    "\n" \
-    "Options:\n" \
-    "    /B            Ignore breakpoints.\n" \
-    "    /D            Load PDB debug symbols.\n" \
-    "    /G[+]         Load DWARF debug symbols.\n" \
-    "    /O            Suppress OutputDebugString.\n" \
-    "    /S            Open in a new console window.\n" \
-    "    /T<n>         Wait for input (seconds).\n" \
-    "    /V{0|1|2}     Set output verbosity.\n"
+R"(Invalid syntax.
+Usage: W64DBG [options] <executable> [exec-args>
 
-/* Error Messages */
+Description:
+    A native debugging utility for x64 Windows.
+
+Entries:
+    options       Options control behavior.
+    executable    Target executable file.
+    exec-args     Target executable arguments.
+
+Options:
+    /B            Ignore breakpoints.
+    /O            Suppress OutputDebugString.
+    /S            Open in a new console window.
+    /T<n>         Wait for input (seconds).
+    /V{0|1|2}     Set output verbosity.
+)"
+
+// Error Messages
 #define VALUE_EXPECTED "Value expected for '"
-#define TIMEOUT_INVALID "Invalid value for timeout (  ) specified. Valid range is -1 to 99999.\n"
+#define _TIMEOUT_INVALID "Invalid value for timeout ("
+#define TIMEOUT_INVALID_ ") specified. Valid range is -1 to 99999.\n"
 #define _INVALID_ARGUMENT "Invalid argument/option - '"
 #define INVALID_ARGUMENT_ "'.\n"
 
-/* Environment Variables */
+// Environment Variables
 #define PATHENV L"PATH"
 #define TMPENV L"TMP"
 
-/* File Extensions */
+// File Extensions
 #define EXTENSION L".exe"
 
-/* Verbose Messages */
+// Verbose Messages
 #define CREATE_THREAD "CreateThread "
 #define CREATE_PROCESS "CreateProcess "
 #define LOAD_DLL "LoadDll "
@@ -99,31 +91,28 @@
 #define EXIT_THREAD "ExitThread "
 #define EXIT_PROCESS "ExitProcess "
 #define OUTPUT_DEBUG "OutputDebugString "
-#define RIP "RIP "
+#define RIP "Rip "
 
-/* Console Formatting */
+// Console Formatting
 #define CONSOLE_DEFAULT_FORMAT "\x1b[m"
 #define CONSOLE_NRED_FORMAT "\x1b[31m"
 #define CONSOLE_BLUE_FORMAT "\x1b[34m"
 #define CONSOLE_GREEN_FORMAT "\x1b[32m"
 
-/* Object Manager Namespace */
-#define OBJECT_MANAGER_NAMESPACE GDB_COMMAND_LINE + 14
-#define OBJECT_MANAGER_NAMESPACE_LEN 8
-#define OBJECT_MANAGER_NAMESPACE_WLEN (OBJECT_MANAGER_NAMESPACE_LEN >> 1)
+// Object Manager Namespace
+#define OBJECT_MANAGER_NAMESPACE (GDB_COMMAND_LINE + 14)
+#define OBJECT_MANAGER_NAMESPACE_WLEN wcslen(OBJECT_MANAGER_NAMESPACE)
+#define OBJECT_MANAGER_NAMESPACE_LEN (OBJECT_MANAGER_NAMESPACE_WLEN << 1)
 
-/* File Names */
+// File Names
 #define GDB_EXE L"gdb.exe"
 #define W64DBG L"w64dbg"
 
-
-/*
-    GDB Commands
-*/
-
+// GDB Command Line
 #define GDB_BATCH L" --batch"
 #define GDB_COMMAND_LINE L"gdb.exe -q -x=\\??\\"
 
+// GDB Commands
 #define GDB_COMMAND_0 "set bac l 100\n" // set backtrace limit 100
 #define GDB_COMMAND_1 "set con of\n" // set confirm off
 #define GDB_COMMAND_2 "set p th of\n" // set print thread-events off
@@ -135,6 +124,7 @@
 #define GDB_COMMAND_8 "set lo e\n" // set logging enabled
 #define GDB_COMMAND_9 "at " // attach
 
+// GDB Defaults
 #define GDB_DEFAULT \
     GDB_COMMAND_0 \
     GDB_COMMAND_1 \
@@ -147,6 +137,7 @@
     GDB_COMMAND_8 \
     GDB_COMMAND_9 \
 
+// GDB Commands
 #define GDB_PRESERVE "\nset pa of\nset wi 0\n" // set pagination off & set width 0
 #define GDB_STYLE "\nset sty e\n" // set style enabled
 #define GDB_FRAME_ARG "set p frame-a a\nset p frame-i source-a\nset p pr\n" // set print frame-arguments all & set print frame-info source-and-location & set print pretty
@@ -154,14 +145,14 @@
 #define GDB_QUIT "q\n" // quit
 
 
-/* Exception Messages */
+// Exception Messages
 #define THREAD_NUMBER "Thread #"
 #define THREAD_TRIGGERD " triggered exception 0x"
 #define EXCEPTION_IN "\x1b[m in \x1b[33m"
 #define EXCEPTION_AT "at "
 #define EXCEPTION_FROM "from "
 
-/* System Debugging Messages */
+// System Debugging Messages
 #define _SLE_ERROR "Invalid data was passed to the function that failed. This caused the application to fail"
 #define _SLE_MINORERROR "Invalid data was passed to the function, but the error probably will not cause the application to fail"
 #define _SLE_WARNING "Potentially invalid data was passed to the function, but the function completed processing"

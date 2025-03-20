@@ -1,6 +1,6 @@
 # w64dbg
 
-A native debugging utility for x64 Windows with PDB and DWARF format support.
+A native debugging utility for x64 Windows.
 
 ## Download
 
@@ -27,8 +27,6 @@ Entries:
 
 Options:
     /B            Ignore breakpoints.
-    /D            Load PDB debug symbols.
-    /G[+]         Load DWARF debug symbols.
     /O            Suppress OutputDebugString.
     /S            Open in a new console window.
     /T<n>         Wait for input (seconds).
@@ -45,16 +43,6 @@ Options:
     </summary>
     <br>
     <img src="./samples/4.png"/>
-</details>
-
-<details>
-    <summary>
-        <b>
-            MinGW Compiler
-        </b>
-    </summary>
-    <br>
-    <img src="./samples/8.png"/>
 </details>
 
 Refer to [samples](samples) for additional examples.
@@ -95,31 +83,6 @@ For further details:
 - [Generate debug info](https://learn.microsoft.com/cpp/build/reference/debug-generate-debug-info)
 - [Debug Information Format](https://learn.microsoft.com/cpp/build/reference/z7-zi-zi-debug-information-format)
 - [Optimizations](https://learn.microsoft.com/cpp/build/reference/opt-optimizations)
-
-</details>
-
-<details>
-    <summary>
-        <b>
-            How do I configure MinGW for debugging?
-        </b>
-    </summary>
-
-Use these options with MinGW:
-
-| Option | Macro info | GDB-Optimized | Debug info level |
-| ------ | ---------- | ------------- | ---------------- |
-| -g     | No         | No            | Basic            |
-| -g3    | Yes        | No            | Maximum          |
-| -ggdb  | No         | Yes           | Basic            |
-| -ggdb3 | Yes        | Yes           | Maximum          |
-
-Include `-fno-omit-frame-pointer` to retain frame pointers.
-
-For further details:
-
-- [Debugging Options](https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html)
-- [Optimize Options](https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html#index-fomit-frame-pointer)
 
 </details>
 

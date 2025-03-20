@@ -1,25 +1,20 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
 
 #include <iostream>
 #include <cstdio>
 
-class Example
-{
+class Example {
 public:
     // Public method to trigger an exception
-    void CauseException(void)
-    {
+    void CauseException(void) {
         // Calling the private method with specific parameters
         RootException(4, 5.6f);
     }
 
 private:
     // Static inline method that intentionally causes an access violation
-    static inline void RootException(int i, double j)
-    {
+    static inline void RootException(int i, double j) {
         // Print the received parameters (for debugging, if necessary)
         std::cout << "Received values: i = " << i << ", j = " << j << std::endl;
 
@@ -29,8 +24,7 @@ private:
     }
 };
 
-int main(void)
-{
+int main(void) {
     // Create an instance of Example
     Example example;
 

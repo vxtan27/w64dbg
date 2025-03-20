@@ -1,31 +1,25 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-class Example
-{
+class Example {
 public:
     // Public method to initiate recursion
-    void CauseException(void)
-    {
+    void CauseException(void) {
         InfiniteRecursive();  // Start the infinite recursion
     }
 
 private:
     // Private method that recursively calls itself
-    void InfiniteRecursive(void)
-    {
+    void InfiniteRecursive(void) {
         // Cause a stack overflow by calling the method indefinitely
         InfiniteRecursive();
     }
 };
 
-int main(void)
-{
+int main(void) {
     // Create an instance of the Example class
     Example example;
 

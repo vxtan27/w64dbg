@@ -1,175 +1,72 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
 
 #pragma once
 
+// =========================================================================================
+//  Compilation Settings
+// =========================================================================================
 
-/*
-    Required Libraries
-*/
+#define NO_STRICT                 // Disable strict type checking
+#define WIN32_LEAN_AND_MEAN       // Exclude rarely used APIs
 
-#ifdef _DEBUG
+// =========================================================================================
+//  Windows API Exclusions
+// =========================================================================================
 
-#pragma comment(lib, "ucrtd.lib")
+// Windows.h
+#define NOGDICAPMASKS             // CC_*, LC_*, PC_*, CP_*, TC_*, RC_
+//#define NOVIRTUALKEYCODES       // VK_*
+#define NOWINMESSAGES             // WM_*, EM_*, LB_*, CB_*
+#define NOWINSTYLES               // WS_*, CS_*, ES_*, LBS_*, SBS_*, CBS_*
+#define NOSYSMETRICS              // SM_*
+#define NOMENUS                   // MF_*
+#define NOICONS                   // IDI_*
+#define NOKEYSTATES               // MK_*
+#define NOSYSCOMMANDS             // SC_*
+#define NORASTEROPS               // Binary and Tertiary raster ops
+#define NOSHOWWINDOW              // SW_*
+#define OEMRESOURCE               // OEM Resource values
+#define NOATOM                    // Atom Manager routines
+#define NOCLIPBOARD               // Clipboard routines
+#define NOCOLOR                   // Screen colors
+#define NOCTLMGR                  // Control and Dialog routines
+#define NODRAWTEXT                // DrawText() and DT_*
+#define NOGDI                     // All GDI defines and routines
+#define NOKERNEL                  // All KERNEL defines and routines
+//#define NOUSER                  // All USER defines and routines
+#define NONLS                     // All NLS defines and routines
+#define NOMB                      // MB_* and MessageBox()
+#define NOMEMMGR                  // GMEM_*, LMEM_*, GHND, LHND, associated routines
+#define NOMETAFILE                // typedef METAFILEPICT
+#define NOMINMAX                  // Macros min(a,b) and max(a,b)
+#define NOMSG                     // typedef MSG and associated routines
+#define NOOPENFILE                // OpenFile(), OemToAnsi, AnsiToOem, and OF_*
+#define NOSCROLL                  // SB_* and scrolling routines
+#define NOSERVICE                 // All Service Controller routines, SERVICE_ equates, etc.
+#define NOSOUND                   // Sound driver routines
+#define NOTEXTMETRIC              // typedef TEXTMETRIC and associated routines
+#define NOWH                      // SetWindowsHook and WH_*
+#define NOWINOFFSETS              // GWL_*, GCL_*, associated routines
+#define NOCOMM                    // COMM driver routines
+#define NOKANJI                   // Kanji support stuff.
+#define NOHELP                    // Help engine interface.
+#define NOPROFILER                // Profiler interface.
+#define NODEFERWINDOWPOS          // DeferWindowPos routines
+#define NOMCX                     // Modem Configuration Extensions
+#define NOCRYPT                   // Cryptographic APIs.
+#define NOIME                     // Input Method Manager.
 
-#ifdef _MD
-#pragma comment(lib, "vcruntime.lib")
-#else
-#pragma comment(lib, "libvcruntime.lib")
-#endif
+// WinUser.h
+//#define NORESOURCE              // Resource definitions
+#define NODESKTOP                 // Desktop APIs
+#define NOWINDOWSTATION           // Window Station APIs
+#define NOSECURITY                // Security APIs
+#define NONCMESSAGES              // Non-client messages
+#define NOMDI                     // Multiple Document Interface
+#define NOSYSPARAMSINFO           // System Parameters Info APIs
+#define NOWINABLE                 // Accessibility APIs
+#define NO_STATE_FLAGS            // State flag definitions
 
-#else
-
-#ifdef _MD
-#pragma comment(lib, "ucrt.lib")
-#pragma comment(lib, "vcruntime.lib")
-#else
-#pragma comment(lib, "libucrt.lib")
-#pragma comment(lib, "libvcruntime.lib")
-#endif
-
-#endif
-
-#pragma comment(lib, "ntdll.lib")
-#pragma comment(lib, "kernel32.lib")
-#pragma comment(lib, "dbghelp.lib")
-
-
-/*
-    Exclude Multiple Technologies
-*/
-
-
-#define WIN32_LEAN_AND_MEAN
-
-#define NOGDICAPMASKS
-// #define NOVIRTUALKEYCODES
-#define NOWINMESSAGES
-#define NOWINSTYLES
-#define NOSYSMETRICS
-#define NOMENUS
-#define NOICONS
-#define NOKEYSTATES
-#define NOSYSCOMMANDS
-#define NORASTEROPS
-#define NOSHOWWINDOW
-#define OEMRESOURCE
-#define NOATOM
-#define NOCLIPBOARD
-#define NOCOLOR
-#define NOCTLMGR
-#define NODRAWTEXT
-#define NOGDI
-#define NOKERNEL
-#define NONLS
-#define NOMB
-#define NOMEMMGR
-#define NOMETAFILE
-#define NOMINMAX
-#define NOMSG
-#define NOOPENFILE
-#define NOSCROLL
-#define NOSERVICE
-#define NOSOUND
-#define NOTEXTMETRIC
-#define NOWH
-#define NOWINOFFSETS
-#define NOCOMM
-#define NOKANJI
-#define NOHELP
-#define NOPROFILER
-#define NODEFERWINDOWPOS
-#define NOMCX
-#define NOCRYPT
-#define NOIME
-#define NOFONTSIG
-
-#define NOMMIDS
-#define NONEWWAVE
-#define NONEWRIFF
-#define NOJPEGDIB
-#define NONEWIC
-#define NOBITMAP
-
-// #define NOUSER
-#define NOTOOLBAR
-#define NOREBAR
-#define NOUPDOWN
-#define NOTOOLTIPS
-#define NOSTATUSBAR
-#define NOMENUHELP
-#define NOTRACKBAR
-#define NODRAGLIST
-#define NOPROGRESS
-#define NOHOTKEY
-#define NOHEADER
-#define NOIMAGEAPIS
-#define NOLISTVIEW
-#define NOTREEVIEW
-#define NOUSEREXCONTROLS
-#define NOTABCONTROL
-#define NOANIMATE
-#define NOMONTHCAL
-#define NODATETIMEPICK
-#define NOIPADDRESS
-#define NOPAGESCROLLER
-#define NONATIVEFONTCTL
-#define NOBUTTON
-#define NOSTATIC
-#define NOEDIT
-#define NOLISTBOX
-#define NOCOMBOBOX
-#define NOSCROLLBAR
-#define NOTASKDIALOG
-#define NOMUI
-#define NOTRACKMOUSEEVENT
-// #define NORESOURCE
-#define NODESKTOP
-#define NOWINDOWSTATION
-#define NOSECURITY
-#define NONCMESSAGES
-#define NOMDI
-#define NOSYSPARAMSINFO
-#define NOWINABLE
-#define NO_STATE_FLAGS
-
-#define NODDRAWGDI
-#define NODDEMLSPY
-#define NO_COMMCTRL_DA
-#define NO_DSHOW_STRSAFE
-#define NODXINCLUDES
-#define NODXMALLOC
-#define NODXLCL
-#define NODX95TYPES
-#define NO_BASEINTERFACE_FUNCS
-#define NOWINBASEINTERLOCK
-#define NO_MEDIA_ENGINE_FACTORY
-#define NO_INTSHCUT_GUIDS
-#define NO_SHDOCVW_GUIDS
-#define NO_WRAPPERS_FOR_ILCREATEFROMPATH
-#define NO_SHOBJIDL_SORTDIRECTION
-#define NO_WCN_PKEYS
-#define NOEXTAPI
-#define NO_WIA_DEBUG
-// #define NOAPISET
-
-#define NOSHLWAPI
-// #define NO_SHLWAPI_STRFCNS
-// #define NO_SHLWAPI_PATH
-// #define NO_SHLWAPI_REG
-// #define NO_SHLWAPI_STREAM
-// #define NO_SHLWAPI_HTTP
-// #define NO_SHLWAPI_ISOS
-// #define NO_SHLWAPI_GDI
-
-#define NOCOMPMAN
-#define NODRAWDIB
-#define NOVIDEO
-#define NOAVIFMT
-#define NOMMREG
-#define NOAVIFILE
-#define NOMCIWND
-#define NOAVICAP
-#define NOMSACM
+// interlockedapi.h
+#define NOWINBASEINTERLOCK        // Windows base interlock functions

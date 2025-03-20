@@ -1,23 +1,18 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
 
 #include <iostream>
 
-class Example
-{
+class Example {
 public:
     // Public method that triggers an exception
-    void CauseException(void)
-    {
+    void CauseException(void) {
         RootException();  // Call the private method to cause an exception
     }
 
 private:
     // Static inline method that handles the exception
-    static inline void RootException(void)
-    {
+    static inline void RootException(void) {
         // Cause a C++ exception and handle it using try-catch
         try {
             // Throwing a runtime error to simulate an exception
@@ -29,8 +24,7 @@ private:
     }
 };
 
-int main(void)
-{
+int main(void) {
     // Create an instance of Example
     Example example;
 

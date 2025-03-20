@@ -1,51 +1,111 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
 
 #pragma once
 
 #define DEBUG_EVENT_NAME_MAX_LEN 18
 #define TRACE_DEBUG_EVENT_BUFFER_SIZE (DEBUG_EVENT_NAME_MAX_LEN + 22)
 
-/*
-    Writes a formatted debug event message to the specified handle.
-    Utilizes a preallocated buffer to minimize runtime allocations.
-*/
+//
+//  Writes a formatted debug event message to the specified handle
+//  Utilizes a preallocated buffer to minimize runtime allocations
+//
 
-static
-FORCEINLINE
-NTSTATUS
-TraceDebugEvent(
+NTSTATUS DbgTraceEvent(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
-    LPCSTR                   szDebugEventName,
-    SIZE_T                   DebugEventNameLength,
-    HANDLE                   hStdout)
-{
-    IO_STATUS_BLOCK IoStatusBlock;
+    PCSTR szDebugEventName,
+    SIZE_T DebugEventNameLength,
+    HANDLE hStdout,
+    BOOL bConsole
+) {
+    IO_STATUS_BLOCK IoStatus;
     char Buffer[TRACE_DEBUG_EVENT_BUFFER_SIZE];
 
-    return NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer,
-        FormatDebugEvent(pStateChange, szDebugEventName, DebugEventNameLength, Buffer), NULL, NULL);
+    return WriteDataA(hStdout, Buffer, DbgFormatEvent(pStateChange,
+        szDebugEventName, DebugEventNameLength, Buffer), bConsole);
 }
 
-/*
-    Logs module-related debug events.
-    Uses a MAX_PATH-sized buffer to accommodate typical module names.
-*/
+//
+//  Logs module-related debug events
+//  Uses a MAX_PATH-sized buffer to accommodate typical module names
+//
 
-static
-FORCEINLINE
-NTSTATUS
-TraceModuleEvent(
-    HANDLE        hModule,
-    LPCSTR        szDebugEventName,
-    SIZE_T        DebugEventNameLength,
-    HANDLE        hStdout)
-{
+NTSTATUS DbgTraceModule(
+    HANDLE hModule,
+    PCSTR szDebugEventName,
+    SIZE_T DebugEventNameLength,
+    HANDLE hStdout,
+    BOOL bConsole
+) {
     char Buffer[MAX_PATH];
-    IO_STATUS_BLOCK IoStatusBlock;
+    IO_STATUS_BLOCK IoStatus;
 
-    return NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock, Buffer,
-        FormatModuleEvent(hModule, szDebugEventName, DebugEventNameLength, Buffer), NULL, NULL);
+    return WriteDataA(hStdout, Buffer, DbgFormatModule(hModule,
+        szDebugEventName, DebugEventNameLength, Buffer), bConsole);
+}
+
+// Handles OutputDebugString events and writes the debug string to standard output
+VOID DbgProcessDebugString(
+    PDBGUI_WAIT_STATE_CHANGE pStateChange,
+    HANDLE hProcess,
+    HANDLE hStdout,
+    BOOL bConsole
+) {
+    PEXCEPTION_RECORD pExceptionRecord = &pStateChange->StateInfo.Exception.ExceptionRecord;
+
+    // Exclude trailing null character
+    --pExceptionRecord->ExceptionInformation[0];
+
+    if (pExceptionRecord->ExceptionCode == DBG_PRINTEXCEPTION_WIDE_C) {
+        pExceptionRecord->ExceptionInformation[0] <<= 1;
+
+        while (pExceptionRecord->ExceptionInformation[0] > 0) {
+            char Buffer[BUFLEN];
+            ULONG ActualByteCount;
+            IO_STATUS_BLOCK IoStatus;
+            wchar_t Temp[sizeof(Buffer) >> 2];
+            SIZE_T BytesToRead = pExceptionRecord->ExceptionInformation[0] < sizeof(Temp)
+                                ? pExceptionRecord->ExceptionInformation[0] : sizeof(Temp);
+
+            NtReadVirtualMemory(hProcess,
+                (PVOID) pExceptionRecord->ExceptionInformation[1], Temp, BytesToRead, NULL);
+            RtlUnicodeToUTF8N(Buffer, sizeof(Buffer), &ActualByteCount, Temp, BytesToRead);
+            WriteDataA(hStdout, Buffer, ActualByteCount, bConsole);
+
+            pExceptionRecord->ExceptionInformation[1] += BytesToRead;
+            pExceptionRecord->ExceptionInformation[0] -= BytesToRead;
+        }
+
+        return;
+    }
+
+    while (pExceptionRecord->ExceptionInformation[0] > 0) {
+        char Buffer[BUFLEN];
+        IO_STATUS_BLOCK IoStatus;
+        SIZE_T BytesToRead = pExceptionRecord->ExceptionInformation[0] < sizeof(Buffer)
+                            ? pExceptionRecord->ExceptionInformation[0] : sizeof(Buffer);
+
+        NtReadVirtualMemory(hProcess,
+            (PVOID) pExceptionRecord->ExceptionInformation[1], Buffer, BytesToRead, NULL);
+        WriteDataA(hStdout, Buffer, BytesToRead, bConsole);
+
+        pExceptionRecord->ExceptionInformation[1] += BytesToRead;
+        pExceptionRecord->ExceptionInformation[0] -= BytesToRead;
+    }
+}
+
+#define DEBUG_EVENT_RIP_SLE_MAX_LEN 102
+#define DEBUG_EVENT_RIP_BUFFER_SIZE (DEBUG_EVENT_RIP_SLE_MAX_LEN + 900)
+
+// Handles RIP (Debugger Error) events and writes diagnostic information
+NTSTATUS DbgProcessRIP(
+    PDBGUI_WAIT_STATE_CHANGE pStateChange,
+    HANDLE hStdout,
+    BOOL bConsole
+) {
+    IO_STATUS_BLOCK IoStatus;
+    char Buffer[DEBUG_EVENT_RIP_BUFFER_SIZE];
+
+    return WriteDataA(hStdout, Buffer,
+        DbgFormatRIP(pStateChange, Buffer, sizeof(Buffer)), bConsole);
 }

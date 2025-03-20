@@ -1,13 +1,10 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-int main(void)
-{
+int main(void) {
     // Define a function pointer type for callback functions
     typedef void(*CallbackFunc)(void);
 

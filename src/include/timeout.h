@@ -1,29 +1,15 @@
-/*
-    Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
-    Licensed under the BSD-3-Clause.
-*/
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
 
 #pragma once
 
-static __forceinline long process_timeout(wchar_t *str, wchar_t **p, size_t len)
-{
-    BOOL is_signed = FALSE; // Tracks if the value is negative
-
-    // Handle optional sign at the start
-    while (*str == '-' || *str == '+')
-    {
-        is_signed = *str == '-';
-        ++str;
-    }
-
+long process_timeout(wchar_t *str, wchar_t **p, SIZE_T len) {
     long value = 0;
     unsigned char c;
 
-    do
-    { // Parse numeric characters until a space is encountered
+    do { // Parse numeric characters until a space is encountered
         c = *str - '0'; // Normalize to numeric range
-        if (c > 9)
-        { // Non-numeric character validation
+        if (c > 9) { // Non-numeric character validation
             *p = wmemchr(str, ' ', len) + 1;
             return INVALID_TIMEOUT;
         }
@@ -31,8 +17,6 @@ static __forceinline long process_timeout(wchar_t *str, wchar_t **p, size_t len)
     } while (*++str != ' ');
 
     *p = str + 1; // Update pointer to next position after the space
-
-    if (is_signed) value = -value;
 
     return value;
 }
@@ -57,123 +41,105 @@ static __forceinline long process_timeout(wchar_t *str, wchar_t **p, size_t len)
     InputRecord.Event.KeyEvent.wVirtualKeyCode > VK_OEM_102 \
 )
 
-typedef struct
-{
+typedef struct {
     HANDLE hStdout;
-    long timeout;
+    DWORD dwTimeout;
+    BOOL bConsole;
 } THREAD_PARAMETER, *PTHREAD_PARAMETER;
 
-static VOID CALLBACK TimerRoutine(PVOID lpParameter, BOOLEAN TimerOrWaitFired)
-{
-    long temp;
+VOID CALLBACK TimerRoutine(PVOID lpParameter, BOOLEAN TimerOrWaitFired) {
+    DWORD temp;
     ULONG Length;
     char buffer[8];
     DWORD Count, Recursive;
     PTHREAD_PARAMETER Parameter = (PTHREAD_PARAMETER) lpParameter;
 
     buffer[0] = '\b';
-    temp = --Parameter->timeout;
+    temp = --Parameter->dwTimeout;
     Count = 1;
 
-    while (temp % 10 + '0' == '9')
-    {
+    while (temp % 10 + '0' == '9') {
         buffer[Count++] = '\b';
         temp /= 10;
     }
 
     Recursive = Count;
 
-    if (!temp)
-    {
+    if (!temp) {
         buffer[Count++] = '0';
         --Recursive;
     }
 
-    temp = Parameter->timeout;
+    temp = Parameter->dwTimeout;
     Length = Count + Recursive;
 
-    while (Recursive)
-    {
+    while (Recursive) {
         buffer[Count + --Recursive] = temp % 10 + '0';
         temp /= 10;
     }
 
-    IO_STATUS_BLOCK IoStatusBlock;
-    NtWriteFile(Parameter->hStdout, NULL, NULL, NULL,
-        &IoStatusBlock, buffer, Length, NULL, NULL);
+    WriteDataA(Parameter->hStdout, buffer, Length, Parameter->bConsole);
 }
 
 #define InfiniteMessage "\nPress any key to continue ..."
 #define _FiniteMessage "\nWaiting for "
 #define FiniteMessage_ " seconds, press a key to continue ...\x1b[37D"
 
-static __forceinline VOID WaitForInputOrTimeout(
-    HANDLE     hStdin,
+VOID WaitForInputOrTimeout(
     HANDLE     hStdout,
-    LONG       timeout,
-    BOOL       Console
-)
-{
-    IO_STATUS_BLOCK IoStatusBlock;
+    LONG       dwTimeout,
+    BOOL       bConsole
+) {
+    IO_STATUS_BLOCK IoStatus;
+    HANDLE hStdin = GetStandardInput();
 
-    if (timeout == -1)
-    {
+    if (dwTimeout == -1) {
         // Write the InfiniteMessage
-        NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-            (PVOID) InfiniteMessage, strlen(InfiniteMessage), NULL, NULL);
+        WriteDataA(hStdout, (PCH) InfiniteMessage, strlen(InfiniteMessage), bConsole);
 
-        if (Console)
-        {
+        if (bConsole) {
             DWORD dwRead;
             INPUT_RECORD InputRecord;
 
-            do
-            { // Infinite loop waiting for valid input
+            do { // Infinite loop waiting for valid input
                 ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
             } while (IsInputInvalidate(InputRecord));
         } else NtWaitForSingleObject(hStdin, FALSE, NULL);
-    } else
-    {
+    } else {
         char *p;
         char buffer[64];
 
         memcpy(buffer, _FiniteMessage, strlen(_FiniteMessage));
-        p = jeaiii::to_ascii_chars(buffer + strlen(_FiniteMessage), (unsigned long) timeout, VALID_TIMEOUT);
+        p = int_to_chars(buffer + strlen(_FiniteMessage), (unsigned long) dwTimeout, VALID_TIMEOUT);
         memcpy(p, FiniteMessage_, strlen(FiniteMessage_));
 
-        if (Console)
-        {
-            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-                buffer, p - buffer + strlen(FiniteMessage_), NULL, NULL);
+        if (bConsole) {
+            WriteDataA(hStdout, buffer, p - buffer + strlen(FiniteMessage_), bConsole);
 
             DWORD dwRead;
             HANDLE hTimer;
             INPUT_RECORD InputRecord;
             LARGE_INTEGER DelayInterval;
 
-            THREAD_PARAMETER Parameter = {hStdout, timeout};
+            THREAD_PARAMETER Parameter = {hStdout, dwTimeout, bConsole};
             CreateTimerQueueTimer(&hTimer, NULL, TimerRoutine, &Parameter, 1000, 1000, WT_EXECUTEDEFAULT);
             NtQuerySystemTime(&DelayInterval);
-            // Positive value for Absolute timeout
-            DelayInterval.QuadPart += SecToMiliSec(timeout);
+            // Positive value for Absolute dwTimeout
+            DelayInterval.QuadPart += SecToMiliSec(dwTimeout);
 
-            do
-            { // Wait for either timeout or input
+            do { // Wait for either dwTimeout or input
                 if (NtWaitForSingleObject(hStdin, FALSE, &DelayInterval) == STATUS_TIMEOUT) break;
                 ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
             } while (IsInputInvalidate(InputRecord));
             DeleteTimerQueueTimer(NULL, hTimer, NULL);
 
-        } else
-        {
-            LARGE_INTEGER DelayInterval = {.QuadPart=-SecToMiliSec(timeout)};
-            NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-                buffer, p - buffer + strlen(FiniteMessage_) - 5, NULL, NULL);
+        } else {
+            LARGE_INTEGER DelayInterval = {.QuadPart=-SecToMiliSec(dwTimeout)};
+            WriteDataA(hStdout, buffer, p - buffer + strlen(FiniteMessage_) - 5, bConsole);
             NtWaitForSingleObject(hStdin, FALSE, &DelayInterval); // Relative time
         }
     }
 
     // Simulate normal behavior
-    NtWriteFile(hStdout, NULL, NULL, NULL, &IoStatusBlock,
-        (PVOID) InfiniteMessage, 1, NULL, NULL);
+    WriteDataA(hStdout, (PCH) InfiniteMessage, 1, bConsole);
 }
