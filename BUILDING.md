@@ -10,26 +10,56 @@ Supported OS: Windows 10 or later
 
 Ensure the following dependencies are installed:
 
-- Microsoft Visual C++ (MSVC) or a compatible C/C++ compiler.
+- Git (required to clone the repository and submodules).
+- Microsoft Visual C++ (MSVC) or a compatible C++ compiler supporting C++20.
+- Windows SDK (latest recommended for best compatibility).
 
-- Windows SDK (latest version recommended).
+## Cloning the Repository
+
+This project depends on some external submodules. Clone it with the following commands to ensure all dependencies are included:
+
+```sh
+git clone --recursive https://github.com/vxtan27/w64dbg.git
+```
+
+If you have already cloned the repository without submodules, you can initialize and update them separately:
+
+```sh
+git submodule update --init --recursive
+```
+
+Alternatively, if you prefer to manage external dependencies manually, clone the main repository and place the required ones in the `external` directory.
 
 ## Build Instructions
 
-Open the Microsoft Visual Studio Developer Command Prompt.
+1. Open the Microsoft Visual Studio Developer Command Prompt.
+2. Navigate to the project root directory.
+3. Compile using the following command:
 
-Compile the source code using the following command:
-
-    cl /I external /I "%VSINSTALLDIR%\DIA SDK\include" /std:c++20 src\main.cpp /link /SUBSYSTEM:CONSOLE /ENTRY:wmain
+    ```sh
+    cl /I external/phnt /I "%VSINSTALLDIR%/DIA SDK/include" /std:c++20 src/main.cpp /link /SUBSYSTEM:CONSOLE /ENTRY:wmain
+    ```
 
 ## Customization & Optimization
 
-You can modify compiler and linker options to optimize for specific use cases:
+### Performance Optimization
+- Enable compiler optimizations for speed:
+  ```sh
+  /O2   # Optimize for speed
+  /Ox   # Maximum optimizations (aggressive)
+  ```
 
-* Performance tuning: Enable optimization flags such as /O2 or /Ox.
+### Debugging Support
+- Use debugging flags for better debugging experience:
+  ```sh
+  /Zi    # Generate debugging information
+  /DEBUG # Enable debug mode in the linker
+  ```
 
-* Debugging support: Use /Zi for debug symbols and /DEBUG for better debugging experience.
+### Compatibility Adjustments
+- Modify subsystem settings or use a specific Windows SDK version:
+  ```sh
+  /SUBSYSTEM:CONSOLE /ENTRY:wmain  # Console application entry point
+  ```
 
-* Compatibility adjustments: Modify subsystem settings or use specific Windows SDK versions.
-
-Refer to the MSVC documentation for a comprehensive list of available options.
+For a complete list of available compiler and linker options, refer to the [MSVC documentation](https://learn.microsoft.com/cpp/build/reference/compiler-options).
