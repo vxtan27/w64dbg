@@ -3,15 +3,13 @@
 
 // Config
 #include "include/config/crt.h"
+#include "include/config/build.h"
 
 #pragma warning(push)
 #pragma warning(disable: 4005)
 
-#include <stdlib.h>
-#include <phnt_windows.h>
-#include <phnt.h>
+#include "include/ntdll.h"
 
-#include <devioctl.h>
 #include <dbghelp.h>
 #include <cvconst.h>
 #include <psapi.h>
@@ -41,7 +39,6 @@ wmain(void) {
     DWORD ExitStatus;
     size_t temp, len;
     char buffer[BUFLEN];
-    ULONG ActualByteCount;
 
     DWORD timeout = DEFAULT_TIMEOUT;
     BOOL breakpoint = DEFAULT_BREAKPOINT,
@@ -185,13 +182,13 @@ wmain(void) {
 
     IsConsoleHandle(hStdout, &bConsole);
     if (bConsole) {
-        SetConsoleOutputCP(65001);  // CP_UTF8
-        SetConsoleMode(hStdout, ENABLE_PROCESSED_OUTPUT |
+        SetConsoleDeviceOutputCP(hStdout, 65001);  // CP_UTF8
+        SetConsoleDeviceMode(hStdout, ENABLE_PROCESSED_OUTPUT |
             ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     }
 
     if (p != buffer) {
-        WriteDataA(hStdout, buffer, p - buffer, bConsole);
+        WriteHandle(hStdout, buffer, p - buffer, FALSE, bConsole);
         return ExitStatus;
     }
 
@@ -208,8 +205,8 @@ wmain(void) {
         PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
         LookupSystemMessage(ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &MessageEntry);
-        WriteDataW(hStdout, GetMessageEntryText(MessageEntry),
-            GetMessageEntryLength(MessageEntry) >> 1, bConsole);
+        WriteHandle(hStdout, GetMessageEntryText(MessageEntry),
+            GetMessageEntryLength(MessageEntry), TRUE, bConsole);
         return ERROR_FILE_NOT_FOUND;
     }
 
@@ -219,6 +216,7 @@ wmain(void) {
     if (!GetBinaryTypeW(ApplicationName, &b64bit) ||
         (b64bit != SCS_32BIT_BINARY && b64bit != SCS_64BIT_BINARY)) {
         wchar_t *pos;
+        ULONG ActualByteCount;
         PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
         LookupSystemMessage(ERROR_BAD_EXE_FORMAT, LANG_USER_DEFAULT, &MessageEntry);
@@ -245,7 +243,7 @@ wmain(void) {
             pos, GetMessageEntryLength(MessageEntry) - ((pos - GetMessageEntryText(MessageEntry)) << 1));
         p += ActualByteCount;
 
-        WriteDataA(hStdout, buffer, p - buffer, bConsole);
+        WriteHandle(hStdout, buffer, p - buffer, FALSE, bConsole);
         return ERROR_BAD_EXE_FORMAT;
     }
 
@@ -413,7 +411,7 @@ wmain(void) {
                 LANG_USER_DEFAULT, p, buffer + BUFLEN - p, bConsole);
 
             if (HandleToUlong(StateChange.AppClientId.UniqueThread) != dwThreadId[i]) {
-                WriteDataA(hStdout, buffer, p - buffer, bConsole);
+                WriteHandle(hStdout, buffer, p - buffer, FALSE, bConsole);
                 continue;
             }
 
@@ -518,9 +516,8 @@ wmain(void) {
 
                 if (SymFromInlineContextW(hProcess, StackFrame.AddrPC.Offset - count,
                     INLINE_FRAME_CONTEXT_IGNORE, NULL, pSymInfo)) {
-                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                        &ActualByteCount, pSymInfo->Name, pSymInfo->NameLen << 1);
-                    p += ActualByteCount;
+                    p += ConvertUnicodeToUTF8(pSymInfo->Name,
+                        pSymInfo->NameLen << 1, p, buffer + BUFLEN - p);
                 } else {
                     *p++ = '?';
                     *p++ = '?';
@@ -578,9 +575,7 @@ wmain(void) {
 
                     len = GetModuleFileNameExW(hProcess,
                         (HMODULE) SymGetModuleBase64(hProcess, StackFrame.AddrPC.Offset), Tmp, WBUFLEN);
-                    RtlUnicodeToUTF8N(p, buffer + BUFLEN - p,
-                        &ActualByteCount, Tmp, len << 1);
-                    p += ActualByteCount;
+                    p += ConvertUnicodeToUTF8(Tmp, len << 1, p, buffer + BUFLEN - p);
 
                     if (bConsole) {
                         memcpy(p, CONSOLE_DEFAULT_FORMAT,
@@ -600,14 +595,14 @@ wmain(void) {
 
                 // Release buffer
                 if (p >= buffer + (sizeof(buffer) >> 1)) {
-                    WriteDataA(hStdout, buffer, p - buffer, bConsole);
+                    WriteHandle(hStdout, buffer, p - buffer, FALSE, bConsole);
                     p = buffer;
                 }
 
                 ++count;
             }
 
-            WriteDataA(hStdout, buffer, p - buffer, bConsole);
+            WriteHandle(hStdout, buffer, p - buffer, FALSE, bConsole);
 
             SymCleanup(hProcess);
             NtTerminateProcess(hProcess,

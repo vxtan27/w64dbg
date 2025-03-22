@@ -55,7 +55,7 @@ Windows version: **10+**
 
 ## Limitations
 
-Supports up to 32 threads and 32 DLLs, suitable for most debugging scenarios.
+It supports up to 32 threads and 32 DLLs, suitable for most debugging scenarios.
 
 ## Frequently Asked Questions
 

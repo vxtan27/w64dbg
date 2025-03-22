@@ -21,8 +21,8 @@ NTSTATUS DbgTraceEvent(
     IO_STATUS_BLOCK IoStatus;
     char Buffer[TRACE_DEBUG_EVENT_BUFFER_SIZE];
 
-    return WriteDataA(hStdout, Buffer, DbgFormatEvent(pStateChange,
-        szDebugEventName, DebugEventNameLength, Buffer), bConsole);
+    return WriteHandle(hStdout, Buffer, DbgFormatEvent(pStateChange,
+        szDebugEventName, DebugEventNameLength, Buffer), FALSE, bConsole);
 }
 
 //
@@ -40,8 +40,8 @@ NTSTATUS DbgTraceModule(
     char Buffer[MAX_PATH];
     IO_STATUS_BLOCK IoStatus;
 
-    return WriteDataA(hStdout, Buffer, DbgFormatModule(hModule,
-        szDebugEventName, DebugEventNameLength, Buffer), bConsole);
+    return WriteHandle(hStdout, Buffer, DbgFormatModule(hModule,
+        szDebugEventName, DebugEventNameLength, Buffer), FALSE, bConsole);
 }
 
 // Handles OutputDebugString events and writes the debug string to standard output
@@ -63,14 +63,14 @@ VOID DbgProcessDebugString(
             char Buffer[BUFLEN];
             ULONG ActualByteCount;
             IO_STATUS_BLOCK IoStatus;
-            wchar_t Temp[sizeof(Buffer) >> 2];
+            wchar_t Temp[sizeof(Buffer) / 3];
             SIZE_T BytesToRead = pExceptionRecord->ExceptionInformation[0] < sizeof(Temp)
                                 ? pExceptionRecord->ExceptionInformation[0] : sizeof(Temp);
 
             NtReadVirtualMemory(hProcess,
                 (PVOID) pExceptionRecord->ExceptionInformation[1], Temp, BytesToRead, NULL);
             RtlUnicodeToUTF8N(Buffer, sizeof(Buffer), &ActualByteCount, Temp, BytesToRead);
-            WriteDataA(hStdout, Buffer, ActualByteCount, bConsole);
+            WriteHandle(hStdout, Buffer, ActualByteCount, FALSE, bConsole);
 
             pExceptionRecord->ExceptionInformation[1] += BytesToRead;
             pExceptionRecord->ExceptionInformation[0] -= BytesToRead;
@@ -87,7 +87,7 @@ VOID DbgProcessDebugString(
 
         NtReadVirtualMemory(hProcess,
             (PVOID) pExceptionRecord->ExceptionInformation[1], Buffer, BytesToRead, NULL);
-        WriteDataA(hStdout, Buffer, BytesToRead, bConsole);
+        WriteHandle(hStdout, Buffer, BytesToRead, FALSE, bConsole);
 
         pExceptionRecord->ExceptionInformation[1] += BytesToRead;
         pExceptionRecord->ExceptionInformation[0] -= BytesToRead;
@@ -106,6 +106,6 @@ NTSTATUS DbgProcessRIP(
     IO_STATUS_BLOCK IoStatus;
     char Buffer[DEBUG_EVENT_RIP_BUFFER_SIZE];
 
-    return WriteDataA(hStdout, Buffer,
-        DbgFormatRIP(pStateChange, Buffer, sizeof(Buffer)), bConsole);
+    return WriteHandle(hStdout, Buffer,
+        DbgFormatRIP(pStateChange, Buffer, sizeof(Buffer)), FALSE, bConsole);
 }

@@ -63,9 +63,13 @@ DWORD DbgFormatRIP(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCH Buffer, ULONG BufL
     ULONG ActualByteCount;
     PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
-    LookupSystemMessage(pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionFlags, LANG_USER_DEFAULT, &MessageEntry);
-    RtlUnicodeToUTF8N(Buffer, BufLen, &ActualByteCount, GetMessageEntryText(MessageEntry), GetMessageEntryLength(MessageEntry));
-    p = Buffer + ActualByteCount;
+    if (NT_SUCCESS(LookupSystemMessage(
+        pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionFlags, LANG_USER_DEFAULT, &MessageEntry)))
+    {
+        RtlUnicodeToUTF8N(Buffer, BufLen, &ActualByteCount,
+            GetMessageEntryText(MessageEntry), GetMessageEntryLength(MessageEntry));
+        p = Buffer + ActualByteCount;
+    } else p = Buffer;
 
     if (PtrToUlong(pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionRecord) == 1) {
         memcpy(p, _SLE_ERROR, strlen(_SLE_ERROR));
@@ -104,6 +108,7 @@ An exception was raised by the Common Language Runtime (CLR).
 
 DWORD DbgFormatException(DWORD dwMessageId, DWORD dwLanguageId, PCH pBuffer, DWORD dwSize, BOOL bConsole) {
     PMESSAGE_RESOURCE_ENTRY MessageEntry;
+
     if (dwMessageId == 0xCFFFFFFF || dwMessageId == 0xE06D7363 || dwMessageId == 0xE0434f4D ||
         NT_SUCCESS(LookupNtdllMessage(dwMessageId, dwLanguageId, &MessageEntry))) {
         LPSTR lpBuffer = pBuffer;
@@ -122,10 +127,8 @@ DWORD DbgFormatException(DWORD dwMessageId, DWORD dwLanguageId, PCH pBuffer, DWO
             memcpy(lpBuffer, STATUS_CLR_EXCEPTION_TEXT, strlen(STATUS_CLR_EXCEPTION_TEXT));
             lpBuffer += strlen(STATUS_CLR_EXCEPTION_TEXT);
         } else {
-            ULONG ActualByteCount;
-            RtlUnicodeToUTF8N(lpBuffer, dwSize, &ActualByteCount,
-                GetMessageEntryText(MessageEntry), GetMessageEntryLength(MessageEntry));
-            lpBuffer += ActualByteCount;
+            lpBuffer += ConvertUnicodeToUTF8(GetMessageEntryText(MessageEntry),
+                GetMessageEntryLength(MessageEntry), lpBuffer, dwSize);
         }
 
         if (bConsole) {
@@ -140,12 +143,8 @@ DWORD DbgFormatException(DWORD dwMessageId, DWORD dwLanguageId, PCH pBuffer, DWO
 }
 
 PSTR FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG BufLength, PCH p, BOOL Console) {
-    ULONG ActualByteCount;
-
     // Convert file name from Unicode to UTF-8
-    RtlUnicodeToUTF8N(p, BufLength,
-        &ActualByteCount, FileName, FileLength);
-    p += ActualByteCount;
+    p += ConvertUnicodeToUTF8(FileName, FileLength, p, BufLength);
 
     // Optionally apply color formatting
     if (Console) {
@@ -225,15 +224,13 @@ PSTR FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG
         }
 
         NtClose(hFile); // Close the file handle
-    } else {  // Handle file not found error in verbose mode
+    } else {
+        // The system cannot find the file specified
         PMESSAGE_RESOURCE_ENTRY MessageEntry;
-        ULONG ActualByteCount;
 
         LookupSystemMessage(ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &MessageEntry);
-        // Convert error message to UTF-8
-        RtlUnicodeToUTF8N(p, BufLength, &ActualByteCount,
-            GetMessageEntryText(MessageEntry), GetMessageEntryLength(MessageEntry));
-        p += ActualByteCount;
+        p += ConvertUnicodeToUTF8(GetMessageEntryText(MessageEntry),
+            GetMessageEntryLength(MessageEntry), p, BufLength);
     }
 
     return p;

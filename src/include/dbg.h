@@ -27,7 +27,7 @@ VOID DbgSaveThreadHandle(DWORD dwProcessId, DWORD dwThreadId, HANDLE hThread)
 {
     // Allocate a thread structure
     PDBGSS_THREAD_DATA ThreadData = (PDBGSS_THREAD_DATA) RtlAllocateHeap(
-        RtlGetProcessHeap(), 0, sizeof(DBGSS_THREAD_DATA));
+        GetProcessHeap(), 0, sizeof(DBGSS_THREAD_DATA));
 
     if (!ThreadData) return;
 
@@ -48,7 +48,7 @@ VOID DbgSaveProcessHandle(DWORD dwProcessId, HANDLE hProcess)
 {
     // Allocate a thread structure
     PDBGSS_THREAD_DATA ThreadData = (PDBGSS_THREAD_DATA) RtlAllocateHeap(
-        RtlGetProcessHeap(), 0, sizeof(DBGSS_THREAD_DATA));
+        GetProcessHeap(), 0, sizeof(DBGSS_THREAD_DATA));
 
     if (!ThreadData) return;
 
@@ -119,7 +119,7 @@ VOID DbgRemoveHandles(DWORD dwProcessId, DWORD dwThreadId) {
             *ThreadData = ThisData->Next;
 
             // Free it
-            RtlFreeHeap(RtlGetProcessHeap(), 0, ThisData);
+            RtlFreeHeap(GetProcessHeap(), 0, ThisData);
         } else {
             // Move to the next one
             ThreadData = &ThisData->Next;
@@ -149,7 +149,7 @@ VOID DbgCloseAllProcessHandles(DWORD dwProcessId) {
             *ThreadData = ThisData->Next;
 
             // Free it
-            RtlFreeHeap(RtlGetProcessHeap(), 0, ThisData);
+            RtlFreeHeap(GetProcessHeap(), 0, ThisData);
         } else {
             // Move to the next one
             ThreadData = &ThisData->Next;

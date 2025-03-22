@@ -191,10 +191,8 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
         User->p += 5;
     }
 
-    ULONG ActualByteCount;
-    RtlUnicodeToUTF8N(User->p, User->pEnd - User->p,
-        &ActualByteCount, pSymInfo->Name, (pSymInfo->NameLen - 1) << 1);
-    User->p += ActualByteCount;
+    User->p += ConvertUnicodeToUTF8(pSymInfo->Name,
+        (pSymInfo->NameLen - 1) << 1, User->p, User->pEnd - User->p);
 
     if (User->bConsole) {
         memcpy(User->p, CONSOLE_DEFAULT_FORMAT,

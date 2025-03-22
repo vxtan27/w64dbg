@@ -3,73 +3,45 @@
 
 #pragma once
 
-#undef NtCurrentPeb
-FORCEINLINE
-PPEB
-NtCurrentPeb(
-    VOID
-)
-{
-#if defined(_M_AMD64)
-    return (PPEB)__readgsqword(FIELD_OFFSET(TEB, ProcessEnvironmentBlock));
-#elif defined(_M_IX86)
-    return (PPEB)__readfsdword(FIELD_OFFSET(TEB, ProcessEnvironmentBlock));
-#elif defined(_M_ARM)
-    return (PPEB)(((PTEB)(ULONG_PTR)_MoveFromCoprocessor(CP15_TPIDRURW))->ProcessEnvironmentBlock);
-#elif defined(_M_ARM64)
-    return (PPEB)(((PTEB)__getReg(18))->ProcessEnvironmentBlock);
-#elif defined(_M_IA64)
-    return *(PPEB*)((size_t)_rdteb() + FIELD_OFFSET(TEB, ProcessEnvironmentBlock));
-#elif defined(_M_ALPHA)
-    return *(PPEB*)((size_t)_rdteb() + FIELD_OFFSET(TEB, ProcessEnvironmentBlock));
-#elif defined(_M_MIPS)
-    return *(PPEB*)((*(size_t*)(0x7ffff030)) + FIELD_OFFSET(TEB, ProcessEnvironmentBlock));
-#elif defined(_M_PPC)
-    return *(PPEB*)(__gregister_get(13) + FIELD_OFFSET(TEB, ProcessEnvironmentBlock));
-#else
-#error "Unsupported architecture"
-#endif
+#include "ntdll.h"
+#include "conapi.h"
+
+NTSTATUS WriteFileData(
+    _In_ HANDLE hFile,
+    _In_reads_bytes_(Length) PVOID pBuffer,
+    _In_ ULONG uLength,
+    _In_ BOOL fUnicode
+) {
+    IO_STATUS_BLOCK IoStatus;
+
+    if (fUnicode) {
+        NTSTATUS NtStatus;
+        ULONG cchUTF8String;
+        PCH pUTF8String = (PCH) _malloca((uLength >> 1) * 3);
+
+        NtStatus = RtlUnicodeToUTF8N(pUTF8String,
+            (uLength >> 1) * 3, &cchUTF8String, (PCWCH) pBuffer, uLength);
+
+        if (NT_SUCCESS(NtStatus)) NtWriteFile(hFile, NULL, NULL,
+            NULL, &IoStatus, pBuffer, uLength, NULL, NULL);
+
+        return NtStatus;
+    }
+
+    return NtWriteFile(hFile, NULL, NULL, NULL, &IoStatus,
+        pBuffer, uLength, NULL, NULL);
 }
 
-EXTERN_C_START
-
-#if _WIN32_WINNT >= _WIN32_WINNT_WIN7
-NTSYSAPI
-NTSTATUS
-NTAPI
-RtlUnicodeToUTF8N(
-    _Out_writes_bytes_to_(UTF8StringMaxByteCount, *UTF8StringActualByteCount) PCHAR UTF8StringDestination,
-    _In_ ULONG UTF8StringMaxByteCount,
-    _Out_opt_ PULONG UTF8StringActualByteCount,
-    _In_reads_bytes_(UnicodeStringByteCount) PCWCH UnicodeStringSource,
-    _In_ ULONG UnicodeStringByteCount
-);
-#endif
-
-#if _WIN32_WINNT >= _WIN32_WINNT_WS03
-NTSYSAPI
-NTSTATUS
-NTAPI
-RtlDosPathNameToNtPathName_U_WithStatus(
-    _In_ PCWSTR DosFileName,
-    _Out_ PUNICODE_STRING NtFileName,
-    _Out_opt_ PWSTR *FilePart,
-    _Out_opt_ PRTL_RELATIVE_NAME_U RelativeName
-);
-#endif
-
-EXTERN_C_END
-
-#define RtlGetProcessHeap() (NtCurrentPeb()->ProcessHeap)
-
-#define GetStandardInput() (NtCurrentPeb()->ProcessParameters->StandardInput)
-#define GetStandardOutput() (NtCurrentPeb()->ProcessParameters->StandardOutput)
-#define GetStandardError() (NtCurrentPeb()->ProcessParameters->StandardError)
-
-#define GetCurrentDirectory() (&NtCurrentPeb()->ProcessParameters->CurrentDirectory)
-#define GetCurrentDirectoryDosPath() (&GetCurrentDirectory()->DosPath)
-#define GetCommandLine() (&NtCurrentPeb()->ProcessParameters->CommandLine)
-#define GetEnvironment() (NtCurrentPeb()->ProcessParameters->Environment)
+NTSTATUS WriteHandle(
+    _In_ HANDLE hHandle,
+    _In_reads_bytes_(Length) PVOID pBuffer,
+    _In_ ULONG uLength,
+    _In_ BOOL fUnicode,
+    _In_ BOOL bConsole
+) {
+    return bConsole ? WriteConsoleDevice(hHandle, pBuffer, uLength, fUnicode)
+                    : WriteFileData(hHandle, pBuffer, uLength, fUnicode);
+}
 
 ULONG ConvertUnicodeToUTF8(
     PWCH pUnicodeString,
@@ -84,38 +56,57 @@ ULONG ConvertUnicodeToUTF8(
     return cchUTF8String;
 }
 
-BOOL WriteDataA(
-    HANDLE hHandle,
-    PCH pBuffer,
-    ULONG uLength,
-    BOOL bConsole
+BOOL DoesFileExists(
+    PCWSTR pDosName,
+    PUNICODE_STRING pNtName
 ) {
-    if (bConsole) {
-        return WriteConsoleA(hHandle, pBuffer, uLength, NULL, NULL);
-    } else {
-        IO_STATUS_BLOCK IoStatus;
-        return NT_SUCCESS(NtWriteFile(hHandle, NULL, NULL,
-            NULL, &IoStatus, pBuffer, uLength, NULL, NULL));
-    }
-}
+    NTSTATUS NtStatus;
+    RTL_RELATIVE_NAME_U RelativeName;
 
-BOOL WriteDataW(
-    HANDLE hHandle,
-    PWCH pBuffer,
-    ULONG uLength,
-    BOOL bConsole
-) {
-    if (bConsole) {
-        return WriteConsoleW(hHandle, pBuffer, uLength, NULL, NULL);
-    } else {
-        ULONG cchUTF8String;
-        char cBuffer[WBUFLEN * 3];
+    // Get the NT Path
+    NtStatus = RtlDosPathNameToNtPathName_U_WithStatus(pDosName, pNtName, NULL, &RelativeName);
 
-        if (NT_SUCCESS(RtlUnicodeToUTF8N(cBuffer, sizeof(cBuffer),
-            &cchUTF8String, pBuffer, uLength)))
-            return WriteDataA(hHandle, cBuffer, cchUTF8String, bConsole);
-        else return FALSE;
+    if (!NT_SUCCESS(NtStatus)) return FALSE;
+
+    // Save the buffer
+    PWCH pBuffer = pNtName->Buffer;
+
+    // Check if we have a relative name
+    if (RelativeName.RelativeName.Length) {
+        // Use it
+        *pNtName = RelativeName.RelativeName;
+    } else {
+        // Otherwise ignore it
+        RelativeName.ContainingDirectory = NULL;
     }
+
+    OBJECT_ATTRIBUTES ObjectAttributes;
+    FILE_BASIC_INFORMATION BasicInformation;
+
+    // Initialize the object attributes
+    InitializeObjectAttributes(&ObjectAttributes,
+                               pNtName,
+                               OBJ_CASE_INSENSITIVE,
+                               RelativeName.ContainingDirectory,
+                               NULL);
+
+    // Query the attributes and free the buffer now
+    NtStatus = NtQueryAttributesFile(&ObjectAttributes, &BasicInformation);
+    RtlReleaseRelativeName(&RelativeName);
+    RtlFreeHeap(GetProcessHeap(), 0, pBuffer);
+
+    // Check if we failed
+    if (!NT_SUCCESS(NtStatus)) {
+        // Check if we failed because the file is in use
+        if (NtStatus == STATUS_SHARING_VIOLATION ||
+            NtStatus == STATUS_ACCESS_DENIED) {
+            return TRUE;
+        } else {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
 }
 
 //
@@ -124,7 +115,7 @@ BOOL WriteDataW(
 //
 
 NTSTATUS LookupNtdllMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *MessageEntry) {
-    return RtlFindMessage(((PLDR_DATA_TABLE_ENTRY) NtCurrentPeb()->Ldr->InLoadOrderModuleList.Flink)->DllBase,
+    return RtlFindMessage(((PLDR_DATA_TABLE_ENTRY) NtCurrentPeb()->Ldr->InLoadOrderModuleList.Flink->Flink)->DllBase,
         PtrToUlong(RT_MESSAGETABLE), dwLanguageId, dwMessageId, MessageEntry);
 }
 
@@ -150,7 +141,7 @@ WORD GetMessageEntryLength(PMESSAGE_RESOURCE_ENTRY MessageEntry) {
     PCWSTR pText = GetMessageEntryText(MessageEntry);
 
     // Trim additional trailing nulls
-    while (pText[wLength] == L'0') --wLength;
+    while (pText[(wLength - 1) >> 1] == L'\0') wLength -= 2;
 
     return wLength;
 }

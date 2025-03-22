@@ -78,7 +78,7 @@ VOID CALLBACK TimerRoutine(PVOID lpParameter, BOOLEAN TimerOrWaitFired) {
         temp /= 10;
     }
 
-    WriteDataA(Parameter->hStdout, buffer, Length, Parameter->bConsole);
+    WriteHandle(Parameter->hStdout, buffer, Length, FALSE, Parameter->bConsole);
 }
 
 #define InfiniteMessage "\nPress any key to continue ..."
@@ -95,7 +95,7 @@ VOID WaitForInputOrTimeout(
 
     if (dwTimeout == -1) {
         // Write the InfiniteMessage
-        WriteDataA(hStdout, (PCH) InfiniteMessage, strlen(InfiniteMessage), bConsole);
+        WriteHandle(hStdout, (PVOID) InfiniteMessage, strlen(InfiniteMessage), FALSE, bConsole);
 
         if (bConsole) {
             DWORD dwRead;
@@ -114,7 +114,7 @@ VOID WaitForInputOrTimeout(
         memcpy(p, FiniteMessage_, strlen(FiniteMessage_));
 
         if (bConsole) {
-            WriteDataA(hStdout, buffer, p - buffer + strlen(FiniteMessage_), bConsole);
+            WriteHandle(hStdout, buffer, p - buffer + strlen(FiniteMessage_), FALSE, bConsole);
 
             DWORD dwRead;
             HANDLE hTimer;
@@ -135,11 +135,11 @@ VOID WaitForInputOrTimeout(
 
         } else {
             LARGE_INTEGER DelayInterval = {.QuadPart=-SecToMiliSec(dwTimeout)};
-            WriteDataA(hStdout, buffer, p - buffer + strlen(FiniteMessage_) - 5, bConsole);
+            WriteHandle(hStdout, buffer, p - buffer + strlen(FiniteMessage_) - 5, FALSE, bConsole);
             NtWaitForSingleObject(hStdin, FALSE, &DelayInterval); // Relative time
         }
     }
 
     // Simulate normal behavior
-    WriteDataA(hStdout, (PCH) InfiniteMessage, 1, bConsole);
+    WriteHandle(hStdout, (PVOID) InfiniteMessage, 1, FALSE, bConsole);
 }
