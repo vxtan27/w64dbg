@@ -37,11 +37,9 @@ NtCurrentPeb(
 #define NtQuerySystemTime(pSystemTime) \
     *pSystemTime = *(PLARGE_INTEGER) &USER_SHARED_DATA->SystemTime
 
-#define GetProcessHeap() (NtCurrentPeb()->ProcessHeap)
-
-#define GetStandardInput() (NtCurrentPeb()->ProcessParameters->StandardInput)
-#define GetStandardOutput() (NtCurrentPeb()->ProcessParameters->StandardOutput)
-#define GetStandardError() (NtCurrentPeb()->ProcessParameters->StandardError)
+#define RtlStandardInput() (NtCurrentPeb()->ProcessParameters->StandardInput)
+#define RtlStandardOutput() (NtCurrentPeb()->ProcessParameters->StandardOutput)
+#define RtlStandardError() (NtCurrentPeb()->ProcessParameters->StandardError)
 
 #define GetCurrentDirectory() (&NtCurrentPeb()->ProcessParameters->CurrentDirectory)
 #define GetCurrentDirectoryDosPath() (&GetCurrentDirectory()->DosPath)

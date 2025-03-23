@@ -177,8 +177,7 @@ wmain(void) {
     }
 
     BOOL bConsole;
-    IO_STATUS_BLOCK IoStatus;
-    HANDLE hStdout = GetStandardOutput();
+    HANDLE hStdout = RtlStandardOutput();
 
     IsConsoleHandle(hStdout, &bConsole);
     if (bConsole) {

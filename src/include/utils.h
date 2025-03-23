@@ -17,7 +17,7 @@ NTSTATUS WriteFileData(
     if (fUnicode) {
         NTSTATUS NtStatus;
         ULONG cchUTF8String;
-        PCH pUTF8String = (PCH) _malloca((uLength >> 1) * 3);
+        PCH pUTF8String = (PCH) _alloca((uLength >> 1) * 3);
 
         NtStatus = RtlUnicodeToUTF8N(pUTF8String,
             (uLength >> 1) * 3, &cchUTF8String, (PCWCH) pBuffer, uLength);
@@ -58,13 +58,13 @@ ULONG ConvertUnicodeToUTF8(
 
 BOOL DoesFileExists(
     PCWSTR pDosName,
-    PUNICODE_STRING pNtName
+    PUNICODE_STRING pNtName,
+    PRTL_RELATIVE_NAME_U pRelativeName
 ) {
     NTSTATUS NtStatus;
-    RTL_RELATIVE_NAME_U RelativeName;
 
     // Get the NT Path
-    NtStatus = RtlDosPathNameToNtPathName_U_WithStatus(pDosName, pNtName, NULL, &RelativeName);
+    NtStatus = RtlDosPathNameToNtPathName_U_WithStatus(pDosName, pNtName, NULL, pRelativeName);
 
     if (!NT_SUCCESS(NtStatus)) return FALSE;
 
@@ -72,38 +72,36 @@ BOOL DoesFileExists(
     PWCH pBuffer = pNtName->Buffer;
 
     // Check if we have a relative name
-    if (RelativeName.RelativeName.Length) {
+    if (pRelativeName->RelativeName.Length) {
         // Use it
-        *pNtName = RelativeName.RelativeName;
+        *pNtName = pRelativeName->RelativeName;
     } else {
         // Otherwise ignore it
-        RelativeName.ContainingDirectory = NULL;
+        pRelativeName->ContainingDirectory = NULL;
     }
 
     OBJECT_ATTRIBUTES ObjectAttributes;
-    FILE_BASIC_INFORMATION BasicInformation;
 
     // Initialize the object attributes
     InitializeObjectAttributes(&ObjectAttributes,
                                pNtName,
                                OBJ_CASE_INSENSITIVE,
-                               RelativeName.ContainingDirectory,
+                               pRelativeName->ContainingDirectory,
                                NULL);
+
+    FILE_BASIC_INFORMATION BasicInformation;
 
     // Query the attributes and free the buffer now
     NtStatus = NtQueryAttributesFile(&ObjectAttributes, &BasicInformation);
-    RtlReleaseRelativeName(&RelativeName);
-    RtlFreeHeap(GetProcessHeap(), 0, pBuffer);
+    RtlReleaseRelativeName(pRelativeName);
+    RtlFreeHeap(RtlProcessHeap(), 0, pBuffer);
 
     // Check if we failed
     if (!NT_SUCCESS(NtStatus)) {
         // Check if we failed because the file is in use
         if (NtStatus == STATUS_SHARING_VIOLATION ||
-            NtStatus == STATUS_ACCESS_DENIED) {
-            return TRUE;
-        } else {
-            return FALSE;
-        }
+            NtStatus == STATUS_ACCESS_DENIED) return TRUE;
+        else return FALSE;
     }
 
     return TRUE;
@@ -154,8 +152,7 @@ NTSTATUS IsConsoleHandle(HANDLE hHandle, PBOOL pResult) {
     NTSTATUS NtStatus = NtQueryVolumeInformationFile(hHandle, &IoStatus,
         &DeviceInfo, sizeof(DeviceInfo), FileFsDeviceInformation);
 
-    *pResult = (DeviceInfo.DeviceType == FILE_DEVICE_CONSOLE) ||
-               (DeviceInfo.DeviceType == FILE_DEVICE_TERMSRV);
+    *pResult = DeviceInfo.DeviceType == FILE_DEVICE_CONSOLE;
     return NtStatus;
 }
 

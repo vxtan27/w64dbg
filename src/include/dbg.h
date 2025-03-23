@@ -3,8 +3,7 @@
 
 #pragma once
 
-typedef struct _DBGSS_THREAD_DATA
-{
+typedef struct _DBGSS_THREAD_DATA {
     struct _DBGSS_THREAD_DATA *Next;
     HANDLE ThreadHandle;
     HANDLE ProcessHandle;
@@ -20,22 +19,28 @@ typedef struct _DBGSS_THREAD_DATA
     ((PDBGSS_THREAD_DATA) NtCurrentTeb()->DbgSsReserved[0])
 
 // Retrieves the debug object handle of the current thread
-#define DbgGetThreadDebugObject() (NtCurrentTeb()->DbgSsReserved[1])
+#define DbgGetThreadDebugObject() \
+    (NtCurrentTeb()->DbgSsReserved[1])
+
+DWORD DbgGetProcessId(PDBGUI_WAIT_STATE_CHANGE pStateChange) {
+    return HandleToUlong(pStateChange->AppClientId.UniqueProcess);
+}
+
+DWORD DbgGetThreadId(PDBGUI_WAIT_STATE_CHANGE pStateChange) {
+    return HandleToUlong(pStateChange->AppClientId.UniqueThread);
+}
 
 // Saves the thread handle of the process being debugged on the current thread
-VOID DbgSaveThreadHandle(DWORD dwProcessId, DWORD dwThreadId, HANDLE hThread)
-{
+VOID DbgSaveThreadHandle(PDBGUI_WAIT_STATE_CHANGE pStateChange) {
     // Allocate a thread structure
     PDBGSS_THREAD_DATA ThreadData = (PDBGSS_THREAD_DATA) RtlAllocateHeap(
         GetProcessHeap(), 0, sizeof(DBGSS_THREAD_DATA));
 
-    if (!ThreadData) return;
-
     // Fill it out
-    ThreadData->ThreadHandle = hThread;
+    ThreadData->ThreadHandle = pStateChange->StateInfo.CreateThread.HandleToThread;
     ThreadData->ProcessHandle = NULL;
-    ThreadData->ProcessId = dwProcessId;
-    ThreadData->ThreadId = dwThreadId;
+    ThreadData->ProcessId = DbgGetProcessId(pStateChange);
+    ThreadData->ThreadId = DbgGetThreadId(pStateChange);
     ThreadData->HandleMarked = FALSE;
 
     // Link it
@@ -43,37 +48,46 @@ VOID DbgSaveThreadHandle(DWORD dwProcessId, DWORD dwThreadId, HANDLE hThread)
     DbgSsSetThreadData(ThreadData);
 }
 
-// Saves the process handle of the process being debugged on the current thread
-VOID DbgSaveProcessHandle(DWORD dwProcessId, HANDLE hProcess)
-{
+// Saves the process and initial thread handle of the process being debugged on the current thread
+VOID DbgSaveProcessHandle(PDBGUI_WAIT_STATE_CHANGE pStateChange) {
     // Allocate a thread structure
     PDBGSS_THREAD_DATA ThreadData = (PDBGSS_THREAD_DATA) RtlAllocateHeap(
         GetProcessHeap(), 0, sizeof(DBGSS_THREAD_DATA));
 
-    if (!ThreadData) return;
-
     // Fill it out
     ThreadData->ThreadHandle = NULL;
-    ThreadData->ProcessHandle = hProcess;
-    ThreadData->ProcessId = dwProcessId;
+    ThreadData->ProcessHandle = pStateChange->StateInfo.CreateProcessInfo.HandleToProcess;
+    ThreadData->ProcessId = DbgGetProcessId(pStateChange);
     ThreadData->ThreadId = 0;
     ThreadData->HandleMarked = FALSE;
 
     // Link it
     ThreadData->Next = DbgSsGetThreadData();
-    DbgSsSetThreadData(ThreadData);
+
+    // Allocate another thread structure
+    PDBGSS_THREAD_DATA ThisData = (PDBGSS_THREAD_DATA) RtlAllocateHeap(
+        GetProcessHeap(), 0, sizeof(DBGSS_THREAD_DATA));
+
+    // Fill it out
+    ThisData->ThreadHandle = pStateChange->StateInfo.CreateProcessInfo.HandleToThread;
+    ThisData->ProcessHandle = NULL;
+    ThisData->ProcessId = DbgGetProcessId(pStateChange);
+    ThisData->ThreadId = DbgGetThreadId(pStateChange);
+    ThisData->HandleMarked = FALSE;
+
+    // Link it
+    ThisData->Next = ThreadData;
+    DbgSsSetThreadData(ThisData);
 }
 
 // Marks the thread handle of the process being debugged on the current thread
-VOID DbgMarkThreadHandle(DWORD dwThreadId)
-{
+VOID DbgMarkThreadHandle(DWORD dwProcessId, DWORD dwThreadId) {
     // Loop all thread data events
     for (PDBGSS_THREAD_DATA ThreadData = DbgSsGetThreadData();
-        ThreadData; ThreadData = ThreadData->Next)
-    {
+        ThreadData; ThreadData = ThreadData->Next) {
         // Check if this one matches
-        if (ThreadData->ThreadId == dwThreadId)
-        {
+        if (ThreadData->ThreadId == dwThreadId &&
+            ThreadData->ProcessId == dwProcessId) {
             // Mark the structure and break out
             ThreadData->HandleMarked = TRUE;
             break;
@@ -82,15 +96,12 @@ VOID DbgMarkThreadHandle(DWORD dwThreadId)
 }
 
 // Marks the process handle of the process being debugged on the current thread
-VOID DbgMarkProcessHandle(DWORD dwProcessId)
-{
+VOID DbgMarkProcessHandle(DWORD dwProcessId) {
     // Loop all thread data events
     for (PDBGSS_THREAD_DATA ThreadData = DbgSsGetThreadData();
-        ThreadData; ThreadData = ThreadData->Next)
-    {
+        ThreadData; ThreadData = ThreadData->Next) {
         // Check if this one matches
-        if ((ThreadData->ProcessId == dwProcessId) && !(ThreadData->ThreadId))
-        {
+        if (!ThreadData->ThreadId && ThreadData->ProcessId == dwProcessId) {
             // Mark the structure and break out
             ThreadData->HandleMarked = TRUE;
             break;
@@ -109,11 +120,11 @@ VOID DbgRemoveHandles(DWORD dwProcessId, DWORD dwThreadId) {
 
     while (ThisData) {
         // Check if this one matches
-        if ((ThisData->HandleMarked) &&
-            ((ThisData->ProcessId == dwProcessId) || (ThisData->ThreadId == dwThreadId))) {
+        if (ThisData->HandleMarked && ThisData->ProcessId == dwProcessId &&
+            (ThisData->ThreadId == dwThreadId || !ThisData->ThreadId)) {
             // Close open handles
             if (ThisData->ThreadHandle) CloseHandle(ThisData->ThreadHandle);
-            if (ThisData->ProcessHandle) CloseHandle(ThisData->ProcessHandle);
+            else if (ThisData->ProcessHandle) CloseHandle(ThisData->ProcessHandle);
 
             // Unlink the thread data
             *ThreadData = ThisData->Next;
@@ -184,33 +195,29 @@ NTSTATUS DbgWaitStateChange(
     // New thread was created
     case DbgCreateThreadStateChange:
         // Setup the thread data
-        DbgSaveThreadHandle(HandleToUlong(pStateChange->AppClientId.UniqueProcess),
-            HandleToUlong(pStateChange->AppClientId.UniqueThread),
-            pStateChange->StateInfo.CreateThread.HandleToThread);
+        DbgSaveThreadHandle(pStateChange);
         break;
 
     // Thread was exited
     case DbgExitThreadStateChange:
         // Mark the thread data
-        DbgMarkThreadHandle(HandleToUlong(pStateChange->AppClientId.UniqueThread));
+        DbgMarkThreadHandle(DbgGetProcessId(pStateChange),
+            DbgGetThreadId(pStateChange));
         break;
 
     // New process was created
     case DbgCreateProcessStateChange:
-        // Setup the process data
-        DbgSaveThreadHandle(HandleToUlong(pStateChange->AppClientId.UniqueProcess),
-            HandleToUlong(pStateChange->AppClientId.UniqueThread),
-            pStateChange->StateInfo.CreateProcessInfo.HandleToThread);
-        // Setup the thread data
-        DbgSaveThreadHandle(HandleToUlong(pStateChange->AppClientId.UniqueProcess),
-            HandleToUlong(pStateChange->AppClientId.UniqueThread),
-            pStateChange->StateInfo.CreateProcessInfo.HandleToThread);
+        // Setup the process and initial thread data
+        DbgSaveProcessHandle(pStateChange);
         break;
 
     // Process was exited
     case DbgExitProcessStateChange:
-        // Mark the thread data as such and fall through
-        DbgMarkProcessHandle(HandleToUlong(pStateChange->AppClientId.UniqueThread));
+        // Mark the thread data
+        DbgMarkThreadHandle(DbgGetProcessId(pStateChange),
+            DbgGetThreadId(pStateChange));
+        // Mark the process data
+        DbgMarkProcessHandle(DbgGetProcessId(pStateChange));
         break;
 
     // Nothing to do
@@ -236,8 +243,8 @@ NTSTATUS DbgContinue(PDBGUI_WAIT_STATE_CHANGE pStateChange, NTSTATUS dwContinueS
         &pStateChange->AppClientId, dwContinueStatus);
 
     // Remove the process/thread handles
-    if (NT_SUCCESS(NtStatus)) DbgRemoveHandles(HandleToUlong(pStateChange->AppClientId.UniqueProcess),
-        HandleToUlong(pStateChange->AppClientId.UniqueThread));
+    if (NT_SUCCESS(NtStatus)) DbgRemoveHandles(DbgGetProcessId(pStateChange),
+        DbgGetThreadId(pStateChange));
 
     return NtStatus;
 }
@@ -245,7 +252,7 @@ NTSTATUS DbgContinue(PDBGUI_WAIT_STATE_CHANGE pStateChange, NTSTATUS dwContinueS
 // Stops the debugger from debugging the specified process
 NTSTATUS DbgStopDebugging(HANDLE hProcess, PDBGUI_WAIT_STATE_CHANGE pStateChange) {
     // Close all the process handles
-    DbgCloseAllProcessHandles(HandleToUlong(pStateChange->AppClientId.UniqueProcess));
+    DbgCloseAllProcessHandles(DbgGetProcessId(pStateChange));
 
     // Now stop debgging the process
     return NtRemoveProcessDebug(hProcess, DbgGetThreadDebugObject());

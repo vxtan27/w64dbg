@@ -90,19 +90,18 @@ VOID WaitForInputOrTimeout(
     LONG       dwTimeout,
     BOOL       bConsole
 ) {
-    IO_STATUS_BLOCK IoStatus;
-    HANDLE hStdin = GetStandardInput();
+    HANDLE hStdin = RtlStandardInput();
 
     if (dwTimeout == -1) {
         // Write the InfiniteMessage
         WriteHandle(hStdout, (PVOID) InfiniteMessage, strlen(InfiniteMessage), FALSE, bConsole);
 
         if (bConsole) {
-            DWORD dwRead;
+            ULONG64 dwRead;
             INPUT_RECORD InputRecord;
 
             do { // Infinite loop waiting for valid input
-                ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
+                ReadConsoleDeviceInput(hStdin, &InputRecord, 1, &dwRead, TRUE);
             } while (IsInputInvalidate(InputRecord));
         } else NtWaitForSingleObject(hStdin, FALSE, NULL);
     } else {
@@ -116,7 +115,7 @@ VOID WaitForInputOrTimeout(
         if (bConsole) {
             WriteHandle(hStdout, buffer, p - buffer + strlen(FiniteMessage_), FALSE, bConsole);
 
-            DWORD dwRead;
+            ULONG64 dwRead;
             HANDLE hTimer;
             INPUT_RECORD InputRecord;
             LARGE_INTEGER DelayInterval;
@@ -129,7 +128,7 @@ VOID WaitForInputOrTimeout(
 
             do { // Wait for either dwTimeout or input
                 if (NtWaitForSingleObject(hStdin, FALSE, &DelayInterval) == STATUS_TIMEOUT) break;
-                ReadConsoleInputW(hStdin, &InputRecord, 1, &dwRead);
+                ReadConsoleDeviceInput(hStdin, &InputRecord, 1, &dwRead, TRUE);
             } while (IsInputInvalidate(InputRecord));
             DeleteTimerQueueTimer(NULL, hTimer, NULL);
 

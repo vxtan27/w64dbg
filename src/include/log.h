@@ -18,7 +18,6 @@ NTSTATUS DbgTraceEvent(
     HANDLE hStdout,
     BOOL bConsole
 ) {
-    IO_STATUS_BLOCK IoStatus;
     char Buffer[TRACE_DEBUG_EVENT_BUFFER_SIZE];
 
     return WriteHandle(hStdout, Buffer, DbgFormatEvent(pStateChange,
@@ -38,7 +37,6 @@ NTSTATUS DbgTraceModule(
     BOOL bConsole
 ) {
     char Buffer[MAX_PATH];
-    IO_STATUS_BLOCK IoStatus;
 
     return WriteHandle(hStdout, Buffer, DbgFormatModule(hModule,
         szDebugEventName, DebugEventNameLength, Buffer), FALSE, bConsole);
@@ -62,7 +60,6 @@ VOID DbgProcessDebugString(
         while (pExceptionRecord->ExceptionInformation[0] > 0) {
             char Buffer[BUFLEN];
             ULONG ActualByteCount;
-            IO_STATUS_BLOCK IoStatus;
             wchar_t Temp[sizeof(Buffer) / 3];
             SIZE_T BytesToRead = pExceptionRecord->ExceptionInformation[0] < sizeof(Temp)
                                 ? pExceptionRecord->ExceptionInformation[0] : sizeof(Temp);
@@ -81,7 +78,6 @@ VOID DbgProcessDebugString(
 
     while (pExceptionRecord->ExceptionInformation[0] > 0) {
         char Buffer[BUFLEN];
-        IO_STATUS_BLOCK IoStatus;
         SIZE_T BytesToRead = pExceptionRecord->ExceptionInformation[0] < sizeof(Buffer)
                             ? pExceptionRecord->ExceptionInformation[0] : sizeof(Buffer);
 
@@ -103,7 +99,6 @@ NTSTATUS DbgProcessRIP(
     HANDLE hStdout,
     BOOL bConsole
 ) {
-    IO_STATUS_BLOCK IoStatus;
     char Buffer[DEBUG_EVENT_RIP_BUFFER_SIZE];
 
     return WriteHandle(hStdout, Buffer,
