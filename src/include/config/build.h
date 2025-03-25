@@ -3,62 +3,48 @@
 
 #pragma once
 
-// =========================================================================================
+// =====================================================================================
 //  Compilation Settings
-// =========================================================================================
+// =====================================================================================
 
-#define NO_STRICT                 // Disable strict type checking
-#define WIN32_LEAN_AND_MEAN       // Exclude rarely used APIs
+#define NO_STRICT               // Disable strict type checking
+#define WIN32_LEAN_AND_MEAN     // Exclude rarely used Windows APIs
 
-// =========================================================================================
+// =====================================================================================
 //  Windows API Exclusions
-// =========================================================================================
+// =====================================================================================
+//  Reduce unnecessary includes from Windows headers to optimize build time and avoid
+//  symbol conflicts. Enable only what is required for this project.
 
-// Windows.h
-#define NOGDICAPMASKS             // CC_*, LC_*, PC_*, CP_*, TC_*, RC_
-#define NOWINSTYLES               // WS_*, CS_*, ES_*, LBS_*, SBS_*, CBS_*
-#define NOSYSMETRICS              // SM_*
-#define NOICONS                   // IDI_*
-#define NOKEYSTATES               // MK_*
-#define NOSYSCOMMANDS             // SC_*
-#define NORASTEROPS               // Binary and Tertiary raster ops
-#define NOSHOWWINDOW              // SW_*
-#define OEMRESOURCE               // OEM Resource values
-#define NOATOM                    // Atom Manager routines
-#define NOCLIPBOARD               // Clipboard routines
-#define NOCOLOR                   // Screen colors
-#define NOCTLMGR                  // Control and Dialog routines
-#define NODRAWTEXT                // DrawText() and DT_*
-#define NOGDI                     // All GDI defines and routines
-#define NOKERNEL                  // All KERNEL defines and routines
-#define NONLS                     // All NLS defines and routines
-#define NOMB                      // MB_* and MessageBox()
-#define NOMEMMGR                  // GMEM_*, LMEM_*, GHND, LHND, associated routines
-#define NOMETAFILE                // typedef METAFILEPICT
-#define NOMINMAX                  // Macros min(a,b) and max(a,b)
-#define NOOPENFILE                // OpenFile(), OemToAnsi, AnsiToOem, and OF_*
-#define NOSCROLL                  // SB_* and scrolling routines
-#define NOSERVICE                 // All Service Controller routines, SERVICE_ equates, etc.
-#define NOSOUND                   // Sound driver routines
-#define NOTEXTMETRIC              // typedef TEXTMETRIC and associated routines
-#define NOWH                      // SetWindowsHook and WH_*
-#define NOWINOFFSETS              // GWL_*, GCL_*, associated routines
-#define NOCOMM                    // COMM driver routines
-#define NOKANJI                   // Kanji support stuff.
-#define NOHELP                    // Help engine interface.
-#define NOPROFILER                // Profiler interface.
-#define NODEFERWINDOWPOS          // DeferWindowPos routines
-#define NOMCX                     // Modem Configuration Extensions
-#define NOCRYPT                   // Cryptographic APIs.
-#define NOIME                     // Input Method Manager.
+// windows.h
+#define NOWINSTYLES             // Exclude window styles (WS_*, CS_*, ES_*, etc.)
+#define NOSYSMETRICS            // Exclude system metrics (SM_*)
+#define NOICONS                 // Exclude icon definitions (IDI_*)
+#define NOKEYSTATES             // Exclude key state macros (MK_*)
+#define NOSYSCOMMANDS           // Exclude system commands (SC_*)
+#define NOSHOWWINDOW            // Exclude ShowWindow() and SW_* macros
+#define NOCLIPBOARD             // Exclude clipboard functions
+#define NOCOLOR                 // Exclude screen color definitions
+#define NOCTLMGR                // Exclude control and dialog routines
+#define NODRAWTEXT              // Exclude DrawText() and DT_* macros
+#define NOGDI                   // Exclude GDI functions and definitions
+#define NONLS                   // Exclude National Language Support (NLS)
+#define NOMB                    // Exclude MessageBox() and MB_* macros
+#define NOSCROLL                // Exclude scroll bar functions (SB_*)
+#define NOSERVICE               // Exclude Windows Service API
+#define NOWH                    // Exclude Windows hooks (WH_*)
+#define NOWINOFFSETS            // Exclude window offsets (GWL_*, GCL_*)
+#define NOHELP                  // Exclude Help engine API
+#define NOMCX                   // Exclude Modem Configuration Extensions
+#define NOIME                   // Exclude Input Method Editor (IME)
 
-// WinUser.h
-#define NODESKTOP                 // Desktop APIs
-#define NOWINDOWSTATION           // Window Station APIs
-#define NOSECURITY                // Security APIs
-#define NONCMESSAGES              // Non-client messages
-#define NOMDI                     // Multiple Document Interface
-#define NO_STATE_FLAGS            // State flag definitions
+// winuser.h
+#define NODESKTOP               // Exclude Desktop APIs
+#define NOWINDOWSTATION         // Exclude Window Station APIs
+#define NOSECURITY              // Exclude Security APIs
+#define NONCMESSAGES            // Exclude non-client messages
+#define NOMDI                   // Exclude Multiple Document Interface (MDI)
+#define NO_STATE_FLAGS          // Exclude state flag definitions
 
 // interlockedapi.h
-#define NOWINBASEINTERLOCK        // Windows base interlock functions
+#define NOWINBASEINTERLOCK      // Exclude Windows base interlock functions

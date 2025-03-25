@@ -16,8 +16,9 @@
 
 #pragma warning(pop)
 
-#include "include/conversion/hex.h"
-#include "include/conversion/int_to_chars.h"
+#include "include/conversion/address.h"
+#include "include/conversion/decimal.h"
+#include "include/conversion/hexadecimal.h"
 
 #include "include/config/core.h"
 #include "include/exception.h"
@@ -41,8 +42,8 @@ wmain(void) {
     char buffer[BUFLEN];
 
     DWORD timeout = DEFAULT_TIMEOUT;
-    BOOL breakpoint = DEFAULT_BREAKPOINT,
-    firstbreak = DEFAULT_FIRSTBREAK,
+    BOOL firstbreak = DEFAULT_FIRSTBREAK,
+    breakpoint = DEFAULT_BREAKPOINT,
     verbose = DEFAULT_VERBOSE,
     output = DEFAULT_OUTPUT,
     start = DEFAULT_START,
@@ -267,7 +268,6 @@ wmain(void) {
 
     HANDLE hProcess;
     HANDLE hFile[MAX_DLL];
-    HANDLE hThread[MAX_THREAD];
     PVOID BaseOfDll[MAX_DLL] = {};
     DBGUI_WAIT_STATE_CHANGE StateChange;
     DbgWaitStateChange(&StateChange, FALSE, NULL);
@@ -275,10 +275,9 @@ wmain(void) {
     CloseHandle(processInfo.hThread);
     hFile[0] = StateChange.StateInfo.CreateProcessInfo.NewProcess.FileHandle;
     BaseOfDll[0] = StateChange.StateInfo.CreateProcessInfo.NewProcess.BaseOfImage;
-    hThread[0] = StateChange.StateInfo.CreateProcessInfo.HandleToThread;
     hProcess = processInfo.hProcess;
 
-    if (verbose >= 2) DbgTraceEvent(&StateChange, CREATE_PROCESS, strlen(CREATE_PROCESS), hStdout, bConsole);
+    if (verbose >= 2) TraceDebugEvent(&StateChange, CREATE_PROCESS, strlen(CREATE_PROCESS), hStdout, bConsole);
 
     DbgContinue(&StateChange, DBG_CONTINUE);
 
@@ -286,16 +285,11 @@ wmain(void) {
     if (!b64bit) --firstbreak;
 
     DWORD i;
-    DWORD dwThreadId[MAX_THREAD] = {};
 
-    dwThreadId[0] = HandleToUlong(StateChange.AppClientId.UniqueThread);
-
-    while (TRUE) {
-        DbgWaitStateChange(&StateChange, FALSE, NULL);
-
+    while (NT_SUCCESS(DbgWaitStateChange(&StateChange, FALSE, NULL))) {
         switch (StateChange.NewState) {
         case DbgLoadDllStateChange:
-            if (verbose >= 2) DbgTraceModule(StateChange.StateInfo.LoadDll.FileHandle, LOAD_DLL, strlen(LOAD_DLL), hStdout, bConsole);
+            if (verbose >= 2) TraceDebugModule(StateChange.StateInfo.LoadDll.FileHandle, LOAD_DLL, strlen(LOAD_DLL), hStdout, bConsole);
 
             // Find storage position
             for (i = 0; i < MAX_DLL; ++i) if (!BaseOfDll[i]) {
@@ -309,7 +303,7 @@ wmain(void) {
         case DbgUnloadDllStateChange:
             // Find specific DLL
             for (i = 0; i < MAX_DLL; ++i) if (StateChange.StateInfo.UnloadDll.BaseAddress == BaseOfDll[i]) {
-                if (verbose >= 2) DbgTraceModule(hFile[i], UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout, bConsole);
+                if (verbose >= 2) TraceDebugModule(hFile[i], UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout, bConsole);
 
                 CloseHandle(hFile[i]);
                 BaseOfDll[i] = 0;
@@ -319,30 +313,15 @@ wmain(void) {
             break;
 
         case DbgCreateThreadStateChange:
-            if (verbose >= 2) DbgTraceEvent(&StateChange, CREATE_THREAD, strlen(CREATE_THREAD), hStdout, bConsole);
-
-            // Find storage position
-            for (i = 0; i < MAX_THREAD; ++i) if (!dwThreadId[i]) {
-                hThread[i] = StateChange.StateInfo.CreateThread.HandleToThread;
-                dwThreadId[i] = HandleToUlong(StateChange.AppClientId.UniqueThread);
-                break;
-            }
-
+            if (verbose >= 2) TraceDebugEvent(&StateChange, CREATE_THREAD, strlen(CREATE_THREAD), hStdout, bConsole);
             break;
 
         case DbgExitThreadStateChange:
-            if (verbose >= 2) DbgTraceEvent(&StateChange, EXIT_THREAD, strlen(EXIT_THREAD), hStdout, bConsole);
-
-            // Find specific thread
-            for (i = 0; i < MAX_THREAD; ++i) if (dwThreadId[i] == HandleToUlong(StateChange.AppClientId.UniqueThread)) {
-                dwThreadId[i] = 0;
-                break;
-            }
-
+            if (verbose >= 2) TraceDebugEvent(&StateChange, EXIT_THREAD, strlen(EXIT_THREAD), hStdout, bConsole);
             break;
 
         case DbgExitProcessStateChange:
-            if (verbose >= 2) DbgTraceEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout, bConsole);
+            if (verbose >= 2) TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout, bConsole);
 
             if (timeout)
                 WaitForInputOrTimeout(hStdout, timeout, bConsole);
@@ -360,12 +339,12 @@ wmain(void) {
         case DbgSingleStepStateChange:
             if (StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_PRINTEXCEPTION_WIDE_C ||
                 StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_PRINTEXCEPTION_C) {
-                if (verbose >= 2) DbgTraceEvent(&StateChange, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout, bConsole);
-                if (output == TRUE) DbgProcessDebugString(&StateChange, hProcess, hStdout, bConsole);
+                if (verbose >= 2) TraceDebugEvent(&StateChange, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout, bConsole);
+                if (output == TRUE) ProcessDebugStringEvent(&StateChange, hProcess, hStdout, bConsole);
                 break;
             } else if (StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_RIPEXCEPTION) {
-                if (verbose >= 2) DbgTraceEvent(&StateChange, RIP, strlen(RIP), hStdout, bConsole);
-                DbgProcessRIP(&StateChange, hStdout, bConsole);
+                if (verbose >= 2) TraceDebugEvent(&StateChange, RIP, strlen(RIP), hStdout, bConsole);
+                ProcessRIPEvent(&StateChange, hStdout, bConsole);
                 break;
             }
 
@@ -386,33 +365,22 @@ wmain(void) {
                 continue;
             }
 
-            // Find thread where exception occured
-            for (i = 0; i < MAX_THREAD; ++i) if (HandleToUlong(StateChange.AppClientId.UniqueThread) == dwThreadId[i])
-                break;
-
             memcpy(buffer, THREAD_NUMBER, strlen(THREAD_NUMBER));
-            if (HandleToUlong(StateChange.AppClientId.UniqueThread) == dwThreadId[i]) {
-                buffer[strlen(THREAD_NUMBER)] = '0' + (i + 1) / 10;
-                buffer[strlen(THREAD_NUMBER) + 1] = '0' + (i + 1) % 10;
-                p = buffer + strlen(THREAD_NUMBER) + 2;
-            } else p = int_to_chars(buffer + strlen(THREAD_NUMBER) - 1, HandleToUlong(StateChange.AppClientId.UniqueThread));
+            p = conversion::dec::from_int(buffer + strlen(THREAD_NUMBER),
+                HandleToUlong(StateChange.AppClientId.UniqueThread));
+            *p = 'x';
+            p = conversion::dec::from_int(p + 1,
+                HandleToUlong(StateChange.AppClientId.UniqueProcess));
 
-            wchar_t Tmp[WBUFLEN];
-
-            memcpy(p, THREAD_TRIGGERD, strlen(THREAD_TRIGGERD));
-            p += strlen(THREAD_TRIGGERD);
-            p = _ulto16au(StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode, p);
+            memcpy(p, THREAD_RAISED, strlen(THREAD_RAISED));
+            p += strlen(THREAD_RAISED);
+            p = _ulto16a(StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode, p);
             *p++ = '\n';
 
             PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
-            p += DbgFormatException(StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode,
+            p += FormatExceptionEvent(StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode,
                 LANG_USER_DEFAULT, p, buffer + BUFLEN - p, bConsole);
-
-            if (HandleToUlong(StateChange.AppClientId.UniqueThread) != dwThreadId[i]) {
-                WriteHandle(hStdout, buffer, p - buffer, FALSE, bConsole);
-                continue;
-            }
 
             SymSetOptions(SYMOPTIONS);
             SymInitializeW(hProcess, NULL, FALSE);
@@ -428,18 +396,19 @@ wmain(void) {
             CONTEXT Context;
             DWORD MachineType;
             STACKFRAME_EX StackFrame;
+            HANDLE hThread = DbgGetThreadHandle(&StateChange);
 
             if (b64bit) {
                 MachineType = IMAGE_FILE_MACHINE_AMD64;
                 Context.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
-                NtGetContextThread(hThread[i], &Context);
+                NtGetContextThread(hThread, &Context);
                 StackFrame.AddrPC.Offset = Context.Rip;
                 StackFrame.AddrFrame.Offset = Context.Rbp;
                 StackFrame.AddrStack.Offset = Context.Rsp;
             } else {
                 MachineType = IMAGE_FILE_MACHINE_I386;
                 ((PWOW64_CONTEXT) &Context)->ContextFlags = WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER;
-                NtQueryInformationThread(hThread[i], ThreadWow64Context,
+                NtQueryInformationThread(hThread, ThreadWow64Context,
                     &Context, sizeof(WOW64_CONTEXT), NULL);
                 StackFrame.AddrPC.Offset = ((PWOW64_CONTEXT) &Context)->Eip;
                 StackFrame.AddrFrame.Offset = ((PWOW64_CONTEXT) &Context)->Ebp;
@@ -477,7 +446,7 @@ wmain(void) {
             while (TRUE) {
                 StackFrame.InlineFrameContext = INLINE_FRAME_CONTEXT_IGNORE;
 
-                if (!StackWalk2(MachineType, hProcess, hThread[i], &StackFrame, &Context,
+                if (!StackWalk2(MachineType, hProcess, hThread, &StackFrame, &Context,
                     NULL, NULL, NULL, NULL, NULL, SYM_STKWALK_DEFAULT)) break;
 
                 *p++ = '#';
@@ -498,7 +467,9 @@ wmain(void) {
                     p += strlen(CONSOLE_BLUE_FORMAT);
                 }
 
-                p = __ui64toaddr(StackFrame.AddrPC.Offset, p, b64bit);
+                if (b64bit)
+                    p = conversion::addr::from_int(p, StackFrame.AddrPC.Offset);
+                else p = conversion::addr::from_int(p, (DWORD) StackFrame.AddrPC.Offset);
 
                 if (bConsole) {
                     memcpy(p, EXCEPTION_IN, strlen(EXCEPTION_IN));
@@ -572,6 +543,7 @@ wmain(void) {
                         p += strlen(CONSOLE_GREEN_FORMAT);
                     }
 
+                    wchar_t Tmp[WBUFLEN];
                     len = GetModuleFileNameExW(hProcess,
                         (HMODULE) SymGetModuleBase64(hProcess, StackFrame.AddrPC.Offset), Tmp, WBUFLEN);
                     p += ConvertUnicodeToUTF8(Tmp, len << 1, p, buffer + BUFLEN - p);

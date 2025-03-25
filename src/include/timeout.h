@@ -109,7 +109,7 @@ VOID WaitForInputOrTimeout(
         char buffer[64];
 
         memcpy(buffer, _FiniteMessage, strlen(_FiniteMessage));
-        p = int_to_chars(buffer + strlen(_FiniteMessage), (unsigned long) dwTimeout, VALID_TIMEOUT);
+        p = conversion::dec::from_int(buffer + strlen(_FiniteMessage), (unsigned long) dwTimeout, VALID_TIMEOUT);
         memcpy(p, FiniteMessage_, strlen(FiniteMessage_));
 
         if (bConsole) {

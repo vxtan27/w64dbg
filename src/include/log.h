@@ -11,7 +11,7 @@
 //  Utilizes a preallocated buffer to minimize runtime allocations
 //
 
-NTSTATUS DbgTraceEvent(
+NTSTATUS TraceDebugEvent(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     PCSTR szDebugEventName,
     SIZE_T DebugEventNameLength,
@@ -20,7 +20,7 @@ NTSTATUS DbgTraceEvent(
 ) {
     char Buffer[TRACE_DEBUG_EVENT_BUFFER_SIZE];
 
-    return WriteHandle(hStdout, Buffer, DbgFormatEvent(pStateChange,
+    return WriteHandle(hStdout, Buffer, FormatDebugEvent(pStateChange,
         szDebugEventName, DebugEventNameLength, Buffer), FALSE, bConsole);
 }
 
@@ -29,7 +29,7 @@ NTSTATUS DbgTraceEvent(
 //  Uses a MAX_PATH-sized buffer to accommodate typical module names
 //
 
-NTSTATUS DbgTraceModule(
+NTSTATUS TraceDebugModule(
     HANDLE hModule,
     PCSTR szDebugEventName,
     SIZE_T DebugEventNameLength,
@@ -38,12 +38,12 @@ NTSTATUS DbgTraceModule(
 ) {
     char Buffer[MAX_PATH];
 
-    return WriteHandle(hStdout, Buffer, DbgFormatModule(hModule,
+    return WriteHandle(hStdout, Buffer, FormatDebugModule(hModule,
         szDebugEventName, DebugEventNameLength, Buffer), FALSE, bConsole);
 }
 
 // Handles OutputDebugString events and writes the debug string to standard output
-VOID DbgProcessDebugString(
+VOID ProcessDebugStringEvent(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     HANDLE hProcess,
     HANDLE hStdout,
@@ -94,7 +94,7 @@ VOID DbgProcessDebugString(
 #define DEBUG_EVENT_RIP_BUFFER_SIZE (DEBUG_EVENT_RIP_SLE_MAX_LEN + 900)
 
 // Handles RIP (Debugger Error) events and writes diagnostic information
-NTSTATUS DbgProcessRIP(
+NTSTATUS ProcessRIPEvent(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     HANDLE hStdout,
     BOOL bConsole
@@ -102,5 +102,5 @@ NTSTATUS DbgProcessRIP(
     char Buffer[DEBUG_EVENT_RIP_BUFFER_SIZE];
 
     return WriteHandle(hStdout, Buffer,
-        DbgFormatRIP(pStateChange, Buffer, sizeof(Buffer)), FALSE, bConsole);
+        FormatRIPEvent(pStateChange, Buffer, sizeof(Buffer)), FALSE, bConsole);
 }

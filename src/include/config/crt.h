@@ -3,27 +3,33 @@
 
 #pragma once
 
-// Select CRT and VC libraries
-#ifdef _DEBUG
-    #define CRT_LIB "ucrtd"
-    #ifdef _DLL
-        #define VC_LIB "vcruntime"
+// =====================================================================================
+//  CRT & VC Runtime Configuration
+// =====================================================================================
+
+#if defined(_DEBUG)
+    #define CRT_LIB "ucrtd"              // Debug Universal C Runtime
+    #if defined(_DLL)
+        #define VC_LIB "vcruntime"       // Shared VC runtime (dynamic)
     #else
-        #define VC_LIB "libvcruntime"
+        #define VC_LIB "libvcruntime"    // Static VC runtime (static)
     #endif
 #else
-    #ifdef _DLL
-        #define CRT_LIB "ucrt"
-        #define VC_LIB "vcruntime"
+    #if defined(_DLL)
+        #define CRT_LIB "ucrt"           // Release Universal C Runtime (shared)
+        #define VC_LIB "vcruntime"       // Shared VC runtime (dynamic)
     #else
-        #define CRT_LIB "libucrt"
-        #define VC_LIB "libvcruntime"
+        #define CRT_LIB "libucrt"        // Release Universal C Runtime (static)
+        #define VC_LIB "libvcruntime"    // Static VC runtime (static)
     #endif
 #endif
 
-// Link Required Libraries
-#pragma comment(lib, CRT_LIB)
-#pragma comment(lib, VC_LIB)
-#pragma comment(lib, "ntdll")
-#pragma comment(lib, "kernel32")
-#pragma comment(lib, "dbghelp")
+// =====================================================================================
+//  Library Linking
+// =====================================================================================
+
+#pragma comment(lib, CRT_LIB)      // Link Universal C Runtime
+#pragma comment(lib, VC_LIB)       // Link Microsoft Visual C++ Runtime
+#pragma comment(lib, "ntdll")      // Link Windows Native API
+#pragma comment(lib, "kernel32")   // Link Windows Core API
+#pragma comment(lib, "dbghelp")    // Link Debugging Tools for Windows

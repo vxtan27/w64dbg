@@ -214,9 +214,11 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
 
     if (DTag == SymTagArrayType ||
         DTag == SymTagUDT ||
-        DTag == SymTagTaggedUnionCase)
-        User->p = _ui64toaddr(pSymInfo->Address + Base, User->p, User->b64bit);
-    else {
+        DTag == SymTagTaggedUnionCase) {
+        if (User->b64bit)
+            User->p = conversion::addr::from_int(User->p, pSymInfo->Address + Base);
+        else User->p = conversion::addr::from_int(User->p, (DWORD) (pSymInfo->Address + Base));
+    } else {
         ULONG64 Len;
         BASIC_TYPE bt = {};
 
@@ -224,24 +226,27 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
         SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_LENGTH, &Len);
         NtReadVirtualMemory(User->hProcess, (PVOID) (pSymInfo->Address + Base), &bt, Len, NULL); // pSymInfo->Size
 
-        if (DTag == SymTagPointerType) User->p = _ui64toaddr(bt.ui64, User->p, User->b64bit);
-        else {
+        if (DTag == SymTagPointerType) {
+            if (User->b64bit)
+                User->p = conversion::addr::from_int(User->p, bt.ui64);
+            else User->p = conversion::addr::from_int(User->p, (DWORD) bt.ui64);
+        } else {
             DWORD BaseType = 0;
             SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_BASETYPE, &BaseType);
 
             // https://github.com/rogerorr/NtTrace/blob/main/src/SymbolEngine.cpp#L1185
             switch (BaseType) {
             case btChar:
-                User->p = int_to_chars(User->p, bt.c);
+                User->p = conversion::dec::from_int(User->p, bt.c);
                 break;
             case btWChar:
-                User->p = int_to_chars(User->p, bt.wc);
+                User->p = conversion::dec::from_int(User->p, bt.wc);
                 break;
             case btInt:
-                User->p = int_to_chars(User->p, bt.i64);
+                User->p = conversion::dec::from_int(User->p, bt.i64);
                 break;
             case btUInt:
-                User->p = int_to_chars(User->p, bt.ui64);
+                User->p = conversion::dec::from_int(User->p, bt.ui64);
                 break;
             case btFloat:
                 User->p += fast_sprintf(User->p, LONGDOUBLE_FORMAT, bt.d);
@@ -256,13 +261,13 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
                 }
                 break;
             case btLong:
-                User->p = int_to_chars(User->p, bt.l);
+                User->p = conversion::dec::from_int(User->p, bt.l);
                 break;
             case btULong:
-                User->p = int_to_chars(User->p, bt.ul);
+                User->p = conversion::dec::from_int(User->p, bt.ul);
                 break;
             case btHresult:
-                User->p = _ulto16au(bt.ul, User->p);
+                User->p = _ulto16a(bt.ul, User->p);
                 break;
             }
         }

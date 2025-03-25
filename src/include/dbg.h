@@ -55,7 +55,7 @@ VOID DbgSaveThreadHandle(
 ) {
     // Allocate and fill a new thread data structure
     PDBGSS_THREAD_DATA ThreadData = (PDBGSS_THREAD_DATA) RtlAllocateHeap(
-        GetProcessHeap(), 0, sizeof(DBGSS_THREAD_DATA));
+        RtlProcessHeap(), HEAP_NO_SERIALIZE, sizeof(DBGSS_THREAD_DATA));
     ThreadData->Handle = pStateChange->StateInfo.CreateThread.HandleToThread;
     ThreadData->ProcessId = DbgGetProcessId(pStateChange);
     ThreadData->ThreadId = DbgGetThreadId(pStateChange);
@@ -72,7 +72,7 @@ VOID DbgSaveProcessHandle(
 ) {
     // Allocate and fill process handle structure
     PDBGSS_THREAD_DATA ThreadData = (PDBGSS_THREAD_DATA) RtlAllocateHeap(
-        GetProcessHeap(), 0, sizeof(DBGSS_THREAD_DATA));
+        RtlProcessHeap(), HEAP_NO_SERIALIZE, sizeof(DBGSS_THREAD_DATA));
     ThreadData->Handle = pStateChange->StateInfo.CreateProcessInfo.HandleToProcess;
     ThreadData->ProcessId = DbgGetProcessId(pStateChange);
     ThreadData->ThreadId = 0;
@@ -83,7 +83,7 @@ VOID DbgSaveProcessHandle(
 
     // Allocate and fill initial thread handle structure
     PDBGSS_THREAD_DATA ThisData = (PDBGSS_THREAD_DATA) RtlAllocateHeap(
-        GetProcessHeap(), 0, sizeof(DBGSS_THREAD_DATA));
+        RtlProcessHeap(), HEAP_NO_SERIALIZE, sizeof(DBGSS_THREAD_DATA));
     ThisData->Handle = pStateChange->StateInfo.CreateProcessInfo.HandleToThread;
     ThisData->ProcessId = DbgGetProcessId(pStateChange);
     ThisData->ThreadId = DbgGetThreadId(pStateChange);
@@ -134,7 +134,7 @@ VOID DbgRemoveHandles(
            (ThisData->ThreadId == DbgGetThreadId(pStateChange) || !ThisData->ThreadId)) {
             CloseHandle(ThisData->Handle);  // Close handle
             *ThreadData = ThisData->Next;     // Unlink from list
-            RtlFreeHeap(GetProcessHeap(), 0, ThisData);  // Free memory
+            RtlFreeHeap(RtlProcessHeap(), HEAP_NO_SERIALIZE, ThisData);  // Free memory
         } else {
             ThreadData = &ThisData->Next;
         }
@@ -153,7 +153,7 @@ VOID DbgCloseAllProcessHandles(
         if (ThisData->ProcessId == DbgGetProcessId(pStateChange)) {
             CloseHandle(ThisData->Handle);
             *ThreadData = ThisData->Next;
-            RtlFreeHeap(GetProcessHeap(), 0, ThisData);
+            RtlFreeHeap(RtlProcessHeap(), HEAP_NO_SERIALIZE, ThisData);
         } else {
             ThreadData = &ThisData->Next;
         }
@@ -222,8 +222,24 @@ NTSTATUS DbgContinue(
 ) {
     NTSTATUS NtStatus = NtDebugContinue(DbgGetThreadDebugObject(),
         &pStateChange->AppClientId, dwContinueStatus);
-    DbgRemoveHandles(pStateChange);  // Clean up after continuation
+    if (NT_SUCCESS(NtStatus)) DbgRemoveHandles(pStateChange);  // Clean up after continuation
     return NtStatus;
+}
+
+// Attach debugger to a process
+NTSTATUS DbgDebugActiveProcess(
+    HANDLE hProcess,
+    ULONG uFlags
+) {
+    // Create debug object if not already set
+    if (!DbgGetThreadDebugObject()) {
+        NTSTATUS status = NtCreateDebugObject(
+            &DbgGetThreadDebugObject(), DEBUG_ALL_ACCESS, NULL, uFlags);
+        if (!NT_SUCCESS(status)) return status;
+    }
+
+    // Attach to target process
+    return DbgUiDebugActiveProcess(hProcess);
 }
 
 // Stop debugging a process by closing all handles and removing the debug object
@@ -233,4 +249,28 @@ NTSTATUS DbgStopDebugging(
 ) {
     DbgCloseAllProcessHandles(pStateChange);  // Clean up process handles
     return NtRemoveProcessDebug(hProcess, DbgGetThreadDebugObject());
+}
+
+// Retrieve process handle from debug event
+HANDLE DbgGetProcessHandle(
+    PDBGUI_WAIT_STATE_CHANGE pStateChange
+) {
+    for (PDBGSS_THREAD_DATA ThreadData = DbgSsGetThreadData();
+         ThreadData; ThreadData = ThreadData->Next) {
+        if (!ThreadData->ThreadId &&
+            ThreadData->ProcessId == DbgGetProcessId(pStateChange))
+            return ThreadData->Handle;
+    }
+}
+
+// Retrieve thread handle from debug event
+HANDLE DbgGetThreadHandle(
+    PDBGUI_WAIT_STATE_CHANGE pStateChange
+) {
+    for (PDBGSS_THREAD_DATA ThreadData = DbgSsGetThreadData();
+         ThreadData; ThreadData = ThreadData->Next) {
+        if (ThreadData->ThreadId == DbgGetThreadId(pStateChange) &&
+            ThreadData->ProcessId == DbgGetProcessId(pStateChange))
+            return ThreadData->Handle;
+    }
 }

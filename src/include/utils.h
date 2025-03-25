@@ -94,7 +94,7 @@ BOOL DoesFileExists(
     // Query the attributes and free the buffer now
     NtStatus = NtQueryAttributesFile(&ObjectAttributes, &BasicInformation);
     RtlReleaseRelativeName(pRelativeName);
-    RtlFreeHeap(RtlProcessHeap(), 0, pBuffer);
+    RtlFreeHeap(RtlProcessHeap(), HEAP_NO_SERIALIZE, pBuffer);
 
     // Check if we failed
     if (!NT_SUCCESS(NtStatus)) {

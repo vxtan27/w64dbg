@@ -8,12 +8,12 @@
 //  Output format: "<EventName><ProcessID>x<ThreadID>\n
 //
 
-DWORD DbgFormatEvent(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCSTR szDebugEventName, SIZE_T DebugEventNameLength, PCH Buffer) {
+DWORD FormatDebugEvent(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCSTR szDebugEventName, SIZE_T DebugEventNameLength, PCH Buffer) {
     memcpy(Buffer, szDebugEventName, DebugEventNameLength);
-    char *p = int_to_chars(Buffer + DebugEventNameLength,
+    char *p = conversion::dec::from_int(Buffer + DebugEventNameLength,
         HandleToUlong(pStateChange->AppClientId.UniqueProcess));
     *p = 'x';
-    p = int_to_chars(p + 1, HandleToUlong(pStateChange->AppClientId.UniqueThread));
+    p = conversion::dec::from_int(p + 1, HandleToUlong(pStateChange->AppClientId.UniqueThread));
     *p = '\n';
 
     return p - Buffer + 1;
@@ -24,7 +24,7 @@ DWORD DbgFormatEvent(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCSTR szDebugEventNa
 //  Output format: "<EventName><ModulePath>\n"
 //
 
-DWORD DbgFormatModule(HANDLE hModule, PCSTR szDebugEventName, SIZE_T DebugEventNameLength, PCH Buffer) {
+DWORD FormatDebugModule(HANDLE hModule, PCSTR szDebugEventName, SIZE_T DebugEventNameLength, PCH Buffer) {
     SIZE_T Length;
     ULONG ActualByteCount;
     WCHAR Target[MAX_PATH];
@@ -58,7 +58,7 @@ DWORD DbgFormatModule(HANDLE hModule, PCSTR szDebugEventName, SIZE_T DebugEventN
 //  Output format: "<ErrorMessage><ErrorType>\n"
 //
 
-DWORD DbgFormatRIP(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCH Buffer, ULONG BufLen) {
+DWORD FormatRIPEvent(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCH Buffer, ULONG BufLen) {
     char *p;
     ULONG ActualByteCount;
     PMESSAGE_RESOURCE_ENTRY MessageEntry;
@@ -89,7 +89,7 @@ DWORD DbgFormatRIP(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCH Buffer, ULONG BufL
 }
 
 #define STATUS_APPLICATION_HANG_TEXT \
-R"({EXCEPTION}  
+R"({EXCEPTION}
 Application hang
 The application has stopped responding.
 )"
@@ -106,7 +106,7 @@ Common language runtime (CLR) exception
 An exception was raised by the Common Language Runtime (CLR).
 )"
 
-DWORD DbgFormatException(DWORD dwMessageId, DWORD dwLanguageId, PCH pBuffer, DWORD dwSize, BOOL bConsole) {
+DWORD FormatExceptionEvent(DWORD dwMessageId, DWORD dwLanguageId, PCH pBuffer, DWORD dwSize, BOOL bConsole) {
     PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
     if (dwMessageId == 0xCFFFFFFF || dwMessageId == 0xE06D7363 || dwMessageId == 0xE0434f4D ||
@@ -154,11 +154,15 @@ PSTR FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG Bu
     }
 
     *p = ':'; // Add a colon separator
-    p = int_to_chars(p + 1, LineNumber);
+    p = conversion::dec::from_int(p + 1, LineNumber);
     *p = '\n'; // Terminate with a newline
 
     return p + 1;
 }
+
+#define OBJECT_MANAGER_NAMESPACE "\\\0?\0?\0\\"
+#define OBJECT_MANAGER_NAMESPACE_LEN 8
+#define OBJECT_MANAGER_NAMESPACE_WLEN 4
 
 PSTR FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, PCH p) {
     // Prepend Object Manager namespace to the file name
@@ -194,7 +198,7 @@ PSTR FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG
                     size_t temp;
 
                     // Format line number and spacing
-                    p = int_to_chars(p, line);
+                    p = conversion::dec::from_int(p, line);
                     memset(p, ' ', 6);
                     p += 6;
                     // Extract content for the target line
