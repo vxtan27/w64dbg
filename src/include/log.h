@@ -7,8 +7,8 @@
 #define TRACE_DEBUG_EVENT_BUFFER_SIZE (DEBUG_EVENT_NAME_MAX_LEN + 22)
 
 //
-//  Writes a formatted debug event message to the specified handle
-//  Utilizes a preallocated buffer to minimize runtime allocations
+//  Write a formatted debug event message to the specified handle
+//  Utilize a preallocated buffer to minimize runtime allocations
 //
 
 NTSTATUS TraceDebugEvent(
@@ -25,8 +25,8 @@ NTSTATUS TraceDebugEvent(
 }
 
 //
-//  Logs module-related debug events
-//  Uses a MAX_PATH-sized buffer to accommodate typical module names
+//  Log module-related debug events
+//  Use a MAX_PATH-sized buffer to accommodate typical module names
 //
 
 NTSTATUS TraceDebugModule(
@@ -42,7 +42,7 @@ NTSTATUS TraceDebugModule(
         szDebugEventName, DebugEventNameLength, Buffer), FALSE, bConsole);
 }
 
-// Handles OutputDebugString events and writes the debug string to standard output
+// Process OutputDebugString events and writes the debug string to standard output
 VOID ProcessDebugStringEvent(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     HANDLE hProcess,
@@ -93,7 +93,7 @@ VOID ProcessDebugStringEvent(
 #define DEBUG_EVENT_RIP_SLE_MAX_LEN 102
 #define DEBUG_EVENT_RIP_BUFFER_SIZE (DEBUG_EVENT_RIP_SLE_MAX_LEN + 900)
 
-// Handles RIP (Debugger Error) events and writes diagnostic information
+// Process RIP (Debugger Error) events and writes diagnostic information
 NTSTATUS ProcessRIPEvent(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     HANDLE hStdout,

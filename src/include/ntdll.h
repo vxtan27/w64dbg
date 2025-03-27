@@ -41,7 +41,7 @@ NtCurrentPeb(
 #define RtlStandardOutput() (NtCurrentPeb()->ProcessParameters->StandardOutput)
 #define RtlStandardError() (NtCurrentPeb()->ProcessParameters->StandardError)
 
-#define GetCurrentDirectory() (&NtCurrentPeb()->ProcessParameters->CurrentDirectory)
-#define GetCurrentDirectoryDosPath() (&GetCurrentDirectory()->DosPath)
-#define GetCommandLine() (&NtCurrentPeb()->ProcessParameters->CommandLine)
-#define GetEnvironment() (NtCurrentPeb()->ProcessParameters->Environment)
+#define RtlCurrentDirectory() (&NtCurrentPeb()->ProcessParameters->CurrentDirectory)
+#define RtlDosPath() (&RtlCurrentDirectory()->DosPath)
+#define RtlCommandLine() (&NtCurrentPeb()->ProcessParameters->CommandLine)
+#define RtlEnvironment() (NtCurrentPeb()->ProcessParameters->Environment)

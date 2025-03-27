@@ -97,9 +97,9 @@ namespace conversion::dec {
     using cond = typename _cond<B, T, F>::type;
 
     // Optimized integer-to-decimal conversion
-    // Converts integer 'i' to its decimal representation in buffer 'b'
-    // Parameter 'g' limits the conversion range. Returns pointer to end of result
-    // Returns pointer to the end of the written characters
+    // Convert integer 'i' to its decimal representation in buffer 'b'
+    // Paramete 'g' limits the conversion range. Returns pointer to end of result
+    // Return pointer to the end of the written characters
     template <class T, class F = T>
 #if defined(_MSC_VER)
     __forceinline

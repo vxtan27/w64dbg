@@ -31,9 +31,9 @@
 //  Buffer Sizes
 // =====================================================================================
 
-#define PAGESIZE    4096  // Memory page size
-#define BUFLEN      8192  // General buffer length
-#define WBUFLEN     4096  // Wide character buffer length
+#define PAGESIZE    4096             // Memory page size
+#define BUFLEN      8192             // General buffer length
+#define WBUFLEN     4096             // Wide character buffer length
 
 // =====================================================================================
 //  Process Creation Flags

@@ -108,8 +108,8 @@ BOOL DoesFileExists(
 }
 
 //
-//  Retrieves a localized system message from ntdll.dll
-//  Leverages direct access to the second loaded module in the PEB loader data
+//  Retrieve a localized system message from ntdll.dll
+//  Leverage direct access to the second loaded module in the PEB loader data
 //
 
 NTSTATUS LookupNtdllMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *MessageEntry) {
@@ -118,8 +118,8 @@ NTSTATUS LookupNtdllMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESO
 }
 
 //
-//  Retrieves a localized system message from KernelBase.dll
-//  Leverages direct access to the fourth loaded module in the PEB loader data
+//  Retrieve a localized system message from KernelBase.dll
+//  Leverage direct access to the fourth loaded module in the PEB loader data
 //
 
 NTSTATUS LookupSystemMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *MessageEntry) {
@@ -127,12 +127,12 @@ NTSTATUS LookupSystemMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RES
         PtrToUlong(RT_MESSAGETABLE), dwLanguageId, dwMessageId, MessageEntry);
 }
 
-// Retrieves the text of a message resource entry
+// Retrieve the text of a message resource entry
 PWCH GetMessageEntryText(PMESSAGE_RESOURCE_ENTRY MessageEntry) {
     return (PWCH) MessageEntry->Text;
 }
 
-// Retrieves the length of a message resource entry's text
+// Retrieve the length of a message resource entry's text
 WORD GetMessageEntryLength(PMESSAGE_RESOURCE_ENTRY MessageEntry) {
     // Compute text length, excluding trailing null character
     WORD wLength = MessageEntry->Length - FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, Text) - sizeof(wchar_t);
@@ -144,7 +144,7 @@ WORD GetMessageEntryLength(PMESSAGE_RESOURCE_ENTRY MessageEntry) {
     return wLength;
 }
 
-// Determines whether a given handle is associated with a console
+// Determine whether a given handle is associated with a console
 NTSTATUS IsConsoleHandle(HANDLE hHandle, PBOOL pResult) {
     IO_STATUS_BLOCK IoStatus;
     FILE_FS_DEVICE_INFORMATION DeviceInfo;
@@ -156,7 +156,7 @@ NTSTATUS IsConsoleHandle(HANDLE hHandle, PBOOL pResult) {
     return NtStatus;
 }
 
-// Retrieves the size of the specified module
+// Retrieve the size of the specified module
 NTSTATUS GetModuleSize(HANDLE hModule, PDWORD pFileSize) {
     IO_STATUS_BLOCK IoStatus;
     FILE_STANDARD_INFORMATION FileInfo;

@@ -87,7 +87,7 @@ VOID CALLBACK TimerRoutine(PVOID lpParameter, BOOLEAN TimerOrWaitFired) {
 
 VOID WaitForInputOrTimeout(
     HANDLE     hStdout,
-    LONG       dwTimeout,
+    DWORD       dwTimeout,
     BOOL       bConsole
 ) {
     HANDLE hStdin = RtlStandardInput();

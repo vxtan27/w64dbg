@@ -83,8 +83,8 @@ namespace conversion::addr {
     using cond = typename _cond<B, T, F>::type;
 
     // Optimized integer-to-hex-address conversion
-    // Converts integer 'i' to a hex address representation stored in buffer 'b'
-    // Returns pointer to the end of the written characters
+    // Convert integer 'i' to a hex address representation stored in buffer 'b'
+    // Return pointer to the end of the written characters
     template <class T>
 #if defined(_MSC_VER)
     __forceinline

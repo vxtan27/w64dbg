@@ -5,29 +5,22 @@
 #include "include/config/crt.h"
 #include "include/config/build.h"
 
-#pragma warning(push)
-#pragma warning(disable: 4005)
-
-#include "include/ntdll.h"
-
+#include <ntdll.h>
 #include <dbghelp.h>
 #include <cvconst.h>
 #include <psapi.h>
 
-#pragma warning(pop)
-
-#include "include/conversion/address.h"
-#include "include/conversion/decimal.h"
-#include "include/conversion/hexadecimal.h"
-
-#include "include/config/core.h"
-#include "include/exception.h"
-#include "include/utils.h"
-#include "include/fmt.h"
-#include "include/dbg.h"
-#include "include/log.h"
-#include "include/symbols.h"
-#include "include/timeout.h"
+#include <conversion/address.h>
+#include <conversion/decimal.h>
+#include <conversion/hexadecimal.h>
+#include <config/core.h>
+#include <exception.h>
+#include <debugger/core.cpp>
+#include <utils.h>
+#include <fmt.h>
+#include <log.h>
+#include <symbols.h>
+#include <timeout.h>
 
 int
 #if defined(_M_CEE_PURE)
@@ -50,7 +43,7 @@ wmain(void) {
     help = FALSE;
 
     char *p = buffer;
-    PUNICODE_STRING pCommandLine = GetCommandLine();
+    PUNICODE_STRING pCommandLine = RtlCommandLine();
     len = pCommandLine->Length >> 1;
     wchar_t *pCmdLine = wmemchr(pCommandLine->Buffer, ' ', len);
     wchar_t *pNext = pCmdLine;
@@ -251,7 +244,7 @@ wmain(void) {
 
     STARTUPINFOW startupInfo;
     PROCESS_INFORMATION processInfo;
-    PUNICODE_STRING DosPath = GetCurrentDirectoryDosPath();
+    PUNICODE_STRING DosPath = RtlDosPath();
 
     startupInfo.cb = sizeof(startupInfo);
     startupInfo.lpReserved = NULL;
@@ -264,7 +257,7 @@ wmain(void) {
     CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
         start ? CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE
               : CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
-        GetEnvironment(), DosPath->Buffer, &startupInfo, &processInfo);
+        RtlEnvironment(), DosPath->Buffer, &startupInfo, &processInfo);
 
     HANDLE hProcess;
     HANDLE hFile[MAX_DLL];

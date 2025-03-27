@@ -4,7 +4,7 @@
 #pragma once
 
 //
-//  Formats a debug event message into a buffer
+//  Format a debug event message into a buffer
 //  Output format: "<EventName><ProcessID>x<ThreadID>\n
 //
 
@@ -20,7 +20,7 @@ DWORD FormatDebugEvent(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCSTR szDebugEvent
 }
 
 //
-//  Formats a module-related debug event message into a buffer
+//  Format a module-related debug event message into a buffer
 //  Output format: "<EventName><ModulePath>\n"
 //
 
@@ -54,7 +54,7 @@ DWORD FormatDebugModule(HANDLE hModule, PCSTR szDebugEventName, SIZE_T DebugEven
 }
 
 //
-//  Formats a RIP (Raise an Exception) debug event message into a buffer
+//  Format a RIP (Raise an Exception) debug event message into a buffer
 //  Output format: "<ErrorMessage><ErrorType>\n"
 //
 

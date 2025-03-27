@@ -136,6 +136,10 @@ DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext) {
     }
 }
 
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
 DWORD64 GetRegisterBase(PSYMBOL_INFOW pSymInfo, PVOID ContextRecord, DWORD b64bit) {
     return b64bit ? GetRegisterBase64(pSymInfo, (PCONTEXT) ContextRecord)
                     : GetRegisterBase32(pSymInfo, (PWOW64_CONTEXT) ContextRecord);
@@ -166,7 +170,7 @@ typedef union {
 // Macro String
 #define TRUE_STR _CRT_STRINGIZE_(TRUE)
 #define FALSE_STR _CRT_STRINGIZE_(FALSE)
-// Applies non-bold/bright cyan to foreground
+// Apply non-bold/bright cyan to foreground
 #define CONSOLE_CYAN_FORMAT "\x1b[36m"
 // Long double format specifier
 #define LONGDOUBLE_FORMAT "%Lg"
@@ -280,7 +284,3 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
 
     return TRUE; // Continue enumeration
 }
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
