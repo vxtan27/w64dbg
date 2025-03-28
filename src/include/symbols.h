@@ -172,8 +172,8 @@ typedef union {
 #define FALSE_STR _CRT_STRINGIZE_(FALSE)
 // Apply non-bold/bright cyan to foreground
 #define CONSOLE_CYAN_FORMAT "\x1b[36m"
-// Long double format specifier
-#define LONGDOUBLE_FORMAT "%Lg"
+
+#include "dragonbox_to_chars.cpp"
 
 // https://accu.org/journals/overload/29/165/orr
 // https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code#showing-variables-using-the-windows-debugging-api
@@ -253,7 +253,7 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
                 User->p = conversion::dec::from_int(User->p, bt.ui64);
                 break;
             case btFloat:
-                User->p += fast_sprintf(User->p, LONGDOUBLE_FORMAT, bt.d);
+                User->p = jkj::dragonbox::to_chars_n(bt.d, User->p);
                 break;
             case btBool:
                 if (bt.b) {

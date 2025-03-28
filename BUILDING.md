@@ -37,7 +37,7 @@ Alternatively, if you prefer to manage external dependencies manually, clone the
 3. Compile using the following command:
 
     ```sh
-    cl /I external/phnt /I "%VSINSTALLDIR%/DIA SDK/include" /I src/include /std:c++20 src/main.cpp /link /SUBSYSTEM:CONSOLE /ENTRY:wmain
+    cl /I "%VSINSTALLDIR%/DIA SDK/include" /I external/phnt /I external/dragonbox/include /I external/dragonbox/source /I src/include /std:c++20 src/main.cpp /link /SUBSYSTEM:CONSOLE /ENTRY:wmain
     ```
 
 ## Customization & Optimization

@@ -1,3 +1,6 @@
 [submodule "external/phnt"]
 	path = external/phnt
 	url = https://github.com/winsiderss/phnt.git
+[submodule "external/dragonbox"]
+	path = external/dragonbox
+	url = https://github.com/jk-jeon/dragonbox.git
