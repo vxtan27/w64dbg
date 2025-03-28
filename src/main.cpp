@@ -10,9 +10,9 @@
 #include <cvconst.h>
 #include <psapi.h>
 
+#include <conversion/status.h>
 #include <conversion/address.h>
 #include <conversion/decimal.h>
-#include <conversion/hexadecimal.h>
 #include <config/core.h>
 #include <exception.h>
 #include <debugger/core.cpp>
@@ -265,7 +265,7 @@ wmain(void) {
     DBGUI_WAIT_STATE_CHANGE StateChange;
     DbgWaitStateChange(&StateChange, FALSE, NULL);
 
-    CloseHandle(processInfo.hThread);
+    NtClose(processInfo.hThread);
     hFile[0] = StateChange.StateInfo.CreateProcessInfo.NewProcess.FileHandle;
     BaseOfDll[0] = StateChange.StateInfo.CreateProcessInfo.NewProcess.BaseOfImage;
     hProcess = processInfo.hProcess;
@@ -298,7 +298,7 @@ wmain(void) {
             for (i = 0; i < MAX_DLL; ++i) if (StateChange.StateInfo.UnloadDll.BaseAddress == BaseOfDll[i]) {
                 if (verbose >= 2) TraceDebugModule(hFile[i], UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout, bConsole);
 
-                CloseHandle(hFile[i]);
+                NtClose(hFile[i]);
                 BaseOfDll[i] = 0;
                 break;
             }
@@ -319,10 +319,10 @@ wmain(void) {
             if (timeout)
                 WaitForInputOrTimeout(hStdout, timeout, bConsole);
 
-            CloseHandle(hProcess);
+            NtClose(hProcess);
 
             for (i = 0; i < MAX_DLL; ++i)
-                if (BaseOfDll[i]) CloseHandle(hFile[i]);
+                if (BaseOfDll[i]) NtClose(hFile[i]);
 
             DbgContinue(&StateChange, DBG_CONTINUE);
             return EXIT_SUCCESS;
@@ -367,7 +367,8 @@ wmain(void) {
 
             memcpy(p, THREAD_RAISED, strlen(THREAD_RAISED));
             p += strlen(THREAD_RAISED);
-            p = _ulto16a(StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode, p);
+            p = conversion::status::from_int(p,
+                StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode);
             *p++ = '\n';
 
             PMESSAGE_RESOURCE_ENTRY MessageEntry;

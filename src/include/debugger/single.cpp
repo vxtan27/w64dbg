@@ -51,7 +51,7 @@ DBGAPI VOID DbgFreeThreadHandle(PDBGUI_WAIT_STATE_CHANGE pStateChange) {
 
     while (ThisData) {
         if (ThisData->ThreadId == DbgGetThreadId(pStateChange)) {
-            CloseHandle(ThisData->Handle);
+            NtClose(ThisData->Handle);
             *ThreadData = ThisData->Next;
             RtlFreeHeap(RtlProcessHeap(), HEAP_NO_SERIALIZE, ThisData);
             break;
@@ -69,7 +69,7 @@ DBGAPI VOID DbgCloseAllProcessHandles(PDBGUI_WAIT_STATE_CHANGE pStateChange) {
     PDBGSS_THREAD_DATA ThisData = *ThreadData;
 
     while (ThisData) {
-        CloseHandle(ThisData->Handle);
+        NtClose(ThisData->Handle);
         *ThreadData = ThisData->Next;
         RtlFreeHeap(RtlProcessHeap(), HEAP_NO_SERIALIZE, ThisData);
         ThisData = *ThreadData;

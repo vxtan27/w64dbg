@@ -157,14 +157,14 @@ typedef struct {
 } USERCONTEXT, *PUSERCONTEXT;
 
 typedef union {
+    bool b;
     char c;
+    long l;
+    double d;
     wchar_t wc;
     __int64 i64;
-    unsigned __int64 ui64;
-    bool b;
-    long l;
     unsigned long ul;
-    double d;
+    unsigned __int64 ui64;
 } BASIC_TYPE;
 
 // Macro String
@@ -233,7 +233,7 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
         if (DTag == SymTagPointerType) {
             if (User->b64bit)
                 User->p = conversion::addr::from_int(User->p, bt.ui64);
-            else User->p = conversion::addr::from_int(User->p, (DWORD) bt.ui64);
+            else User->p = conversion::addr::from_int(User->p, bt.ul);
         } else {
             DWORD BaseType = 0;
             SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_BASETYPE, &BaseType);
@@ -271,7 +271,9 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
                 User->p = conversion::dec::from_int(User->p, bt.ul);
                 break;
             case btHresult:
-                User->p = _ulto16a(bt.ul, User->p);
+                User->p[0] = '0';
+                User->p[1] = 'x';
+                User->p = conversion::status::from_int(User->p + 2, bt.ul);
                 break;
             }
         }
