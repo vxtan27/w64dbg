@@ -20,7 +20,7 @@
 #include <fmt.h>
 #include <log.h>
 #include <symbols.h>
-#include <timeout.h>
+#include <pause.h>
 
 int
 #if defined(_M_CEE_PURE)
@@ -34,12 +34,12 @@ wmain(void) {
     size_t temp, len;
     char buffer[BUFLEN];
 
-    DWORD timeout = DEFAULT_TIMEOUT;
     BOOL firstbreak = DEFAULT_FIRSTBREAK,
     breakpoint = DEFAULT_BREAKPOINT,
     verbose = DEFAULT_VERBOSE,
     output = DEFAULT_OUTPUT,
     start = DEFAULT_START,
+    pause = DEFAULT_PAUSE,
     help = FALSE;
 
     char *p = buffer;
@@ -91,32 +91,13 @@ wmain(void) {
 
             case 'T':
             case 't':
-                while (*pNext == ' ') ++pNext; // Skip spaces
-
-                pNext += 2;
-                ptr = pNext;
-                temp = pCmdLine + len + 1 - pNext;
-
-                if (temp <= 0) {
-                    ExitStatus = ERROR_BAD_ARGUMENTS;
-
-                    memcpy(p, VALUE_EXPECTED,
-                        strlen(VALUE_EXPECTED));
-                    p += strlen(VALUE_EXPECTED);
-                    *p++ = *ptr;
-                    *p++ = *(ptr + 1);
-                    *p++ = '\'';
-                    *p++ = '\n';
-                } else if ((timeout = process_timeout(pNext, &pNext, temp)) > VALID_TIMEOUT) {
-                    memcpy(p, _TIMEOUT_INVALID, strlen(_TIMEOUT_INVALID));
-                    p += strlen(_TIMEOUT_INVALID);
-                    *p++ = *ptr;
-                    *p++ = *(ptr + 1);
-                    memcpy(p, TIMEOUT_INVALID_, strlen(TIMEOUT_INVALID_));
-                    p += strlen(TIMEOUT_INVALID_);
+                if (*(pNext + 2) == ' ') {
+                    pause = TRUE;
+                    pNext += 3;
+                    continue;
                 }
 
-                continue;
+                break;
 
             case 'V':
             case 'v':
@@ -316,8 +297,7 @@ wmain(void) {
         case DbgExitProcessStateChange:
             if (verbose >= 2) TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout, bConsole);
 
-            if (timeout)
-                WaitForInputOrTimeout(hStdout, timeout, bConsole);
+            if (pause) WaitOrTimeout(hStdout, bConsole);
 
             NtClose(hProcess);
 
@@ -370,8 +350,6 @@ wmain(void) {
             p = conversion::status::from_int(p,
                 StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode);
             *p++ = '\n';
-
-            PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
             p += FormatExceptionEvent(StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode,
                 LANG_USER_DEFAULT, p, buffer + BUFLEN - p, bConsole);

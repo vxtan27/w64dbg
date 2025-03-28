@@ -3,6 +3,7 @@
 //
 // Derived from "jeaiii_to_text.h" (MIT License) by James Edward Anhalt III.
 // Modifications:
+// - Refactored codebase to modern style
 // - Added range-limiting parameter
 // - Optimized instruction usage
 //
@@ -34,6 +35,11 @@ SOFTWARE.
 #pragma once
 
 #include <limits>
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 5045)
+#endif
 
 namespace conversion::dec {
     // Two-character lookup pair for decimal conversion
@@ -97,7 +103,7 @@ namespace conversion::dec {
     using cond = typename _cond<B, T, F>::type;
 
     // Optimized integer-to-decimal conversion
-    // Convert integer 'i' to its decimal representation in buffer 'b'
+    // Convert integer 'i' to a decimal representation in buffer 'b'
     // Paramete 'g' limits the conversion range. Returns pointer to end of result
     // Return pointer to the end of the written characters
     template <class T, class F = T>
@@ -263,3 +269,7 @@ namespace conversion::dec {
         return b + 8;
     }
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif

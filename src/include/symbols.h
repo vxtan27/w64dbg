@@ -179,6 +179,7 @@ typedef union {
 // https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code#showing-variables-using-the-windows-debugging-api
 
 BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID UserContext) {
+    (void) SymbolSize;
     PUSERCONTEXT User = (PUSERCONTEXT) UserContext;
 
     if (pSymInfo->Flags & SYMFLAG_NULL ||

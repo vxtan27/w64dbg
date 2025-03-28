@@ -4,6 +4,8 @@
 // Derived from "jeaiii_to_text.h" (MIT License) by James Edward Anhalt III.
 // Modifications:
 // - Refactored codebase for status conversion
+// - Added range-limiting parameter
+// - Optimized instruction usage
 //
 // Original MIT License (retained):
 /*
@@ -32,12 +34,8 @@ SOFTWARE.
 
 #pragma once
 
+#include <limits>
 #include <string.h>
-
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4293)
-#endif
 
 namespace conversion::status {
     // Two-character lookup pair for hexadecimal conversion
@@ -85,32 +83,34 @@ namespace conversion::status {
     // Optimized integer-to-hex-status conversion
     // Convert integer 'i' to a hex status representation stored in buffer 'b'
     // Return pointer to the end of the written characters
-    template <class T>
+    template <class T, class F = T>
 #if defined(_MSC_VER)
     __forceinline
 #else
     inline
 #endif
-    char* from_int(char* b, T i) {
+    char* from_int(char* b, T i, F g = 0) {
         constexpr auto q = sizeof(T);
         using U = cond<q <= 4, u32, u64>;
 
         // Convert negative value to positive equivalent
         U const n = (i < 0) ? (U(0) - U(i)) : U(i);
+        // Determine conversion range
+        U const r = (g <= 0) ? U(std::numeric_limits<T>::max()) : U(g);
 
-        if (n > 0xFFFFFF) {
+        if (r > 0xFFFFFF && n > 0xFFFFFF) {
             // Write 4 pairs
             *reinterpret_cast<pair*>(b) = addr[(n >> 24) & 0xFF];
             *reinterpret_cast<pair*>(b + 2) = addr[(n >> 16) & 0xFF];
             *reinterpret_cast<pair*>(b + 4) = addr[(n >> 8)  & 0xFF];
             *reinterpret_cast<pair*>(b + 6) = addr[n & 0xFF];
-        } else if (n > 0xFFFF) {
+        } else if (r > 0xFFFF && n > 0xFFFF) {
             // Write 3 pairs with padding
             memset(b, '0', 2);
             *reinterpret_cast<pair*>(b + 2) = addr[(n >> 16) & 0xFF];
             *reinterpret_cast<pair*>(b + 4) = addr[(n >> 8)  & 0xFF];
             *reinterpret_cast<pair*>(b + 6) = addr[n & 0xFF];
-        } else if (n > 0xFF) {
+        } else if (r > 0xFF && n > 0xFF) {
             // Write 2 pairs with padding
             memset(b, '0', 4);
             *reinterpret_cast<pair*>(b + 4) = addr[(n >> 8) & 0xFF];
@@ -124,7 +124,3 @@ namespace conversion::status {
         return b + 8;
     }
 }
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif

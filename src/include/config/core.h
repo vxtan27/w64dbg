@@ -7,12 +7,12 @@
 //  Debugger Configuration Defaults
 // =====================================================================================
 
-#define DEFAULT_TIMEOUT       0      // No timeout
 #define DEFAULT_FIRSTBREAK    FALSE  // Ignore first debug break
 #define DEFAULT_BREAKPOINT    TRUE   // Enable breakpoints
 #define DEFAULT_VERBOSE       FALSE  // Disable verbose output
 #define DEFAULT_OUTPUT        TRUE   // Enable standard output
 #define DEFAULT_START         FALSE  // Do not auto-start debugging
+#define DEFAULT_PAUSE         FALSE  // Do not auto-pause before exit
 
 // =====================================================================================
 //  Timeout Constraints
@@ -83,9 +83,6 @@ Options:
 //  Error Messages
 // =====================================================================================
 
-#define VALUE_EXPECTED      "Value expected for '"
-#define _TIMEOUT_INVALID    "Invalid value for timeout ("
-#define TIMEOUT_INVALID_    ") specified. Valid range is -1 to 99999.\n"
 #define _INVALID_ARGUMENT   "Invalid argument/option - '"
 #define INVALID_ARGUMENT_   "'.\n"
 
