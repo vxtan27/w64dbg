@@ -2,17 +2,17 @@
 // Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
 
 // Config
-#include "include/config/crt.h"
-#include "include/config/build.h"
+#include <config/crt.h>
+#include <config/build.h>
 
 #include <ntdll.h>
 #include <dbghelp.h>
-#include <cvconst.h>
 #include <psapi.h>
 
 #include <conversion/status.h>
 #include <conversion/address.h>
 #include <conversion/decimal.h>
+
 #include <config/core.h>
 #include <exception.h>
 #include <debugger/core.cpp>
@@ -20,14 +20,9 @@
 #include <fmt.h>
 #include <log.h>
 #include <symbols.h>
-#include <pause.h>
 
 int
-#if defined(_M_CEE_PURE)
-__clrcall
-#else
 WINAPI
-#endif
 wmain(void) {
     wchar_t *ptr;
     DWORD ExitStatus;
@@ -38,7 +33,6 @@ wmain(void) {
     breakpoint = DEFAULT_BREAKPOINT,
     verbose = DEFAULT_VERBOSE,
     output = DEFAULT_OUTPUT,
-    start = DEFAULT_START,
     pause = DEFAULT_PAUSE,
     help = FALSE;
 
@@ -73,16 +67,6 @@ wmain(void) {
             case 'o':
                 if (*(pNext + 2) == ' ') {
                     output = FALSE;
-                    pNext += 3;
-                    continue;
-                }
-
-                break;
-
-            case 'S':
-            case 's':
-                if (*(pNext + 2) == ' ') {
-                    start = TRUE;
                     pNext += 3;
                     continue;
                 }
@@ -236,8 +220,7 @@ wmain(void) {
     startupInfo.lpReserved2 = NULL;
 
     CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
-        start ? CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_CONSOLE
-              : CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
+        CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
         RtlEnvironment(), DosPath->Buffer, &startupInfo, &processInfo);
 
     HANDLE hProcess;
@@ -297,7 +280,7 @@ wmain(void) {
         case DbgExitProcessStateChange:
             if (verbose >= 2) TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout, bConsole);
 
-            if (pause) WaitOrTimeout(hStdout, bConsole);
+            if (pause) WaitForKeyPress(hStdout, bConsole);
 
             NtClose(hProcess);
 

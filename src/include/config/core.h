@@ -11,7 +11,6 @@
 #define DEFAULT_BREAKPOINT    TRUE   // Enable breakpoints
 #define DEFAULT_VERBOSE       FALSE  // Disable verbose output
 #define DEFAULT_OUTPUT        TRUE   // Enable standard output
-#define DEFAULT_START         FALSE  // Do not auto-start debugging
 #define DEFAULT_PAUSE         FALSE  // Do not auto-pause before exit
 
 // =====================================================================================
@@ -61,7 +60,7 @@
 
 #define HELP \
 R"(Invalid syntax.
-Usage: W64DBG [options] <executable> [exec-args>
+Usage: W64DBG [options] <executable> [exec-args]
 
 Description:
     A native debugging utility for x64 Windows.
@@ -74,8 +73,7 @@ Entries:
 Options:
     /B            Ignore breakpoints.
     /O            Suppress OutputDebugString.
-    /S            Open in a new console window.
-    /T<n>         Wait for input (seconds).
+    /T            Wait for a key press to exit.
     /V{0|1|2}     Set output verbosity.
 )"
 
@@ -123,11 +121,3 @@ Options:
 #define EXCEPTION_IN    "\x1b[m in \x1b[33m"
 #define EXCEPTION_AT    "at "
 #define EXCEPTION_FROM  "from "
-
-// =====================================================================================
-//  System Debugging Messages
-// =====================================================================================
-
-#define _SLE_ERROR       "Invalid data was passed to the function that failed. This caused the application to fail"
-#define _SLE_MINORERROR  "Invalid data was passed to the function, but the error probably will not cause the application to fail"
-#define _SLE_WARNING     "Potentially invalid data was passed to the function, but the function completed processing"

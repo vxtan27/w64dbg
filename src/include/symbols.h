@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <cvconst.h>
+
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4715)

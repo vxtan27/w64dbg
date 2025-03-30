@@ -53,6 +53,10 @@ DWORD FormatDebugModule(HANDLE hModule, PCSTR szDebugEventName, SIZE_T DebugEven
     return ActualByteCount + DebugEventNameLength + 2 + 1;
 }
 
+#define _SLE_ERROR       "Invalid data was passed to the function that failed. This caused the application to fail"
+#define _SLE_MINORERROR  "Invalid data was passed to the function, but the error probably will not cause the application to fail"
+#define _SLE_WARNING     "Potentially invalid data was passed to the function, but the function completed processing"
+
 //
 //  Format a RIP (Raise an Exception) debug event message into a buffer
 //  Output format: "<ErrorMessage><ErrorType>\n"

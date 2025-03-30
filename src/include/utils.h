@@ -168,19 +168,24 @@ NTSTATUS GetModuleSize(HANDLE hModule, PDWORD pFileSize) {
     return NtStatus;
 }
 
-_Success_(return >= 0)
-_Check_return_opt_
-int fast_sprintf(
-    _Pre_notnull_ _Always_(_Post_z_) char*       const _Buffer,
-    _In_z_ _Printf_format_string_    char const* const _Format,
-    ...) {
-    int _Result;
-    va_list _ArgList;
-    __crt_va_start(_ArgList, _Format);
+// Standard pause message
+#define InfiniteMessage "\nPress any key to continue ..."
 
-    _Result = __stdio_common_vsprintf(0,
-        _Buffer, (size_t) -1, _Format, NULL, _ArgList);
+// Wait for a key press, simulating standard console behavior
+FORCEINLINE VOID WaitForKeyPress(HANDLE hStdout, BOOL bConsole) {
+    // Display prompt
+    WriteHandle(hStdout, (PVOID) InfiniteMessage,
+        strlen(InfiniteMessage), FALSE, bConsole);
+    
+    if (bConsole) SetConsoleDeviceMode(RtlStandardInput(), 0);
+    
+    BYTE Buffer;
+    IO_STATUS_BLOCK IoStatus;
 
-    __crt_va_end(_ArgList);
-    return _Result;
+    // Block until input
+    NtReadFile(RtlStandardInput(), NULL, NULL, NULL,
+        &IoStatus, &Buffer, sizeof(Buffer), NULL, NULL);
+    
+    // Mimic input echo
+    WriteHandle(hStdout, (PVOID) InfiniteMessage, 1, FALSE, bConsole);
 }
