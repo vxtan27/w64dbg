@@ -3,7 +3,7 @@
 //
 // Derived from "jeaiii_to_text.h" (MIT License) by James Edward Anhalt III.
 // Modifications:
-// - Refactored codebase for status conversion
+// - Refactored for for status conversion
 // - Added range-limiting parameter
 // - Optimized instruction usage
 //
@@ -93,24 +93,24 @@ namespace conversion::status {
         constexpr auto q = sizeof(T);
         using U = cond<q <= 4, u32, u64>;
 
-        // Convert negative value to positive equivalent
-        U const n = (i < 0) ? (U(0) - U(i)) : U(i);
+        // Convert to unsigned type
+        U const n = U(i);
         // Determine conversion range
         U const r = (g <= 0) ? U(std::numeric_limits<T>::max()) : U(g);
 
-        if (r > 0xFFFFFF && n > 0xFFFFFF) {
+        if (r >= 0x1000000 && n >= 0x1000000) {
             // Write 4 pairs
             *reinterpret_cast<pair*>(b) = addr[(n >> 24) & 0xFF];
             *reinterpret_cast<pair*>(b + 2) = addr[(n >> 16) & 0xFF];
             *reinterpret_cast<pair*>(b + 4) = addr[(n >> 8)  & 0xFF];
             *reinterpret_cast<pair*>(b + 6) = addr[n & 0xFF];
-        } else if (r > 0xFFFF && n > 0xFFFF) {
+        } else if (r >= 0x10000 && n >= 0x10000) {
             // Write 3 pairs with padding
             memset(b, '0', 2);
             *reinterpret_cast<pair*>(b + 2) = addr[(n >> 16) & 0xFF];
             *reinterpret_cast<pair*>(b + 4) = addr[(n >> 8)  & 0xFF];
             *reinterpret_cast<pair*>(b + 6) = addr[n & 0xFF];
-        } else if (r > 0xFF && n > 0xFF) {
+        } else if (r >= 0x100 && n >= 0x100) {
             // Write 2 pairs with padding
             memset(b, '0', 4);
             *reinterpret_cast<pair*>(b + 4) = addr[(n >> 8) & 0xFF];

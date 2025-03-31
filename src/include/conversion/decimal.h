@@ -3,7 +3,7 @@
 //
 // Derived from "jeaiii_to_text.h" (MIT License) by James Edward Anhalt III.
 // Modifications:
-// - Refactored codebase to modern style
+// - Refactored for to modern style
 // - Added range-limiting parameter
 // - Optimized instruction usage
 //
@@ -35,11 +35,6 @@ SOFTWARE.
 #pragma once
 
 #include <limits>
-
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 5045)
-#endif
 
 namespace conversion::dec {
     // Two-character lookup pair for decimal conversion
@@ -119,7 +114,7 @@ namespace conversion::dec {
                   cond<q <= 4, u32, u64>>>;
 
         // Handle negatives: prepend '-' and convert to positive
-        U const n = (i < 0) ? (*b++ = '-', U(0) - U(i)) : U(i);
+        U const n = (i < 0) ? (*b++ = '-', static_cast<U>(0-i)) : U(i);
         // Determine conversion range
         U const r = (g <= 0) ? U(std::numeric_limits<T>::max()) : U(g);
 
@@ -269,7 +264,3 @@ namespace conversion::dec {
         return b + 8;
     }
 }
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif

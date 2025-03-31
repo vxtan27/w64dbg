@@ -3,7 +3,7 @@
 //
 // Derived from "jeaiii_to_text.h" (MIT License) by James Edward Anhalt III.
 // Modifications:
-// - Refactored codebase for address conversion
+// - Refactored for status conversion
 // - Added range-limiting parameter
 // - Optimized instruction usage
 //
@@ -33,6 +33,11 @@ SOFTWARE.
 */
 
 #pragma once
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4293)
+#endif
 
 #include <limits>
 #include <string.h>
@@ -94,14 +99,14 @@ namespace conversion::addr {
         using U = cond<q <= 4, u32, u64>;
         constexpr auto p = sizeof(T) << 1;  // Total hex digits for type T
 
-        // Convert negative value to positive equivalent
-        U const n = (i < 0) ? (U(0) - U(i)) : U(i);
+        // Convert to unsigned type
+        U const n = U(i);
         // Determine conversion range
         U const r = (g <= 0) ? U(std::numeric_limits<T>::max()) : U(g);
 
         b[0] = '0'; b[1] = 'x';
 
-        if (r > 0xFFFFFFFFFFFFFF && n > 0xFFFFFFFFFFFFFF) {
+        if (r >= 0x100000000000000 && n >= 0x100000000000000) {
             // Write 8 pairs
             *reinterpret_cast<pair*>(b + 2)  = addr[(n >> 56) & 0xFF];
             *reinterpret_cast<pair*>(b + 4)  = addr[(n >> 48) & 0xFF];
@@ -111,7 +116,7 @@ namespace conversion::addr {
             *reinterpret_cast<pair*>(b + 12) = addr[(n >> 16) & 0xFF];
             *reinterpret_cast<pair*>(b + 14) = addr[(n >> 8)  & 0xFF];
             *reinterpret_cast<pair*>(b + 16) = addr[n & 0xFF];
-        } else if (r > 0xFFFFFFFFFFFF && n > 0xFFFFFFFFFFFF) {
+        } else if (r >= 0x1000000000000 && n >= 0x1000000000000) {
             // Write 7 pairs with padding
             memset(b + 2, '0', 2);  // Pad leftmost pair
             *reinterpret_cast<pair*>(b + 4)  = addr[(n >> 48) & 0xFF];
@@ -121,7 +126,7 @@ namespace conversion::addr {
             *reinterpret_cast<pair*>(b + 12) = addr[(n >> 16) & 0xFF];
             *reinterpret_cast<pair*>(b + 14) = addr[(n >> 8)  & 0xFF];
             *reinterpret_cast<pair*>(b + 16) = addr[n & 0xFF];
-        } else if (r > 0xFFFFFFFFFF && n > 0xFFFFFFFFFF) {
+        } else if (r >= 0x10000000000 && n >= 0x10000000000) {
             // Write 6 pairs with padding
             memset(b + 2, '0', 4);  // Pad leftmost two pairs
             *reinterpret_cast<pair*>(b + 6)  = addr[(n >> 40) & 0xFF];
@@ -130,7 +135,7 @@ namespace conversion::addr {
             *reinterpret_cast<pair*>(b + 12) = addr[(n >> 16) & 0xFF];
             *reinterpret_cast<pair*>(b + 14) = addr[(n >> 8)  & 0xFF];
             *reinterpret_cast<pair*>(b + 16) = addr[n & 0xFF];
-        } else if (r > 0xFFFFFFFF && n > 0xFFFFFFFF) {
+        } else if (r >= 0x100000000 && n >= 0x100000000) {
             // Write 5 pairs with padding
             memset(b + 2, '0', 6);  // Pad leftmost three pairs
             *reinterpret_cast<pair*>(b + 8)  = addr[(n >> 32) & 0xFF];
@@ -138,20 +143,20 @@ namespace conversion::addr {
             *reinterpret_cast<pair*>(b + 12) = addr[(n >> 16) & 0xFF];
             *reinterpret_cast<pair*>(b + 14) = addr[(n >> 8)  & 0xFF];
             *reinterpret_cast<pair*>(b + 16) = addr[n & 0xFF];
-        } else if (r > 0xFFFFFF && n > 0xFFFFFF) {
+        } else if (r >= 0x1000000 && n >= 0x1000000) {
             // Write 4 pairs with padding
             memset(b + 2, '0', p - 8);
             *reinterpret_cast<pair*>(b + p - 6) = addr[(n >> 24) & 0xFF];
             *reinterpret_cast<pair*>(b + p - 4) = addr[(n >> 16) & 0xFF];
             *reinterpret_cast<pair*>(b + p - 2) = addr[(n >> 8)  & 0xFF];
             *reinterpret_cast<pair*>(b + p) = addr[n & 0xFF];
-        } else if (r > 0xFFFF && n > 0xFFFF) {
+        } else if (r >= 0x10000 && n >= 0x10000) {
             // Write 3 pairs with padding
             memset(b + 2, '0', p - 6);
             *reinterpret_cast<pair*>(b + p - 4) = addr[(n >> 16) & 0xFF];
             *reinterpret_cast<pair*>(b + p - 2) = addr[(n >> 8)  & 0xFF];
             *reinterpret_cast<pair*>(b + p) = addr[n & 0xFF];
-        } else if (r > 0xFF && n > 0xFF) {
+        } else if (r >= 0x100 && n >= 0x100) {
             // Write 2 pairs with padding
             memset(b + 2, '0', p - 4);
             *reinterpret_cast<pair*>(b + p - 2) = addr[(n >> 8) & 0xFF];
@@ -165,3 +170,8 @@ namespace conversion::addr {
         return b + 2 + p;
     }
 }
+
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
