@@ -64,16 +64,13 @@ DWORD FormatDebugModule(HANDLE hModule, PCSTR szDebugEventName, SIZE_T DebugEven
 
 DWORD FormatRIPEvent(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCH Buffer, ULONG BufLen) {
     char *p;
-    ULONG ActualByteCount;
     PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
     if (NT_SUCCESS(LookupSystemMessage(
         pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionFlags, LANG_USER_DEFAULT, &MessageEntry)))
-    {
-        RtlUnicodeToUTF8N(Buffer, BufLen, &ActualByteCount,
-            GetMessageEntryText(MessageEntry), GetMessageEntryLength(MessageEntry));
-        p = Buffer + ActualByteCount;
-    } else p = Buffer;
+        p = Buffer + ConvertUnicodeToUTF8(GetMessageEntryText(MessageEntry),
+            GetMessageEntryLength(MessageEntry), Buffer, BufLen);
+    else p = Buffer;
 
     if (PtrToUlong(pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionRecord) == 1) {
         memcpy(p, _SLE_ERROR, strlen(_SLE_ERROR));

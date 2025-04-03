@@ -23,8 +23,9 @@ Entries:
 Options:
     /B            Ignore breakpoints.
     /O            Suppress OutputDebugString.
-    /T            Wait for a key press before exiting.
-    /V{0|1|2}     Set verbosity level.
+    /T            Wait for a key press to exit.
+    /V{0|1|2}     Set output verbosity.
+    /?            Display this help message.
 ```
 
 ## 🔧 System Requirements

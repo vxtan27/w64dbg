@@ -14,7 +14,7 @@
 
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable: 4242 4244 4365 4715 28182)
+#pragma warning(disable: 4244 4715 28182)
 #endif
 
 #ifdef DBG_DEBUG_SINGLE_PROCESS

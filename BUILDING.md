@@ -5,7 +5,7 @@
 Ensure the following dependencies are installed:
 
 - **Git** – Required for cloning the repository and submodules.
-- **Microsoft Visual C++ (MSVC)** – Or any compatible C++ compiler supporting **C++20**.
+- **A compatible C++ compiler** – Must support **C++20** and MSVC extensions while using MSVC headers.
 - **Windows SDK** – Latest version recommended for best compatibility.
 
 ## 📥 Cloning the Repository

@@ -6,35 +6,41 @@
 #include "ntdll.h"
 #include "conapi.h"
 
+ULONG ConvertUnicodeToUTF8(
+    _In_reads_bytes_(cchUnicodeString << 1) PCVOID pUnicodeString,
+    _In_ ULONG cchUnicodeString,
+    _Out_ PVOID pUTF8String,
+    _In_ ULONG cbUTF8String
+) {
+    ULONG cchUTF8String;
+
+    RtlUnicodeToUTF8N((PCH) pUTF8String, cbUTF8String, &cchUTF8String,
+        (PCWCH) pUnicodeString, cchUnicodeString);
+    return cchUTF8String;
+}
+
 NTSTATUS WriteFileData(
     _In_ HANDLE hFile,
-    _In_reads_bytes_(Length) PVOID pBuffer,
+    _In_reads_bytes_(uLength) PCVOID pBuffer,
     _In_ ULONG uLength,
     _In_ BOOL fUnicode
 ) {
     IO_STATUS_BLOCK IoStatus;
 
     if (fUnicode) {
-        NTSTATUS NtStatus;
-        ULONG cchUTF8String;
         PCH pUTF8String = (PCH) _alloca((uLength >> 1) * 3);
-
-        NtStatus = RtlUnicodeToUTF8N(pUTF8String,
-            (uLength >> 1) * 3, &cchUTF8String, (PCWCH) pBuffer, uLength);
-
-        if (NT_SUCCESS(NtStatus)) NtWriteFile(hFile, NULL, NULL,
-            NULL, &IoStatus, pBuffer, uLength, NULL, NULL);
-
-        return NtStatus;
+        return NtWriteFile(hFile, NULL, NULL, NULL, &IoStatus,
+            (PVOID) pBuffer, ConvertUnicodeToUTF8(pBuffer,
+                uLength, pUTF8String, (uLength >> 1) * 3), NULL, NULL);
     }
 
     return NtWriteFile(hFile, NULL, NULL, NULL, &IoStatus,
-        pBuffer, uLength, NULL, NULL);
+        (PVOID) pBuffer, uLength, NULL, NULL);
 }
 
 NTSTATUS WriteHandle(
     _In_ HANDLE hHandle,
-    _In_reads_bytes_(Length) PVOID pBuffer,
+    _In_reads_bytes_(uLength) PCVOID pBuffer,
     _In_ ULONG uLength,
     _In_ BOOL fUnicode,
     _In_ BOOL bConsole
@@ -43,21 +49,58 @@ NTSTATUS WriteHandle(
                     : WriteFileData(hHandle, pBuffer, uLength, fUnicode);
 }
 
-ULONG ConvertUnicodeToUTF8(
-    PWCH pUnicodeString,
-    ULONG cchUnicodeString,
-    PCH pUTF8String,
-    ULONG cbUTF8String
+NTSTATUS WriteInvalidArgument(
+    _In_ HANDLE hStdout,
+    _In_reads_(nLength) PCWCH pBuffer,
+    _In_ ULONG nLength,
+    _In_ BOOL bConsole
 ) {
-    ULONG cchUTF8String;
+    if (bConsole) {
+        BYTE Buffer[sizeof(CD_USER_DEFINED_IO) + sizeof(CD_IO_BUFFER) * 3];
+        PCD_USER_DEFINED_IO pIoBuffer = (PCD_USER_DEFINED_IO) Buffer;
 
-    RtlUnicodeToUTF8N(pUTF8String, cbUTF8String,
-        &cchUTF8String, pUnicodeString, cchUnicodeString);
-    return cchUTF8String;
+        pIoBuffer->InputCount = 4;
+        pIoBuffer->OutputCount = 0;
+
+        CONSOLE_MSG_WRITECONSOLE_L1 Msg;
+        Msg.Header.ApiNumber = ConsolepWriteConsole;
+        Msg.Header.ApiDescriptorSize = sizeof(CONSOLE_WRITECONSOLE_MSG);
+        Msg.Msg.Unicode = FALSE;
+
+        pIoBuffer->Buffers[0].Size = sizeof(Msg);
+        pIoBuffer->Buffers[0].Buffer = &Msg;
+
+        pIoBuffer->Buffers[1].Size = strlen(_INVALID_ARGUMENT);
+        pIoBuffer->Buffers[1].Buffer = (PVOID) _INVALID_ARGUMENT;
+
+        PCH pBuf = (PCH) _alloca(nLength * 3);
+        pIoBuffer->Buffers[2].Size = ConvertUnicodeToUTF8(pBuffer,
+            nLength << 1, pBuf, nLength * 3);
+        pIoBuffer->Buffers[2].Buffer = pBuf;
+
+        pIoBuffer->Buffers[3].Size = strlen(INVALID_ARGUMENT_);
+        pIoBuffer->Buffers[3].Buffer = (PVOID) INVALID_ARGUMENT_;
+
+        IO_STATUS_BLOCK IoStatus;
+        return NtDeviceIoControlFile(hStdout, NULL, NULL, NULL, &IoStatus,
+            IOCTL_CONDRV_ISSUE_USER_IO, pIoBuffer, sizeof(Buffer), NULL, 0);
+    } else {
+        PCH pBuf = (PCH) _alloca(strlen(_INVALID_ARGUMENT) +
+            strlen(INVALID_ARGUMENT_) + nLength * 3);
+
+        memcpy(pBuf, _INVALID_ARGUMENT, strlen(_INVALID_ARGUMENT));
+        ULONG Length = ConvertUnicodeToUTF8(pBuffer,
+            nLength << 1, &pBuf[strlen(_INVALID_ARGUMENT)], nLength * 3);
+        memcpy(&pBuf[strlen(_INVALID_ARGUMENT) + Length],
+            INVALID_ARGUMENT_, strlen(INVALID_ARGUMENT_));
+
+        return WriteFileData(hStdout, pBuf,
+            strlen(_INVALID_ARGUMENT) + Length + strlen(INVALID_ARGUMENT_), FALSE);
+    }
 }
 
 BOOL DoesFileExists(
-    PCWSTR pDosName,
+    PCWCH pDosName,
     PUNICODE_STRING pNtName,
     PRTL_RELATIVE_NAME_U pRelativeName
 ) {
@@ -128,15 +171,15 @@ NTSTATUS LookupSystemMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RES
 }
 
 // Retrieve the text of a message resource entry
-PWCH GetMessageEntryText(PMESSAGE_RESOURCE_ENTRY MessageEntry) {
-    return (PWCH) MessageEntry->Text;
+PCVOID GetMessageEntryText(PMESSAGE_RESOURCE_ENTRY MessageEntry) {
+    return MessageEntry->Text;
 }
 
 // Retrieve the length of a message resource entry's text
 WORD GetMessageEntryLength(PMESSAGE_RESOURCE_ENTRY MessageEntry) {
     // Compute text length, excluding trailing null character
     WORD wLength = MessageEntry->Length - FIELD_OFFSET(MESSAGE_RESOURCE_ENTRY, Text) - sizeof(wchar_t);
-    PCWSTR pText = GetMessageEntryText(MessageEntry);
+    PCWCH pText = (PCWCH) GetMessageEntryText(MessageEntry);
 
     // Trim additional trailing nulls
     while (pText[(wLength - 1) >> 1] == L'\0') wLength -= 2;
@@ -174,18 +217,18 @@ NTSTATUS GetModuleSize(HANDLE hModule, PDWORD pFileSize) {
 // Wait for a key press, simulating standard console behavior
 FORCEINLINE VOID WaitForKeyPress(HANDLE hStdout, BOOL bConsole) {
     // Display prompt
-    WriteHandle(hStdout, (PVOID) InfiniteMessage,
+    WriteHandle(hStdout, (PCVOID) InfiniteMessage,
         strlen(InfiniteMessage), FALSE, bConsole);
-    
+
     if (bConsole) SetConsoleDeviceMode(RtlStandardInput(), 0);
-    
+
     BYTE Buffer;
     IO_STATUS_BLOCK IoStatus;
 
     // Block until input
     NtReadFile(RtlStandardInput(), NULL, NULL, NULL,
         &IoStatus, &Buffer, sizeof(Buffer), NULL, NULL);
-    
+
     // Mimic input echo
-    WriteHandle(hStdout, (PVOID) InfiniteMessage, 1, FALSE, bConsole);
+    WriteHandle(hStdout, (PCVOID) InfiniteMessage, 1, FALSE, bConsole);
 }

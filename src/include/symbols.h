@@ -142,7 +142,7 @@ DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext) {
 #pragma warning(pop)
 #endif
 
-DWORD64 GetRegisterBase(PSYMBOL_INFOW pSymInfo, PVOID ContextRecord, DWORD b64bit) {
+DWORD64 GetRegisterBase(PSYMBOL_INFOW pSymInfo, PCVOID ContextRecord, DWORD b64bit) {
     return b64bit ? GetRegisterBase64(pSymInfo, (PCONTEXT) ContextRecord)
                     : GetRegisterBase32(pSymInfo, (PWOW64_CONTEXT) ContextRecord);
 }
@@ -152,7 +152,7 @@ typedef struct {
     BOOL DataIsParam;
     BOOL bConsole;
     PDWORD64 pBase;
-    PVOID pContext;
+    PCVOID pContext;
     HANDLE hProcess;
     DWORD b64bit;
     PSTR pEnd;
@@ -175,7 +175,15 @@ typedef union {
 // Apply non-bold/bright cyan to foreground
 #define CONSOLE_CYAN_FORMAT "\x1b[36m"
 
-#include "dragonbox_to_chars.cpp"
+#ifdef _MSC_VER
+#pragma warning(push, 0)
+#endif
+
+#include <dragonbox_to_chars.cpp>
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 // https://accu.org/journals/overload/29/165/orr
 // https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code#showing-variables-using-the-windows-debugging-api

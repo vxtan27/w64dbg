@@ -34,11 +34,6 @@ SOFTWARE.
 
 #pragma once
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4293)
-#endif
-
 #include <limits>
 #include <string.h>
 
@@ -89,7 +84,9 @@ namespace conversion::addr {
     // Convert integer 'i' to a hex address representation stored in buffer 'b'
     // Return pointer to the end of the written characters
     template <class T, class F = T>
-#if defined(_MSC_VER)
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable: 4293)
     __forceinline
 #else
     inline
@@ -169,9 +166,8 @@ namespace conversion::addr {
 
         return b + 2 + p;
     }
-}
-
 
 #ifdef _MSC_VER
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif
+}

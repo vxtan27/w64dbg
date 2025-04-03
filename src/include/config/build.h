@@ -3,20 +3,21 @@
 
 #pragma once
 
-// -------------------------------------------------------------------------------------
-// Build Configuration
-// -------------------------------------------------------------------------------------
+// =====================================================================================
+//  Build Configuration
+// =====================================================================================
 #ifndef _DEBUG
-    #define NDEBUG               // Disable assertions in release builds
+    #define NDEBUG                   // Disable assertions in release builds
 #endif
-#define NO_STRICT                // Relax type checking
-#define _HAS_EXCEPTIONS 0        // Disable exceptions
-#define WIN32_LEAN_AND_MEAN      // Reduce Windows API inclusions
-#define DBG_DEBUG_SINGLE_PROCESS // Optimize for single-process debugging
+#define NO_STRICT                    // Relax type checking
+#define _HAS_EXCEPTIONS 0            // Disable exceptions
+#define WIN32_LEAN_AND_MEAN          // Reduce Windows API inclusions
+#define DBG_DEBUG_SINGLE_PROCESS     // Optimize for single-process debugging
+#define _CRT_DECLARE_NONSTDC_NAMES 0 // Exclude non standard names
 
-// -------------------------------------------------------------------------------------
-// Windows API Exclusions (Build Optimizations)
-// -------------------------------------------------------------------------------------
+// =====================================================================================
+//  Windows API Exclusions (Build Optimizations)
+// =====================================================================================
 // Exclude unused Windows components to reduce bloat and speed up compilation.
 #define NOWINSTYLES              // Exclude window styles (WS_*, CS_*, ES_*)
 #define NOSYSMETRICS             // Exclude system metrics (SM_*)
@@ -39,9 +40,9 @@
 #define NOMCX                    // Exclude Modem Configuration Extensions
 #define NOIME                    // Exclude Input Method Editor (IME)
 
-// -------------------------------------------------------------------------------------
-// Additional Windows API Exclusions (winuser.h)
-// -------------------------------------------------------------------------------------
+// =====================================================================================
+//  Additional Windows API Exclusions (winuser.h)
+// =====================================================================================
 #define NODESKTOP                // Exclude Desktop APIs
 #define NOWINDOWSTATION          // Exclude Window Station APIs
 #define NOSECURITY               // Exclude Security APIs
@@ -49,7 +50,7 @@
 #define NOMDI                    // Exclude Multiple Document Interface (MDI)
 #define NO_STATE_FLAGS           // Exclude state flag definitions
 
-// -------------------------------------------------------------------------------------
-// Windows Base Interlock Exclusions (interlockedapi.h)
-// -------------------------------------------------------------------------------------
+// =====================================================================================
+//  Windows Base Interlock Exclusions (interlockedapi.h)
+// =====================================================================================
 #define NOWINBASEINTERLOCK       // Exclude Windows base interlock functions

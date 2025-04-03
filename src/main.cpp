@@ -24,23 +24,20 @@
 int
 WINAPI
 wmain(void) {
-    wchar_t *ptr;
-    DWORD ExitStatus;
-    size_t temp, len;
-    char buffer[BUFLEN];
-
     BOOL firstbreak = DEFAULT_FIRSTBREAK,
     breakpoint = DEFAULT_BREAKPOINT,
     verbose = DEFAULT_VERBOSE,
     output = DEFAULT_OUTPUT,
-    pause = DEFAULT_PAUSE,
-    help = FALSE;
+    pause = DEFAULT_PAUSE;
 
-    char *p = buffer;
+    BOOL bConsole;
+    HANDLE hStdout = RtlStandardOutput();
     PUNICODE_STRING pCommandLine = RtlCommandLine();
-    len = pCommandLine->Length >> 1;
+    size_t len = pCommandLine->Length >> 1;
     wchar_t *pCmdLine = wmemchr(pCommandLine->Buffer, ' ', len);
     wchar_t *pNext = pCmdLine;
+
+    IsConsoleHandle(hStdout, &bConsole);
 
     if (pCmdLine) {
         len -= pCmdLine - pCommandLine->Buffer;
@@ -52,110 +49,57 @@ wmain(void) {
 
             if (*pNext != '/' || pCmdLine + len < pNext) break;
 
-            switch (*(pNext + 1)) {
+            if (*(pNext + 2) == ' ') switch (*(pNext + 1)) {
             case 'B':
-            case 'b':
-                if (*(pNext + 2) == ' ') {
-                    breakpoint = FALSE;
-                    pNext += 3;
-                    continue;
-                }
-
-                break;
+                breakpoint = FALSE;
+                pNext += 3;
+                continue;
 
             case 'O':
-            case 'o':
-                if (*(pNext + 2) == ' ') {
-                    output = FALSE;
-                    pNext += 3;
-                    continue;
-                }
-
-                break;
+                output = FALSE;
+                pNext += 3;
+                continue;
 
             case 'T':
-            case 't':
-                if (*(pNext + 2) == ' ') {
-                    pause = TRUE;
-                    pNext += 3;
-                    continue;
-                }
-
-                break;
+                pause = TRUE;
+                pNext += 3;
+                continue;
 
             case 'V':
-            case 'v':
-                if (*(pNext + 2) == ' ') {
-                    verbose = 2;
-                    pNext += 3;
-                    continue;
-                } else if (*(pNext + 2) >= '0' &&
-                    *(pNext + 2) <= '2' && *(pNext + 3) == ' ') {
-                    verbose = *(pNext + 2) - '0';
-                    pNext += 4;
-                    continue;
-                }
-
-                break;
+                verbose = 2;
+                pNext += 3;
+                continue;
 
             case '?':
-                if (*(pNext + 2) == ' ') {
-                    help = TRUE;
-                    pNext += 3;
-                    continue;
-                }
-
-                break;
+                WriteHandle(hStdout, (PVOID) (HELP + 16),
+                    strlen(HELP) - 16, FALSE, bConsole);
+                return EXIT_SUCCESS;
             }
 
-            ExitStatus = ERROR_INVALID_PARAMETER;
+            if (*(pNext + 1) == 'V' && *(pNext + 2) >= '0' &&
+                    *(pNext + 2) <= '2' && *(pNext + 3) == ' ') {
+                verbose = *(pNext + 2) - '0';
+                pNext += 4;
+                continue;
+            }
 
-            memcpy(p, _INVALID_ARGUMENT,
-                strlen(_INVALID_ARGUMENT));
-            p += strlen(_INVALID_ARGUMENT);
-
-            temp = wmemchr(pNext, ' ',
-                pCmdLine + len + 1 - pNext) - pNext;
-
-            p += ConvertUnicodeToUTF8(pNext, temp << 1, p, buffer + BUFLEN - p);
-            pNext += temp + 1;
-
-            memcpy(p, INVALID_ARGUMENT_, 3);
-            p += 3;
+            WriteInvalidArgument(hStdout, pNext, wmemchr(pNext,
+                ' ', pCmdLine + len + 1 - pNext) - pNext, bConsole);
+            return ERROR_INVALID_PARAMETER;
         }
     }
 
-    if (help) { // help message
-        ExitStatus = EXIT_SUCCESS;
-        memcpy(p, HELP + 16, strlen(HELP) - 16);
-        p += strlen(HELP) - 16;
-    } else if (!pCmdLine || pCmdLine + len < pNext) { // No executable specified
-        ExitStatus = ERROR_BAD_ARGUMENTS;
-        memcpy(p, HELP, 65);
-        p += 65;
-    }
-
-    BOOL bConsole;
-    HANDLE hStdout = RtlStandardOutput();
-
-    IsConsoleHandle(hStdout, &bConsole);
-    if (bConsole) {
-        SetConsoleDeviceOutputCP(hStdout, 65001);  // CP_UTF8
-        SetConsoleDeviceMode(hStdout, ENABLE_PROCESSED_OUTPUT |
-            ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-    }
-
-    if (p != buffer) {
-        WriteHandle(hStdout, buffer, p - buffer, FALSE, bConsole);
-        return ExitStatus;
+    // No executable specified
+    if (!pCmdLine || pCmdLine + len < pNext) {
+        WriteHandle(hStdout, (PVOID) HELP, 65, FALSE, bConsole);
+        return ERROR_BAD_ARGUMENTS;
     }
 
     wchar_t ApplicationName[WBUFLEN];
 
-    ptr = wmemchr(pNext, ' ',
+    wchar_t *ptr = wmemchr(pNext, ' ',
         pCmdLine + len + 1 - pNext);
     *ptr = '\0';
-
     *(pCmdLine + len) = '\0';
 
     if (!SearchPathW(NULL, pNext, EXTENSION,
@@ -168,25 +112,28 @@ wmain(void) {
         return ERROR_FILE_NOT_FOUND;
     }
 
+    char *p;
     DWORD b64bit; // Is 64-bit application
+    char buffer[BUFLEN];
 
     // Check if executable format (x86-64)
     if (!GetBinaryTypeW(ApplicationName, &b64bit) ||
         (b64bit != SCS_32BIT_BINARY && b64bit != SCS_64BIT_BINARY)) {
-        wchar_t *pos;
         ULONG ActualByteCount;
         PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
         LookupSystemMessage(ERROR_BAD_EXE_FORMAT, LANG_USER_DEFAULT, &MessageEntry);
 
+        PWCH pos;
+        PCWCH Text = (PCWCH) GetMessageEntryText(MessageEntry);
         // Convert error message to UTF-8
-        if (*GetMessageEntryText(MessageEntry) == '%') {
-            pos = GetMessageEntryText(MessageEntry);
+        if (*Text == '%') {
+            pos = (PWCH) Text;
             p = buffer;
         } else {
-            pos = wmemchr(GetMessageEntryText(MessageEntry), '%', GetMessageEntryLength(MessageEntry));
+            pos = (PWCH) wmemchr(Text, '%', GetMessageEntryLength(MessageEntry));
             RtlUnicodeToUTF8N(buffer, BUFLEN, &ActualByteCount,
-                GetMessageEntryText(MessageEntry), pos - GetMessageEntryText(MessageEntry));
+                Text, pos - Text);
             p = buffer + ActualByteCount;
         }
 
@@ -198,7 +145,7 @@ wmain(void) {
         pos = wmemchr(pos + 1, '1', GetMessageEntryLength(MessageEntry)) + 1;
         // Convert error message to UTF-8
         RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &ActualByteCount,
-            pos, GetMessageEntryLength(MessageEntry) - ((pos - GetMessageEntryText(MessageEntry)) << 1));
+            pos, GetMessageEntryLength(MessageEntry) - ((pos - Text) << 1));
         p += ActualByteCount;
 
         WriteHandle(hStdout, buffer, p - buffer, FALSE, bConsole);
@@ -398,6 +345,12 @@ wmain(void) {
             UserContext.pEnd = buffer + BUFLEN;
             DirLen = DosPath->Length;
 
+            if (bConsole) {
+                SetConsoleDeviceOutputCP(hStdout, 65001);  // CP_UTF8
+                SetConsoleDeviceMode(hStdout, ENABLE_PROCESSED_OUTPUT |
+                    ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+            }
+
             while (TRUE) {
                 StackFrame.InlineFrameContext = INLINE_FRAME_CONTEXT_IGNORE;
 
@@ -472,7 +425,7 @@ wmain(void) {
                 if (SymGetLineFromInlineContextW(hProcess, StackFrame.AddrPC.Offset - count,
                     INLINE_FRAME_CONTEXT_IGNORE, NULL, &Displacement, &Line)) {
                     memcpy(p, EXCEPTION_AT, strlen(EXCEPTION_AT));
-                    temp = wcslen(Line.FileName) << 1;
+                    size_t temp = wcslen(Line.FileName) << 1;
                     p += strlen(EXCEPTION_AT);
 
                     if (bConsole) {

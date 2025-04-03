@@ -3,9 +3,9 @@
 
 #pragma once
 
-// -----------------------------------------------------------------------------
-// Data Structure
-// -----------------------------------------------------------------------------
+// =====================================================================================
+//  Data Structure
+// =====================================================================================
 
 // Debug thread data structure (single-process mode)
 typedef struct _DBGSS_THREAD_DATA {
@@ -14,9 +14,9 @@ typedef struct _DBGSS_THREAD_DATA {
     DWORD ThreadId;                  // Thread ID
 } DBGSS_THREAD_DATA, *PDBGSS_THREAD_DATA;
 
-// -----------------------------------------------------------------------------
+// =====================================================================================
 //  Handle Management: Save, Remove, Close
-// -----------------------------------------------------------------------------
+// =====================================================================================
 
 // Save thread handle from debug event into thread-local storage
 DBGAPI VOID DbgSaveThreadHandle(PDBGUI_WAIT_STATE_CHANGE pStateChange) {

@@ -5,7 +5,8 @@
 
 #include "ntdll.h"
 
-// https://github.com/microsoft/terminal/blob/main/dep/Console/condrv.h
+// Console Driver IOCTL Definitions
+// Reference: https://github.com/microsoft/terminal/blob/main/dep/Console/condrv.h
 
 typedef struct _CD_IO_BUFFER {
     ULONG Size;
@@ -22,10 +23,10 @@ typedef struct _CD_USER_DEFINED_IO {
 #define IOCTL_CONDRV_ISSUE_USER_IO \
     CTL_CODE(FILE_DEVICE_CONSOLE, 5, METHOD_OUT_DIRECT, FILE_ANY_ACCESS)
 
-// https://github.com/microsoft/terminal/blob/main/dep/Console/conmsgl1.h
+// Console API Message Definitions (Layer 1)
+// Reference: https://github.com/microsoft/terminal/blob/main/dep/Console/conmsgl1.h
 
-#define CONSOLE_FIRST_API_NUMBER(Layer) \
-    (Layer << 24) \
+#define CONSOLE_FIRST_API_NUMBER(Layer) (Layer << 24) \
 
 typedef struct _CONSOLE_MODE_MSG {
     IN OUT ULONG Mode;
@@ -75,123 +76,98 @@ typedef struct _CONSOLE_MSG_WRITECONSOLE_L1 {
     CONSOLE_WRITECONSOLE_MSG Msg;
 } CONSOLE_MSG_WRITECONSOLE_L1, *PCONSOLE_MSG_WRITECONSOLE_L1;
 
-NTSTATUS ReadConsoleDeviceInput(
-    _In_ HANDLE hConsole,
-    _Out_writes_(uLength) PINPUT_RECORD pBuffer,
-    _In_ ULONG nLength,
-    _Out_ PULONG64 nEventsRead,
-    _In_ BOOL fUnicode
-) {
-    // Total size of the data: CD_USER_DEFINED_IO with two additional CD_IO_BUFFER
-    BYTE bBuffer[sizeof(CD_USER_DEFINED_IO) + sizeof(CD_IO_BUFFER) * 2];
-    PCD_USER_DEFINED_IO pUDIo = (PCD_USER_DEFINED_IO) bBuffer;
-
-    // We not use it
-    pUDIo->Client = NULL;
-    // Two Input buffers
-    pUDIo->InputCount = 1;
-    // No Output
-    pUDIo->OutputCount = 2;
-
-    CONSOLE_MSG_GETCONSOLEINPUT_L1 Msg = {
-        .Header = {ConsolepGetConsoleInput, sizeof(CONSOLE_GETCONSOLEINPUT_MSG)},
-        .Msg = {.Unicode=(BOOLEAN)fUnicode}
-    };
-
-    // First Input Message Structure
-    pUDIo->Buffers[0].Size = sizeof(Msg);
-    pUDIo->Buffers[0].Buffer = &Msg;
-
-    // Second Buffer of the text string
-    pUDIo->Buffers[1].Size = sizeof(nEventsRead);
-    pUDIo->Buffers[1].Buffer = nEventsRead;
-
-    // Third Buffer of the text string
-    pUDIo->Buffers[2].Size = nLength * sizeof(INPUT_RECORD);
-    pUDIo->Buffers[2].Buffer = pBuffer;
-
-    // Call API
-    IO_STATUS_BLOCK IoStatus;
-    return NtDeviceIoControlFile(hConsole, NULL, NULL, NULL,
-        &IoStatus, IOCTL_CONDRV_ISSUE_USER_IO, pUDIo, sizeof(bBuffer), NULL, 0);
-}
-
-// https://www.codeproject.com/Articles/5364085/Tracing-and-Logging-Technologies-on-Windows-Part-3#TOC7_1
-NTSTATUS WriteConsoleDevice(
-    _In_ HANDLE hConsole,
-    _In_reads_bytes_(uLength) PVOID pBuffer,
-    _In_ ULONG uLength,
-    _In_ BOOL fUnicode
-) {
-    // Total size of the data: CD_USER_DEFINED_IO with CD_IO_BUFFER
-    BYTE bBuffer[sizeof(CD_USER_DEFINED_IO) + sizeof(CD_IO_BUFFER)];
-    PCD_USER_DEFINED_IO pUDIo = (PCD_USER_DEFINED_IO) bBuffer;
-
-    // We not use it
-    pUDIo->Client = NULL;
-    // Two Input buffers
-    pUDIo->InputCount = 2;
-    // No Output
-    pUDIo->OutputCount = 0;
-
-    CONSOLE_MSG_WRITECONSOLE_L1 Msg = {
-        .Header = {ConsolepWriteConsole, sizeof(CONSOLE_WRITECONSOLE_MSG)},
-        .Msg = {.Unicode=(BOOLEAN)fUnicode}
-    };
-
-    // First Input Message Structure
-    pUDIo->Buffers[0].Size = sizeof(Msg);
-    pUDIo->Buffers[0].Buffer = &Msg;
-
-    // Second Buffer of the text string
-    pUDIo->Buffers[1].Size = uLength;
-    pUDIo->Buffers[1].Buffer = pBuffer;
-
-    // Call API
-    IO_STATUS_BLOCK IoStatus;
-    return NtDeviceIoControlFile(hConsole, NULL, NULL, NULL,
-        &IoStatus, IOCTL_CONDRV_ISSUE_USER_IO, pUDIo, sizeof(bBuffer), NULL, 0);
-}
-
+// Set console device mode
 NTSTATUS SetConsoleDeviceMode(
     _In_ HANDLE hConsole,
     _In_ UINT dwMode
 ) {
-    CD_USER_DEFINED_IO UDIo;
+    CD_USER_DEFINED_IO IoBuffer;
+    IoBuffer.InputCount = 1;
+    IoBuffer.OutputCount = 0;
 
-    // We not use it
-    UDIo.Client = NULL;
-    // Two Input buffers
-    UDIo.InputCount = 1;
-    // No Output
-    UDIo.OutputCount = 0;
+    CONSOLE_MSG_MODE_L1 Msg;
+    Msg.Header.ApiNumber = ConsolepSetMode;
+    Msg.Header.ApiDescriptorSize = sizeof(CONSOLE_MODE_MSG);
+    Msg.Msg.Mode = dwMode;
 
-    CONSOLE_MSG_MODE_L1 Msg = {
-        .Header = {ConsolepSetMode, sizeof(CONSOLE_MODE_MSG)},
-        .Msg = {dwMode}
-    };
+    IoBuffer.Buffers[0].Size = sizeof(Msg);
+    IoBuffer.Buffers[0].Buffer = &Msg;
 
-    // First Input Message Structure
-    UDIo.Buffers[0].Size = sizeof(Msg);
-    UDIo.Buffers[0].Buffer = &Msg;
-
-    // Call API
     IO_STATUS_BLOCK IoStatus;
     return NtDeviceIoControlFile(hConsole, NULL, NULL, NULL, &IoStatus,
-        IOCTL_CONDRV_ISSUE_USER_IO, &UDIo, sizeof(UDIo), NULL, 0);
+        IOCTL_CONDRV_ISSUE_USER_IO, &IoBuffer, sizeof(IoBuffer), NULL, 0);
 }
 
-// https://github.com/microsoft/terminal/blob/main/dep/Console/conmsgl2.h
+// Read console device input
+NTSTATUS ReadConsoleDeviceInput(
+    _In_ HANDLE hConsole,
+    _Out_writes_(nLength) PINPUT_RECORD pBuffer,
+    _In_ ULONG nLength,
+    _Out_ PULONG64 nEventsRead,
+    _In_ BOOL fUnicode
+) {
+    BYTE Buffer[sizeof(CD_USER_DEFINED_IO) + sizeof(CD_IO_BUFFER) * 2];
+    PCD_USER_DEFINED_IO pIoBuffer = (PCD_USER_DEFINED_IO) Buffer;
+
+    pIoBuffer->InputCount = 1;
+    pIoBuffer->OutputCount = 2;
+
+    CONSOLE_MSG_GETCONSOLEINPUT_L1 Msg;
+    Msg.Header.ApiNumber = ConsolepGetConsoleInput;
+    Msg.Header.ApiDescriptorSize = sizeof(CONSOLE_GETCONSOLEINPUT_MSG);
+    Msg.Msg.Flags = 0;
+    Msg.Msg.Unicode = fUnicode;
+
+    pIoBuffer->Buffers[0].Size = sizeof(Msg);
+    pIoBuffer->Buffers[0].Buffer = &Msg;
+
+    pIoBuffer->Buffers[1].Size = sizeof(nEventsRead);
+    pIoBuffer->Buffers[1].Buffer = nEventsRead;
+
+    pIoBuffer->Buffers[2].Size = nLength * sizeof(INPUT_RECORD);
+    pIoBuffer->Buffers[2].Buffer = pBuffer;
+
+    IO_STATUS_BLOCK IoStatus;
+    return NtDeviceIoControlFile(hConsole, NULL, NULL, NULL,
+        &IoStatus, IOCTL_CONDRV_ISSUE_USER_IO, pIoBuffer, sizeof(Buffer), NULL, 0);
+}
+
+// Write console device output
+NTSTATUS WriteConsoleDevice(
+    _In_ HANDLE hConsole,
+    _In_reads_bytes_(uLength) PCVOID pBuffer,
+    _In_ ULONG uLength,
+    _In_ BOOL fUnicode
+) {
+    BYTE Buffer[sizeof(CD_USER_DEFINED_IO) + sizeof(CD_IO_BUFFER)];
+    PCD_USER_DEFINED_IO pIoBuffer = (PCD_USER_DEFINED_IO) Buffer;
+
+    pIoBuffer->InputCount = 2;
+    pIoBuffer->OutputCount = 0;
+
+    CONSOLE_MSG_WRITECONSOLE_L1 Msg;
+    Msg.Header.ApiNumber = ConsolepWriteConsole;
+    Msg.Header.ApiDescriptorSize = sizeof(CONSOLE_WRITECONSOLE_MSG);
+    Msg.Msg.Unicode = fUnicode;
+
+    pIoBuffer->Buffers[0].Size = sizeof(Msg);
+    pIoBuffer->Buffers[0].Buffer = &Msg;
+
+    pIoBuffer->Buffers[1].Size = uLength;
+    pIoBuffer->Buffers[1].Buffer = (PVOID) pBuffer;
+
+    IO_STATUS_BLOCK IoStatus;
+    return NtDeviceIoControlFile(hConsole, NULL, NULL, NULL,
+        &IoStatus, IOCTL_CONDRV_ISSUE_USER_IO, pIoBuffer, sizeof(Buffer), NULL, 0);
+}
+
+// Console API Message Definitions (Layer 2)
+// Reference: https://github.com/microsoft/terminal/blob/main/dep/Console/conmsgl2.h
 
 typedef struct _CONSOLE_SETCP_MSG {
     IN ULONG CodePage;
     IN BOOLEAN Output;
 } CONSOLE_SETCP_MSG, *PCONSOLE_SETCP_MSG;
-
-typedef struct _CONSOLE_MSG_SETCP_L2 {
-    CONSOLE_MSG_HEADER Header;
-    CONSOLE_SETCP_MSG Msg;
-} CONSOLE_MSG_SETCP_L2, *PCONSOLE_MSG_SETCP_L2;
 
 typedef enum _CONSOLE_API_NUMBER_L2 {
     ConsolepFillConsoleOutput = CONSOLE_FIRST_API_NUMBER(2),
@@ -218,30 +194,31 @@ typedef enum _CONSOLE_API_NUMBER_L2 {
     ConsolepSetTitle,
 } CONSOLE_API_NUMBER_L2, *PCONSOLE_API_NUMBER_L2;
 
+typedef struct _CONSOLE_MSG_SETCP_L2 {
+    CONSOLE_MSG_HEADER Header;
+    CONSOLE_SETCP_MSG Msg;
+} CONSOLE_MSG_SETCP_L2, *PCONSOLE_MSG_SETCP_L2;
+
+// Set console device output code page
 NTSTATUS SetConsoleDeviceOutputCP(
     _In_ HANDLE hConsole,
     _In_ UINT wCodePageID
 ) {
-    CD_USER_DEFINED_IO UDIo;
+    CD_USER_DEFINED_IO IoBuffer;
 
-    // We not use it
-    UDIo.Client = NULL;
-    // Two Input buffers
-    UDIo.InputCount = 1;
-    // No Output
-    UDIo.OutputCount = 0;
+    IoBuffer.InputCount = 1;
+    IoBuffer.OutputCount = 0;
 
-    CONSOLE_MSG_SETCP_L2 Msg = {
-        .Header = {ConsolepSetCP, sizeof(CONSOLE_SETCP_MSG)},
-        .Msg = {wCodePageID, TRUE}
-    };
+    CONSOLE_MSG_SETCP_L2 Msg;
+    Msg.Header.ApiNumber = ConsolepSetCP;
+    Msg.Header.ApiDescriptorSize = sizeof(CONSOLE_SETCP_MSG);
+    Msg.Msg.CodePage = wCodePageID;
+    Msg.Msg.Output = TRUE;
 
-    // First Input Message Structure
-    UDIo.Buffers[0].Size = sizeof(Msg);
-    UDIo.Buffers[0].Buffer = &Msg;
+    IoBuffer.Buffers[0].Size = sizeof(Msg);
+    IoBuffer.Buffers[0].Buffer = &Msg;
 
-    // Call API
     IO_STATUS_BLOCK IoStatus;
     return NtDeviceIoControlFile(hConsole, NULL, NULL, NULL, &IoStatus,
-        IOCTL_CONDRV_ISSUE_USER_IO, &UDIo, sizeof(UDIo), NULL, 0);
+        IOCTL_CONDRV_ISSUE_USER_IO, &IoBuffer, sizeof(IoBuffer), NULL, 0);
 }
