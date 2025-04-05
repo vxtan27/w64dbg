@@ -11,9 +11,9 @@
 DWORD FormatDebugEvent(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCSTR szDebugEventName, SIZE_T DebugEventNameLength, PCH Buffer) {
     memcpy(Buffer, szDebugEventName, DebugEventNameLength);
     char *p = conversion::dec::from_int(Buffer + DebugEventNameLength,
-        HandleToUlong(pStateChange->AppClientId.UniqueProcess));
+        DbgGetProcessId(pStateChange));
     *p = 'x';
-    p = conversion::dec::from_int(p + 1, HandleToUlong(pStateChange->AppClientId.UniqueThread));
+    p = conversion::dec::from_int(p + 1, DbgGetThreadId(pStateChange));
     *p = '\n';
 
     return p - Buffer + 1;
@@ -62,28 +62,28 @@ DWORD FormatDebugModule(HANDLE hModule, PCSTR szDebugEventName, SIZE_T DebugEven
 //  Output format: "<ErrorMessage><ErrorType>\n"
 //
 
-DWORD FormatRIPEvent(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCH Buffer, ULONG BufLen) {
+DWORD FormatRIPEvent(PEXCEPTION_RECORD pExceptionRecord, PCH Buffer, ULONG BufLen) {
     char *p;
     PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
     if (NT_SUCCESS(LookupSystemMessage(
-        pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionFlags, LANG_USER_DEFAULT, &MessageEntry)))
+        pExceptionRecord->ExceptionFlags, LANG_USER_DEFAULT, &MessageEntry)))
         p = Buffer + ConvertUnicodeToUTF8(GetMessageEntryText(MessageEntry),
             GetMessageEntryLength(MessageEntry), Buffer, BufLen);
     else p = Buffer;
 
-    if (PtrToUlong(pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionRecord) == 1) {
+    if (PtrToUlong(pExceptionRecord->ExceptionRecord) == 1) {
         memcpy(p, _SLE_ERROR, strlen(_SLE_ERROR));
         p += strlen(_SLE_ERROR);
-    } else if (PtrToUlong(pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionRecord) == 2) {
+    } else if (PtrToUlong(pExceptionRecord->ExceptionRecord) == 2) {
         memcpy(p, _SLE_MINORERROR, strlen(_SLE_MINORERROR));
         p += strlen(_SLE_MINORERROR);
-    } else if (PtrToUlong(pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionRecord) == 3) {
+    } else if (PtrToUlong(pExceptionRecord->ExceptionRecord) == 3) {
         memcpy(p, _SLE_WARNING, strlen(_SLE_WARNING));
         p += strlen(_SLE_WARNING);
     }
 
-    if (PtrToUlong(pStateChange->StateInfo.Exception.ExceptionRecord.ExceptionRecord)) *p++ = '.';
+    if (PtrToUlong(pExceptionRecord->ExceptionRecord)) *p++ = '.';
     *p = '\n';
 
     return p - Buffer + 1;

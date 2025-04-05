@@ -15,7 +15,7 @@ typedef struct _DBGSS_THREAD_DATA {
 } DBGSS_THREAD_DATA, *PDBGSS_THREAD_DATA;
 
 // =====================================================================================
-//  Handle Management: Save, Remove, Close
+//  Handle Management
 // =====================================================================================
 
 // Save thread handle from debug event into thread-local storage
@@ -74,6 +74,17 @@ DBGAPI VOID DbgCloseAllProcessHandles(PDBGUI_WAIT_STATE_CHANGE pStateChange) {
         RtlFreeHeap(RtlProcessHeap(), HEAP_NO_SERIALIZE, ThisData);
         ThisData = *ThreadData;
     }
+}
+
+// Attach debugger to an active process
+DBGAPI NTSTATUS DbgDebugActiveProcess(
+    HANDLE hProcess,
+    ULONG uFlags
+) {
+    NTSTATUS status = NtCreateDebugObject(
+        &DbgGetThreadDebugObject(), DEBUG_ALL_ACCESS, NULL, uFlags);
+    if (!NT_SUCCESS(status)) return status;
+    return DbgUiDebugActiveProcess(hProcess);
 }
 
 // Retrieve process handle from the list for the debug event

@@ -78,19 +78,6 @@ DBGAPI NTSTATUS DbgContinue(
     return NtStatus;
 }
 
-// Attach debugger to an active process
-DBGAPI NTSTATUS DbgDebugActiveProcess(
-    HANDLE hProcess,
-    ULONG uFlags
-) {
-    if (!DbgGetThreadDebugObject()) {
-        NTSTATUS status = NtCreateDebugObject(
-            &DbgGetThreadDebugObject(), DEBUG_ALL_ACCESS, NULL, uFlags);
-        if (!NT_SUCCESS(status)) return status;
-    }
-    return DbgUiDebugActiveProcess(hProcess);
-}
-
 // Stop debugging a process and clean up handles
 DBGAPI NTSTATUS DbgStopDebugging(
     HANDLE hProcess,

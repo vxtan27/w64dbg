@@ -194,7 +194,7 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
 
     if (pSymInfo->Flags & SYMFLAG_NULL ||
         (User->DataIsParam && !(pSymInfo->Flags & SYMFLAG_PARAMETER)) ||
-        (!User->DataIsParam && pSymInfo->Flags & SYMFLAG_PARAMETER)) return FALSE; // Stop enumeration
+        (!User->DataIsParam && pSymInfo->Flags & SYMFLAG_PARAMETER)) return TRUE; // Continue enumeration
 
     if (!User->DataIsParam) {
         memset(User->p, ' ', 8);
@@ -217,14 +217,15 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
 
     DWORD64 Base;
 
-    if (pSymInfo->Flags & SYMFLAG_REGREL)
+    if (pSymInfo->Flags & SYMFLAG_REGISTER ||
+        pSymInfo->Flags & SYMFLAG_REGREL)
         Base = GetRegisterBase(pSymInfo, User->pContext, User->b64bit);
     else if (pSymInfo->Flags & SYMFLAG_FRAMEREL)
         Base = *User->pBase;
 
-    DWORD DTag;
-
     *User->p++ = '=';
+
+    DWORD DTag;
     SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_SYMTAG, &DTag);
 
     if (DTag == SymTagArrayType ||
@@ -234,19 +235,25 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
             User->p = conversion::addr::from_int(User->p, pSymInfo->Address + Base);
         else User->p = conversion::addr::from_int(User->p, (DWORD) (pSymInfo->Address + Base));
     } else {
-        ULONG64 Len;
         BASIC_TYPE bt = {};
 
         // add SYMFLAG_VALUEPRESENT
-        SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_LENGTH, &Len);
-        NtReadVirtualMemory(User->hProcess, (PVOID) (pSymInfo->Address + Base), &bt, Len, NULL); // pSymInfo->Size
+        if (pSymInfo->Flags & SYMFLAG_REGISTER &&
+            !(pSymInfo->Flags & SYMFLAG_REGREL)) {
+            if (User->b64bit) bt.ui64 = Base;
+            else bt.ul = (DWORD) Base;
+        } else {
+            ULONG64 Len;
+            SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_LENGTH, &Len);
+            NtReadVirtualMemory(User->hProcess, (PVOID) (pSymInfo->Address + Base), &bt, Len, NULL); // pSymInfo->Size
+        }
 
         if (DTag == SymTagPointerType) {
             if (User->b64bit)
                 User->p = conversion::addr::from_int(User->p, bt.ui64);
             else User->p = conversion::addr::from_int(User->p, bt.ul);
-        } else {
-            DWORD BaseType = 0;
+        } else { // SymTagBaseType
+            LONG BaseType = 0;
             SymGetTypeInfo(User->hProcess, pSymInfo->ModBase, pSymInfo->TypeIndex, TI_GET_BASETYPE, &BaseType);
 
             // https://github.com/rogerorr/NtTrace/blob/main/src/SymbolEngine.cpp#L1185

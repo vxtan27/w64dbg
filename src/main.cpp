@@ -13,9 +13,9 @@
 #include <conversion/address.h>
 #include <conversion/decimal.h>
 
+#include <debugger/core.cpp>
 #include <config/core.h>
 #include <exception.h>
-#include <debugger/core.cpp>
 #include <utils.h>
 #include <fmt.h>
 #include <log.h>
@@ -24,18 +24,17 @@
 int
 WINAPI
 wmain(void) {
-    BOOL firstbreak = DEFAULT_FIRSTBREAK,
-    breakpoint = DEFAULT_BREAKPOINT,
-    verbose = DEFAULT_VERBOSE,
-    output = DEFAULT_OUTPUT,
-    pause = DEFAULT_PAUSE;
+    BOOL fVerbose = DEFAULT_VERBOSE,
+    fPauseExecution = DEFAULT_PAUSE,
+    fOutputDebugString = DEFAULT_OUTPUT,
+    fIgnoreBreakpoints = DEFAULT_BREAKPOINT;
 
     BOOL bConsole;
     HANDLE hStdout = RtlStandardOutput();
     PUNICODE_STRING pCommandLine = RtlCommandLine();
     size_t len = pCommandLine->Length >> 1;
     wchar_t *pCmdLine = wmemchr(pCommandLine->Buffer, ' ', len);
-    wchar_t *pNext = pCmdLine;
+    wchar_t *pNext = pCmdLine + 1;
 
     IsConsoleHandle(hStdout, &bConsole);
 
@@ -51,34 +50,34 @@ wmain(void) {
 
             if (*(pNext + 2) == ' ') switch (*(pNext + 1)) {
             case 'B':
-                breakpoint = FALSE;
+                fIgnoreBreakpoints = FALSE;
                 pNext += 3;
                 continue;
 
             case 'O':
-                output = FALSE;
+                fOutputDebugString = FALSE;
                 pNext += 3;
                 continue;
 
             case 'T':
-                pause = TRUE;
+                fPauseExecution = TRUE;
                 pNext += 3;
                 continue;
 
             case 'V':
-                verbose = 2;
+                fVerbose = 1;
                 pNext += 3;
                 continue;
 
             case '?':
-                WriteHandle(hStdout, (PVOID) (HELP + 16),
-                    strlen(HELP) - 16, FALSE, bConsole);
+                WriteHandle(hStdout, (PVOID) (HELP + 23),
+                    strlen(HELP) - 23, FALSE, bConsole);
                 return EXIT_SUCCESS;
             }
 
             if (*(pNext + 1) == 'V' && *(pNext + 2) >= '0' &&
                     *(pNext + 2) <= '2' && *(pNext + 3) == ' ') {
-                verbose = *(pNext + 2) - '0';
+                fVerbose = *(pNext + 2) - '0';
                 pNext += 4;
                 continue;
             }
@@ -91,66 +90,22 @@ wmain(void) {
 
     // No executable specified
     if (!pCmdLine || pCmdLine + len < pNext) {
-        WriteHandle(hStdout, (PVOID) HELP, 65, FALSE, bConsole);
+        WriteHandle(hStdout, (PVOID) HELP, 72, FALSE, bConsole);
         return ERROR_BAD_ARGUMENTS;
     }
-
-    wchar_t ApplicationName[WBUFLEN];
 
     wchar_t *ptr = wmemchr(pNext, ' ',
         pCmdLine + len + 1 - pNext);
     *ptr = '\0';
     *(pCmdLine + len) = '\0';
 
-    if (!SearchPathW(NULL, pNext, EXTENSION,
-        sizeof(ApplicationName) >> 1, ApplicationName, NULL)) { // Check if executable exists
-        PMESSAGE_RESOURCE_ENTRY MessageEntry;
+    UNICODE_STRING NtPathName;
 
-        LookupSystemMessage(ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &MessageEntry);
-        WriteHandle(hStdout, GetMessageEntryText(MessageEntry),
-            GetMessageEntryLength(MessageEntry), TRUE, bConsole);
-        return ERROR_FILE_NOT_FOUND;
-    }
-
-    char *p;
-    DWORD b64bit; // Is 64-bit application
-    char buffer[BUFLEN];
-
-    // Check if executable format (x86-64)
-    if (!GetBinaryTypeW(ApplicationName, &b64bit) ||
-        (b64bit != SCS_32BIT_BINARY && b64bit != SCS_64BIT_BINARY)) {
-        ULONG ActualByteCount;
-        PMESSAGE_RESOURCE_ENTRY MessageEntry;
-
-        LookupSystemMessage(ERROR_BAD_EXE_FORMAT, LANG_USER_DEFAULT, &MessageEntry);
-
-        PWCH pos;
-        PCWCH Text = (PCWCH) GetMessageEntryText(MessageEntry);
-        // Convert error message to UTF-8
-        if (*Text == '%') {
-            pos = (PWCH) Text;
-            p = buffer;
-        } else {
-            pos = (PWCH) wmemchr(Text, '%', GetMessageEntryLength(MessageEntry));
-            RtlUnicodeToUTF8N(buffer, BUFLEN, &ActualByteCount,
-                Text, pos - Text);
-            p = buffer + ActualByteCount;
-        }
-
-        // Convert filename to UTF-8
-        RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &ActualByteCount,
-            pNext, (ptr - pNext) << 1);
-        p += ActualByteCount;
-
-        pos = wmemchr(pos + 1, '1', GetMessageEntryLength(MessageEntry)) + 1;
-        // Convert error message to UTF-8
-        RtlUnicodeToUTF8N(p, buffer + BUFLEN - p, &ActualByteCount,
-            pos, GetMessageEntryLength(MessageEntry) - ((pos - Text) << 1));
-        p += ActualByteCount;
-
-        WriteHandle(hStdout, buffer, p - buffer, FALSE, bConsole);
-        return ERROR_BAD_EXE_FORMAT;
-    }
+    // Get the NT Path
+    RtlDosPathNameToNtPathName_U_WithStatus(pNext,
+                                            &NtPathName,
+                                            NULL,
+                                            NULL);
 
     if (pCmdLine + len != ptr) *ptr = ' ';
 
@@ -166,9 +121,18 @@ wmain(void) {
     startupInfo.cbReserved2 = 0;
     startupInfo.lpReserved2 = NULL;
 
-    CreateProcessW(ApplicationName, pNext, NULL, NULL, FALSE,
-        CREATIONFLAGS | DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP,
-        RtlEnvironment(), DosPath->Buffer, &startupInfo, &processInfo);
+    if (!CreateProcessW(NtPathName.Buffer, pNext, NULL,
+        NULL, FALSE, CREATIONFLAGS, RtlEnvironment(),
+        DosPath->Buffer, &startupInfo, &processInfo)) {
+        PMESSAGE_RESOURCE_ENTRY MessageEntry;
+        LookupSystemMessage(GetLastError(), LANG_USER_DEFAULT, &MessageEntry);
+        WriteHandle(hStdout, GetMessageEntryText(MessageEntry),
+            GetMessageEntryLength(MessageEntry), TRUE, bConsole);
+        return GetLastError();
+    }
+
+    // Free the buffer
+    RtlFreeHeap(RtlProcessHeap(), HEAP_NO_SERIALIZE, NtPathName.Buffer);
 
     HANDLE hProcess;
     HANDLE hFile[MAX_DLL];
@@ -181,22 +145,32 @@ wmain(void) {
     BaseOfDll[0] = StateChange.StateInfo.CreateProcessInfo.NewProcess.BaseOfImage;
     hProcess = processInfo.hProcess;
 
-    if (verbose >= 2) TraceDebugEvent(&StateChange, CREATE_PROCESS, strlen(CREATE_PROCESS), hStdout, bConsole);
+    if (fVerbose >= 2) TraceDebugEvent(&StateChange, CREATE_PROCESS, strlen(CREATE_PROCESS), hStdout, bConsole);
 
     DbgContinue(&StateChange, DBG_CONTINUE);
 
-    // x86 process adds one breakpoint
-    if (!b64bit) --firstbreak;
+    DWORD b64bit; // Is 64-bit application
+    BOOL fBreakpointSignalled = FALSE;
+    SYSTEM_SUPPORTED_PROCESSOR_ARCHITECTURES_INFORMATION Machines[4];
 
-    DWORD i;
+    NtQuerySystemInformationEx(SystemSupportedProcessorArchitectures2,
+        &hProcess, sizeof(hProcess), Machines, sizeof(Machines), NULL);
 
-    while (NT_SUCCESS(DbgWaitStateChange(&StateChange, FALSE, NULL))) {
+    for (int i = 0; Machines[i].Machine; ++i) {
+        b64bit = Machines[i].Process;
+        break;
+    }
+
+    if (!b64bit) --fBreakpointSignalled; // Wow64 breakpoint
+
+    NTSTATUS NtStatus;
+    while (NT_SUCCESS(NtStatus = DbgWaitStateChange(&StateChange, FALSE, NULL))) {
         switch (StateChange.NewState) {
         case DbgLoadDllStateChange:
-            if (verbose >= 2) TraceDebugModule(StateChange.StateInfo.LoadDll.FileHandle, LOAD_DLL, strlen(LOAD_DLL), hStdout, bConsole);
+            if (fVerbose >= 2) TraceDebugModule(StateChange.StateInfo.LoadDll.FileHandle, LOAD_DLL, strlen(LOAD_DLL), hStdout, bConsole);
 
             // Find storage position
-            for (i = 0; i < MAX_DLL; ++i) if (!BaseOfDll[i]) {
+            for (int i = 0; i < MAX_DLL; ++i) if (!BaseOfDll[i]) {
                 hFile[i] = StateChange.StateInfo.LoadDll.FileHandle;
                 BaseOfDll[i] = StateChange.StateInfo.LoadDll.BaseOfDll;
                 break;
@@ -206,8 +180,8 @@ wmain(void) {
 
         case DbgUnloadDllStateChange:
             // Find specific DLL
-            for (i = 0; i < MAX_DLL; ++i) if (StateChange.StateInfo.UnloadDll.BaseAddress == BaseOfDll[i]) {
-                if (verbose >= 2) TraceDebugModule(hFile[i], UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout, bConsole);
+            for (int i = 0; i < MAX_DLL; ++i) if (StateChange.StateInfo.UnloadDll.BaseAddress == BaseOfDll[i]) {
+                if (fVerbose >= 2) TraceDebugModule(hFile[i], UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout, bConsole);
 
                 NtClose(hFile[i]);
                 BaseOfDll[i] = 0;
@@ -217,21 +191,21 @@ wmain(void) {
             break;
 
         case DbgCreateThreadStateChange:
-            if (verbose >= 2) TraceDebugEvent(&StateChange, CREATE_THREAD, strlen(CREATE_THREAD), hStdout, bConsole);
+            if (fVerbose >= 2) TraceDebugEvent(&StateChange, CREATE_THREAD, strlen(CREATE_THREAD), hStdout, bConsole);
             break;
 
         case DbgExitThreadStateChange:
-            if (verbose >= 2) TraceDebugEvent(&StateChange, EXIT_THREAD, strlen(EXIT_THREAD), hStdout, bConsole);
+            if (fVerbose >= 2) TraceDebugEvent(&StateChange, EXIT_THREAD, strlen(EXIT_THREAD), hStdout, bConsole);
             break;
 
         case DbgExitProcessStateChange:
-            if (verbose >= 2) TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout, bConsole);
+            if (fVerbose >= 2) TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout, bConsole);
 
-            if (pause) WaitForKeyPress(hStdout, bConsole);
+            if (fPauseExecution) WaitForKeyPress(hStdout, bConsole);
 
             NtClose(hProcess);
 
-            for (i = 0; i < MAX_DLL; ++i)
+            for (int i = 0; i < MAX_DLL; ++i)
                 if (BaseOfDll[i]) NtClose(hFile[i]);
 
             DbgContinue(&StateChange, DBG_CONTINUE);
@@ -240,78 +214,78 @@ wmain(void) {
         case DbgExceptionStateChange:
         case DbgBreakpointStateChange:
         case DbgSingleStepStateChange:
-            if (StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_PRINTEXCEPTION_WIDE_C ||
-                StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_PRINTEXCEPTION_C) {
-                if (verbose >= 2) TraceDebugEvent(&StateChange, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout, bConsole);
-                if (output == TRUE) ProcessDebugStringEvent(&StateChange, hProcess, hStdout, bConsole);
+            PDBGKM_EXCEPTION pException = &StateChange.StateInfo.Exception;
+            PEXCEPTION_RECORD pExceptionRecord = &pException->ExceptionRecord;
+            if (pExceptionRecord->ExceptionCode == DBG_PRINTEXCEPTION_WIDE_C ||
+                pExceptionRecord->ExceptionCode == DBG_PRINTEXCEPTION_C) {
+                if (fVerbose >= 2) TraceDebugEvent(&StateChange, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout, bConsole);
+                if (fOutputDebugString == TRUE) ProcessOutputDebugStringEvent(&StateChange, hProcess, hStdout, bConsole);
                 break;
-            } else if (StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == DBG_RIPEXCEPTION) {
-                if (verbose >= 2) TraceDebugEvent(&StateChange, RIP, strlen(RIP), hStdout, bConsole);
+            } else if (pExceptionRecord->ExceptionCode == DBG_RIPEXCEPTION) {
+                if (fVerbose >= 2) TraceDebugEvent(&StateChange, RIP, strlen(RIP), hStdout, bConsole);
                 ProcessRIPEvent(&StateChange, hStdout, bConsole);
                 break;
             }
 
             // Ignore thread naming exception
             // https://learn.microsoft.com/en-us/visualstudio/debugger/tips-for-debugging-threads
-            if (StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == MS_VC_EXCEPTION)
+            if (pExceptionRecord->ExceptionCode == MS_VC_EXCEPTION)
                 break;
 
-            // Ignore first-chance breakpoints
-            if ((StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == STATUS_BREAKPOINT ||
-                StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode == STATUS_WX86_BREAKPOINT) &&
-                ((breakpoint == FALSE) || (breakpoint == TRUE && ++firstbreak <= 1)))
+            // Ignore signal breakpoints
+            if ((pExceptionRecord->ExceptionCode == STATUS_BREAKPOINT ||
+                pExceptionRecord->ExceptionCode == STATUS_WX86_BREAKPOINT) &&
+                ((fIgnoreBreakpoints == FALSE) || (fIgnoreBreakpoints == TRUE && ++fBreakpointSignalled <= 1)))
                 break;
 
             // Ignore other first change exceptions
-            if (StateChange.StateInfo.Exception.FirstChance) {
+            if (pException->FirstChance) {
                 DbgContinue(&StateChange, DBG_EXCEPTION_NOT_HANDLED);
                 continue;
             }
 
+            char buffer[BUFLEN];
             memcpy(buffer, THREAD_NUMBER, strlen(THREAD_NUMBER));
-            p = conversion::dec::from_int(buffer + strlen(THREAD_NUMBER),
-                HandleToUlong(StateChange.AppClientId.UniqueThread));
+            char *p = conversion::dec::from_int(buffer + strlen(THREAD_NUMBER),
+                DbgGetProcessId(&StateChange));
             *p = 'x';
-            p = conversion::dec::from_int(p + 1,
-                HandleToUlong(StateChange.AppClientId.UniqueProcess));
+            p = conversion::dec::from_int(p + 1, DbgGetThreadId(&StateChange));
 
             memcpy(p, THREAD_RAISED, strlen(THREAD_RAISED));
             p += strlen(THREAD_RAISED);
-            p = conversion::status::from_int(p,
-                StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode);
+            p = conversion::status::from_int(p, pExceptionRecord->ExceptionCode);
             *p++ = '\n';
 
-            p += FormatExceptionEvent(StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode,
+            p += FormatExceptionEvent(pExceptionRecord->ExceptionCode,
                 LANG_USER_DEFAULT, p, buffer + BUFLEN - p, bConsole);
 
             SymSetOptions(SYMOPTIONS);
             SymInitializeW(hProcess, NULL, FALSE);
 
-            for (DWORD j = 0; j < MAX_DLL; ++j) if (BaseOfDll[j]) {
+            for (int i = 0; i < MAX_DLL; ++i) if (BaseOfDll[i]) {
                 DWORD DllSize;
 
-                GetModuleSize(hFile[j], &DllSize);
-                SymLoadModuleExW(hProcess, hFile[j], NULL, NULL,
-                    (DWORD64) BaseOfDll[j], DllSize, NULL, 0);
+                GetModuleSize(hFile[i], &DllSize);
+                SymLoadModuleExW(hProcess, hFile[i], NULL, NULL,
+                    (DWORD64) BaseOfDll[i], DllSize, NULL, 0);
             }
 
-            CONTEXT Context;
             DWORD MachineType;
             STACKFRAME_EX StackFrame;
+            BYTE Context[FIELD_OFFSET(CONTEXT, FltSave)]; // CONTEXT Context
             HANDLE hThread = DbgGetThreadHandle(&StateChange);
 
             if (b64bit) {
                 MachineType = IMAGE_FILE_MACHINE_AMD64;
-                Context.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
-                NtGetContextThread(hThread, &Context);
-                StackFrame.AddrPC.Offset = Context.Rip;
-                StackFrame.AddrFrame.Offset = Context.Rbp;
-                StackFrame.AddrStack.Offset = Context.Rsp;
+                ((PCONTEXT) &Context)->ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
+                NtGetContextThread(hThread, (PCONTEXT) &Context);
+                StackFrame.AddrPC.Offset = ((PCONTEXT) &Context)->Rip;
+                StackFrame.AddrFrame.Offset = ((PCONTEXT) &Context)->Rbp;
+                StackFrame.AddrStack.Offset = ((PCONTEXT) &Context)->Rsp;
             } else {
                 MachineType = IMAGE_FILE_MACHINE_I386;
                 ((PWOW64_CONTEXT) &Context)->ContextFlags = WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER;
-                NtQueryInformationThread(hThread, ThreadWow64Context,
-                    &Context, sizeof(WOW64_CONTEXT), NULL);
+                NtQueryInformationThread(hThread, ThreadWow64Context, &Context, sizeof(WOW64_CONTEXT), NULL);
                 StackFrame.AddrPC.Offset = ((PWOW64_CONTEXT) &Context)->Eip;
                 StackFrame.AddrFrame.Offset = ((PWOW64_CONTEXT) &Context)->Ebp;
                 StackFrame.AddrStack.Offset = ((PWOW64_CONTEXT) &Context)->Esp;
@@ -323,8 +297,8 @@ wmain(void) {
             // StackFrame.StackFrameSize = sizeof(StackFrame);
 
             DWORD count;
-            DWORD DirLen;
             BOOL Success;
+            DWORD DirLen;
             DWORD Displacement;
             PSYMBOL_INFOW pSymInfo;
             IMAGEHLP_LINEW64 Line;
@@ -440,7 +414,7 @@ wmain(void) {
                             Line.LineNumber, temp - DirLen, buffer + BUFLEN - p, p, bConsole);
                     else p = FormatFileLine(Line.FileName,
                         Line.LineNumber, temp, buffer + BUFLEN - p, p, bConsole);
-                    if (verbose >= 1) p = FormatSourceCode(Line.FileName,
+                    if (fVerbose >= 1) p = FormatSourceCode(Line.FileName,
                         Line.LineNumber, temp, buffer + BUFLEN - p, p);
                 } else {
                     memcpy(p, EXCEPTION_FROM, strlen(EXCEPTION_FROM));
@@ -465,7 +439,7 @@ wmain(void) {
                     *p++ = '\n';
                 }
 
-                if (Success && verbose >= 1) {
+                if (Success && fVerbose >= 1) {
                     UserContext.p = p;
                     UserContext.DataIsParam = FALSE;
                     SymEnumSymbolsExW(hProcess, 0, NULL, EnumSymbolsProcW, &UserContext, SYMENUM_OPTIONS_DEFAULT);
@@ -484,11 +458,16 @@ wmain(void) {
             WriteHandle(hStdout, buffer, p - buffer, FALSE, bConsole);
 
             SymCleanup(hProcess);
+
+            DWORD dwExitCode = RtlNtStatusToDosError(pExceptionRecord->ExceptionCode);
             NtTerminateProcess(hProcess,
-                RtlNtStatusToDosError(StateChange.StateInfo.Exception.ExceptionRecord.ExceptionCode));
+                dwExitCode != ERROR_MR_MID_NOT_FOUND ? dwExitCode : pExceptionRecord->ExceptionCode);
             break;
         }
 
         DbgContinue(&StateChange, DBG_CONTINUE);
     }
+
+    DWORD dwExitCode = RtlNtStatusToDosError(NtStatus);
+    return dwExitCode != ERROR_MR_MID_NOT_FOUND ? dwExitCode : NtStatus;
 }

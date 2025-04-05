@@ -43,7 +43,7 @@ NTSTATUS TraceDebugModule(
 }
 
 // Process OutputDebugString events and writes the debug string to standard output
-VOID ProcessDebugStringEvent(
+VOID ProcessOutputDebugStringEvent(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     HANDLE hProcess,
     HANDLE hStdout,
@@ -102,5 +102,6 @@ NTSTATUS ProcessRIPEvent(
     char Buffer[DEBUG_EVENT_RIP_BUFFER_SIZE];
 
     return WriteHandle(hStdout, Buffer,
-        FormatRIPEvent(pStateChange, Buffer, sizeof(Buffer)), FALSE, bConsole);
+        FormatRIPEvent(&pStateChange->StateInfo.Exception.ExceptionRecord,
+            Buffer, sizeof(Buffer)), FALSE, bConsole);
 }

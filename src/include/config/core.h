@@ -7,7 +7,6 @@
 //  Debugger Configuration Defaults
 // =====================================================================================
 
-#define DEFAULT_FIRSTBREAK    FALSE  // Ignore first debug break
 #define DEFAULT_BREAKPOINT    TRUE   // Enable breakpoints
 #define DEFAULT_VERBOSE       FALSE  // Disable verbose output
 #define DEFAULT_OUTPUT        TRUE   // Enable standard output
@@ -39,8 +38,10 @@
 // =====================================================================================
 
 #define CREATIONFLAGS  \
+    DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP | \
     CREATE_UNICODE_ENVIRONMENT | CREATE_BREAKAWAY_FROM_JOB | \
-    CREATE_PRESERVE_CODE_AUTHZ_LEVEL | CREATE_DEFAULT_ERROR_MODE
+    CREATE_PRESERVE_CODE_AUTHZ_LEVEL
+
 
 // =====================================================================================
 //  Symbol Loading Options
@@ -59,7 +60,7 @@
 // =====================================================================================
 
 #define HELP \
-R"(Invalid syntax.
+R"(ERROR: Invalid syntax.
 Usage: W64DBG [options] <executable> [exec-args]
 
 Description:
@@ -82,8 +83,8 @@ Options:
 //  Error Messages
 // =====================================================================================
 
-#define _INVALID_ARGUMENT   "Invalid argument/option - '"
-#define INVALID_ARGUMENT_   "'.\n"
+#define _INVALID_ARGUMENT   "ERROR: Invalid argument/option - '"
+#define INVALID_ARGUMENT_   "'.\nType \"W64DBG /?\" for usage.\n"
 
 // =====================================================================================
 //  File Extensions
