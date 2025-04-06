@@ -15,45 +15,37 @@ FORCEINLINE DWORD DbgGetThreadId(PDBGUI_WAIT_STATE_CHANGE pStateChange) {
     return HandleToUlong(pStateChange->AppClientId.UniqueThread);
 }
 
-#ifndef DBGAPI
-#ifdef _DEBUG
-#define DBGAPI
-#else
-#define DBGAPI FORCEINLINE
-#endif
-#endif
-
 // Attach debugger to an active process
-DBGAPI NTSTATUS DbgDebugActiveProcess(
+NTSTATUS DbgDebugActiveProcess(
     HANDLE hProcess,
     ULONG uFlags
 );
 
 // Wait for a debug state change event
-DBGAPI NTSTATUS DbgWaitStateChange(
+NTSTATUS DbgWaitStateChange(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     BOOL bAlertable,
     PLARGE_INTEGER pTimeout
 );
 
 // Continue a thread after a debug event
-DBGAPI NTSTATUS DbgContinue(
+NTSTATUS DbgContinue(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     NTSTATUS dwContinueStatus
 );
 
 // Stop debugging a process
-DBGAPI NTSTATUS DbgStopDebugging(
+NTSTATUS DbgStopDebugging(
     HANDLE hProcess,
     PDBGUI_WAIT_STATE_CHANGE pStateChange
 );
 
 // Get process handle from a debug event
-DBGAPI HANDLE DbgGetProcessHandle(
+HANDLE DbgGetProcessHandle(
     PDBGUI_WAIT_STATE_CHANGE pStateChange
 );
 
 // Get thread handle from a debug event
-DBGAPI HANDLE DbgGetThreadHandle(
+HANDLE DbgGetThreadHandle(
     PDBGUI_WAIT_STATE_CHANGE pStateChange
 );

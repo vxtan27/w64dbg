@@ -12,7 +12,6 @@
 #define NO_STRICT                    // Relax type checking
 #define _HAS_EXCEPTIONS 0            // Disable exceptions
 #define WIN32_LEAN_AND_MEAN          // Reduce Windows API inclusions
-#define DBG_DEBUG_SINGLE_PROCESS     // Optimize for single-process debugging
 #define _CRT_DECLARE_NONSTDC_NAMES 0 // Exclude non standard names
 
 // =====================================================================================

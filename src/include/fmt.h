@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <ntdll.h>
+
 //
 //  Format a debug event message into a buffer
 //  Output format: "<EventName><ProcessID>x<ThreadID>\n
@@ -42,15 +44,17 @@ DWORD FormatDebugModule(HANDLE hModule, PCSTR szDebugEventName, SIZE_T DebugEven
             if (memcmp(NameInfo->Name.Buffer, Target, Length << 1) == 0) {
                 Buffer[DebugEventNameLength] = Letter;
                 Buffer[DebugEventNameLength + 1] = ':';
+                RtlUnicodeToUTF8N(Buffer + DebugEventNameLength + 2,
+                    MAX_PATH, &ActualByteCount, NameInfo->Name.Buffer + Length,
+                    NameInfo->Name.Length - (Length << 1));
+                Buffer[ActualByteCount + DebugEventNameLength + 2] = '\n';
+
+                return ActualByteCount + DebugEventNameLength + 2 + 1;
             }
         }
     }
 
-    RtlUnicodeToUTF8N(Buffer + DebugEventNameLength + 2, MAX_PATH,
-        &ActualByteCount, NameInfo->Name.Buffer + Length, NameInfo->Name.Length - (Length << 1));
-    Buffer[ActualByteCount + DebugEventNameLength + 2] = '\n';
-
-    return ActualByteCount + DebugEventNameLength + 2 + 1;
+    std::unreachable();
 }
 
 #define _SLE_ERROR       "Invalid data was passed to the function that failed. This caused the application to fail"
@@ -89,50 +93,78 @@ DWORD FormatRIPEvent(PEXCEPTION_RECORD pExceptionRecord, PCH Buffer, ULONG BufLe
     return p - Buffer + 1;
 }
 
+#define STATUS_APPLICATION_HANG 0xCFFFFFFF
 #define STATUS_APPLICATION_HANG_TEXT \
 R"({EXCEPTION}
 Application hang
 The application has stopped responding.
 )"
 
+#define STATUS_CPP_EH_EXCEPTION 0xE06D7363
 #define STATUS_CPP_EH_EXCEPTION_TEXT \
 R"({EXCEPTION}
 C++ exception handling exception
 An exception occurred during C++ exception handling processing.
 )"
 
+#define STATUS_CLR_EXCEPTION 0xE0434f4D
 #define STATUS_CLR_EXCEPTION_TEXT \
 R"({EXCEPTION}
 Common language runtime (CLR) exception
 An exception was raised by the Common Language Runtime (CLR).
 )"
 
-DWORD FormatExceptionEvent(DWORD dwMessageId, DWORD dwLanguageId, PCH pBuffer, DWORD dwSize, BOOL bConsole) {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4701 4703)
+#endif
+
+//
+//  Format and write a known exception message into the buffer
+//  Optionally wrap the message with console color formatting
+//
+
+ULONGLONG FormatExceptionEvent(
+    DWORD dwMessageId,
+    DWORD dwLanguageId,
+    PCH pBuffer,
+    DWORD dwSize,
+    BOOL fConsole
+) {
     PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
-    if (dwMessageId == 0xCFFFFFFF || dwMessageId == 0xE06D7363 || dwMessageId == 0xE0434f4D ||
+    // Handle special known statuses or fallback to NTDLL lookup
+    if (dwMessageId == STATUS_APPLICATION_HANG ||
+        dwMessageId == STATUS_CPP_EH_EXCEPTION ||
+        dwMessageId == STATUS_CLR_EXCEPTION ||
         NT_SUCCESS(LookupNtdllMessage(dwMessageId, dwLanguageId, &MessageEntry))) {
+
         LPSTR lpBuffer = pBuffer;
-        if (bConsole) {
+
+        if (fConsole) {
             memcpy(lpBuffer, CONSOLE_NRED_FORMAT, strlen(CONSOLE_NRED_FORMAT));
             lpBuffer += strlen(CONSOLE_NRED_FORMAT);
         }
 
-        if (dwMessageId == 0xCFFFFFFF) { // STATUS_APPLICATION_HANG
-            memcpy(lpBuffer, STATUS_APPLICATION_HANG_TEXT, strlen(STATUS_APPLICATION_HANG_TEXT));
+        // Write corresponding message
+        if (dwMessageId == STATUS_APPLICATION_HANG) {
+            memcpy(lpBuffer, STATUS_APPLICATION_HANG_TEXT,
+                strlen(STATUS_APPLICATION_HANG_TEXT));
             lpBuffer += strlen(STATUS_APPLICATION_HANG_TEXT);
-        } else if (dwMessageId == 0xE06D7363) { // STATUS_CPP_EH_EXCEPTION
-            memcpy(lpBuffer, STATUS_CPP_EH_EXCEPTION_TEXT, strlen(STATUS_CPP_EH_EXCEPTION_TEXT));
+        } else if (dwMessageId == STATUS_CPP_EH_EXCEPTION) {
+            memcpy(lpBuffer, STATUS_CPP_EH_EXCEPTION_TEXT,
+                strlen(STATUS_CPP_EH_EXCEPTION_TEXT));
             lpBuffer += strlen(STATUS_CPP_EH_EXCEPTION_TEXT);
-        } else if (dwMessageId == 0xE0434f4D) { // STATUS_CLR_EXCEPTION
-            memcpy(lpBuffer, STATUS_CLR_EXCEPTION_TEXT, strlen(STATUS_CLR_EXCEPTION_TEXT));
+        } else if (dwMessageId == STATUS_CLR_EXCEPTION) {
+            memcpy(lpBuffer, STATUS_CLR_EXCEPTION_TEXT,
+                strlen(STATUS_CLR_EXCEPTION_TEXT));
             lpBuffer += strlen(STATUS_CLR_EXCEPTION_TEXT);
-        } else {
+        } else { // Convert NTDLL message
             lpBuffer += ConvertUnicodeToUTF8(GetMessageEntryText(MessageEntry),
                 GetMessageEntryLength(MessageEntry), lpBuffer, dwSize);
         }
 
-        if (bConsole) {
+        if (fConsole) {
             memcpy(lpBuffer, CONSOLE_DEFAULT_FORMAT, strlen(CONSOLE_DEFAULT_FORMAT));
             lpBuffer += strlen(CONSOLE_DEFAULT_FORMAT);
         }
@@ -142,6 +174,10 @@ DWORD FormatExceptionEvent(DWORD dwMessageId, DWORD dwLanguageId, PCH pBuffer, D
 
     return 0;
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 PSTR FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG BufLength, PCH p, BOOL Console) {
     // Convert file name from Unicode to UTF-8

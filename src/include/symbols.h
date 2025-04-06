@@ -3,13 +3,10 @@
 
 #pragma once
 
+#include <utility>
 #include <cvconst.h>
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4715)
-#endif
-
+// https://github.com/TrinityCoreLegacy/TrinityCore/blob/3.3.5/src/common/Debugging/WheatyExceptionReport.cpp#L1121
 DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext) {
     switch (pSymInfo->Register) {
     case CV_REG_AL:
@@ -18,6 +15,12 @@ DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext) {
     case CV_REG_BL:
         return (&pContext->Ebx)[CV_REG_BL - pSymInfo->Register] & 0xFF;
 
+    case CV_REG_AH:
+    case CV_REG_CH:
+    case CV_REG_DH:
+    case CV_REG_BH:
+        return ((&pContext->Ebx)[CV_REG_BH - pSymInfo->Register] >> 8) & 0xFF;
+
     case CV_REG_AX:
     case CV_REG_CX:
     case CV_REG_DX:
@@ -25,13 +28,12 @@ DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext) {
         return (&pContext->Ebx)[CV_REG_BX - pSymInfo->Register] & 0xFFFF;
 
     case CV_REG_SP:
-        return pContext->Esp & 0xFFFF;
     case CV_REG_BP:
-        return pContext->Ebp & 0xFFFF;
+        return (&pContext->Ebp)[(CV_REG_BP - pSymInfo->Register) << 2] & 0xFFFF;
+
     case CV_REG_SI:
-        return pContext->Esi & 0xFFFF;
     case CV_REG_DI:
-        return pContext->Edi & 0xFFFF;
+        return (&pContext->Edi)[CV_REG_DI - pSymInfo->Register] & 0xFFFF;
 
     case CV_REG_EAX:
     case CV_REG_ECX:
@@ -40,17 +42,22 @@ DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext) {
         return (&pContext->Ebx)[CV_REG_EBX - pSymInfo->Register];
 
     case CV_REG_ESP:
-        return pContext->Esp;
     case CV_REG_EBP:
-    case CV_ALLREG_VFRAME:
-        return pContext->Ebp;
+        return (&pContext->Ebp)[(CV_REG_EBP - pSymInfo->Register) << 2];
+
     case CV_REG_ESI:
-        return pContext->Esi;
     case CV_REG_EDI:
-        return pContext->Edi;
+        return (&pContext->Edi)[CV_REG_EDI - pSymInfo->Register];
+
+    case CV_REG_EIP:
+        return pContext->Eip;
+
+    default:
+        std::unreachable();
     }
 }
 
+// https://github.com/TrinityCoreLegacy/TrinityCore/blob/3.3.5/src/common/Debugging/WheatyExceptionReport.cpp#L1147
 DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext) {
     switch (pSymInfo->Register) {
     case CV_AMD64_AL:
@@ -59,52 +66,13 @@ DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext) {
     case CV_AMD64_BL:
         return (&pContext->Rax)[pSymInfo->Register - CV_AMD64_AL] & 0xFF;
 
-    case CV_AMD64_AX:
-    case CV_AMD64_CX:
-    case CV_AMD64_DX:
-    case CV_AMD64_BX:
-    case CV_AMD64_SP:
-    case CV_AMD64_BP:
-    case CV_AMD64_SI:
-    case CV_AMD64_DI:
-        return (&pContext->Rax)[pSymInfo->Register - CV_AMD64_AX] & 0xFFFF;
+    case CV_AMD64_SIL:
+    case CV_AMD64_DIL:
+        return (&pContext->Rsi)[pSymInfo->Register - CV_AMD64_SIL] & 0xFF;
 
-    case CV_AMD64_EAX:
-    case CV_AMD64_ECX:
-    case CV_AMD64_EDX:
-    case CV_AMD64_EBX:
-    case CV_AMD64_ESP:
-    case CV_AMD64_EBP:
-    case CV_AMD64_ESI:
-    case CV_AMD64_EDI:
-        return (&pContext->Rax)[pSymInfo->Register - CV_AMD64_EAX];
-
-    case CV_AMD64_RAX:
-        return pContext->Rax;
-    case CV_AMD64_RBX:
-        return pContext->Rbx;
-    case CV_AMD64_RCX:
-        return pContext->Rcx;
-    case CV_AMD64_RDX:
-        return pContext->Rdx;
-    case CV_AMD64_RSI:
-        return pContext->Rsi;
-    case CV_AMD64_RDI:
-        return pContext->Rdi;
-    case CV_AMD64_RBP:
-        return pContext->Rbp;
-    case CV_AMD64_RSP:
-        return pContext->Rsp;
-
-    case CV_AMD64_R8:
-    case CV_AMD64_R9:
-    case CV_AMD64_R10:
-    case CV_AMD64_R11:
-    case CV_AMD64_R12:
-    case CV_AMD64_R13:
-    case CV_AMD64_R14:
-    case CV_AMD64_R15:
-        return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8];
+    case CV_AMD64_BPL:
+    case CV_AMD64_SPL:
+        return (&pContext->Rsp)[CV_AMD64_SPL - pSymInfo->Register] & 0xFF;
 
     case CV_AMD64_R8B:
     case CV_AMD64_R9B:
@@ -116,6 +84,22 @@ DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext) {
     case CV_AMD64_R15B:
         return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8B] & 0xFF;
 
+    case CV_AMD64_AH:
+    case CV_AMD64_CH:
+    case CV_AMD64_DH:
+    case CV_AMD64_BH:
+        return ((&pContext->Rax)[pSymInfo->Register - CV_AMD64_AH] >> 8) & 0xFF;
+
+    case CV_AMD64_AX:
+    case CV_AMD64_CX:
+    case CV_AMD64_DX:
+    case CV_AMD64_BX:
+    case CV_AMD64_SP:
+    case CV_AMD64_BP:
+    case CV_AMD64_SI:
+    case CV_AMD64_DI:
+        return (&pContext->Rax)[pSymInfo->Register - CV_AMD64_AX] & 0xFFFF;
+
     case CV_AMD64_R8W:
     case CV_AMD64_R9W:
     case CV_AMD64_R10W:
@@ -126,6 +110,16 @@ DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext) {
     case CV_AMD64_R15W:
         return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8W] & 0xFFFF;
 
+    case CV_AMD64_EAX:
+    case CV_AMD64_ECX:
+    case CV_AMD64_EDX:
+    case CV_AMD64_EBX:
+    case CV_AMD64_ESP:
+    case CV_AMD64_EBP:
+    case CV_AMD64_ESI:
+    case CV_AMD64_EDI:
+        return (&pContext->Rax)[pSymInfo->Register - CV_AMD64_EAX] & 0xFFFFFFFF;
+
     case CV_AMD64_R8D:
     case CV_AMD64_R9D:
     case CV_AMD64_R10D:
@@ -135,12 +129,40 @@ DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext) {
     case CV_AMD64_R14D:
     case CV_AMD64_R15D:
         return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8D] & 0xFFFFFFFF;
+
+    case CV_AMD64_RIP:
+        return pContext->Rip;
+
+    case CV_AMD64_RAX:
+    case CV_AMD64_RBX:
+        return (&pContext->Rax)[(pSymInfo->Register - CV_AMD64_RAX) * 3];
+
+    case CV_AMD64_RCX:
+    case CV_AMD64_RDX:
+        return (&pContext->Rcx)[pSymInfo->Register - CV_AMD64_RCX];
+
+    case CV_AMD64_RSI:
+    case CV_AMD64_RDI:
+        return (&pContext->Rsi)[pSymInfo->Register - CV_AMD64_RSI];
+
+    case CV_AMD64_RBP:
+    case CV_AMD64_RSP:
+        return (&pContext->Rsp)[CV_AMD64_RSP - pSymInfo->Register];
+
+    case CV_AMD64_R8:
+    case CV_AMD64_R9:
+    case CV_AMD64_R10:
+    case CV_AMD64_R11:
+    case CV_AMD64_R12:
+    case CV_AMD64_R13:
+    case CV_AMD64_R14:
+    case CV_AMD64_R15:
+        return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8];
+
+    default:
+        std::unreachable();
     }
 }
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
 
 DWORD64 GetRegisterBase(PSYMBOL_INFOW pSymInfo, PCVOID ContextRecord, DWORD b64bit) {
     return b64bit ? GetRegisterBase64(pSymInfo, (PCONTEXT) ContextRecord)
@@ -150,7 +172,7 @@ DWORD64 GetRegisterBase(PSYMBOL_INFOW pSymInfo, PCVOID ContextRecord, DWORD b64b
 typedef struct {
     PSTR p;
     BOOL DataIsParam;
-    BOOL bConsole;
+    BOOL fConsole;
     PDWORD64 pBase;
     PCVOID pContext;
     HANDLE hProcess;
@@ -201,7 +223,7 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
         User->p += 8;
     }
 
-    if (User->bConsole) {
+    if (User->fConsole) {
         memcpy(User->p, CONSOLE_CYAN_FORMAT, 5);
         User->p += 5;
     }
@@ -209,7 +231,7 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
     User->p += ConvertUnicodeToUTF8(pSymInfo->Name,
         (pSymInfo->NameLen - 1) << 1, User->p, User->pEnd - User->p);
 
-    if (User->bConsole) {
+    if (User->fConsole) {
         memcpy(User->p, CONSOLE_DEFAULT_FORMAT,
             strlen(CONSOLE_DEFAULT_FORMAT));
         User->p += strlen(CONSOLE_DEFAULT_FORMAT);
@@ -222,6 +244,7 @@ BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID U
         Base = GetRegisterBase(pSymInfo, User->pContext, User->b64bit);
     else if (pSymInfo->Flags & SYMFLAG_FRAMEREL)
         Base = *User->pBase;
+    else std::unreachable();
 
     *User->p++ = '=';
 

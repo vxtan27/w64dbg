@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "ntdll.h"
+#include <ntdll.h>
 
 // Console Driver IOCTL Definitions
 // Reference: https://github.com/microsoft/terminal/blob/main/dep/Console/condrv.h

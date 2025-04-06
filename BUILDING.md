@@ -31,7 +31,7 @@ Alternatively, if you prefer manual dependency management, clone the main reposi
 3. Compile using the following command:
 
     ```sh
-    cl /I "%VSINSTALLDIR%/DIA SDK/include" /I external/phnt /I external/dragonbox/include /I external/dragonbox/source /I src/include /std:c++20 src/main.cpp /link /SUBSYSTEM:CONSOLE /ENTRY:wmain
+    cl /I "%VSINSTALLDIR%/DIA SDK/include" /I external/phnt /I external/dragonbox/include /I external/dragonbox/source /I src/include /std:c++latest src/main.cpp /link /SUBSYSTEM:CONSOLE /ENTRY:wmain
     ```
 
 ## ⚡ Customization & Optimization

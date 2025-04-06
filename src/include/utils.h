@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "ntdll.h"
-#include "conapi.h"
+#include <ntdll.h>
+#include <conapi.h>
 
 ULONG ConvertUnicodeToUTF8(
     _In_reads_bytes_(cchUnicodeString << 1) PCVOID pUnicodeString,
@@ -43,9 +43,9 @@ NTSTATUS WriteHandle(
     _In_reads_bytes_(uLength) PCVOID pBuffer,
     _In_ ULONG uLength,
     _In_ BOOL fUnicode,
-    _In_ BOOL bConsole
+    _In_ BOOL fConsole
 ) {
-    return bConsole ? WriteConsoleDevice(hHandle, pBuffer, uLength, fUnicode)
+    return fConsole ? WriteConsoleDevice(hHandle, pBuffer, uLength, fUnicode)
                     : WriteFileData(hHandle, pBuffer, uLength, fUnicode);
 }
 
@@ -53,9 +53,9 @@ NTSTATUS WriteInvalidArgument(
     _In_ HANDLE hStdout,
     _In_reads_(nLength) PCWCH pBuffer,
     _In_ ULONG nLength,
-    _In_ BOOL bConsole
+    _In_ BOOL fConsole
 ) {
-    if (bConsole) {
+    if (fConsole) {
         BYTE Buffer[sizeof(CD_USER_DEFINED_IO) + sizeof(CD_IO_BUFFER) * 3];
         PCD_USER_DEFINED_IO pIoBuffer = (PCD_USER_DEFINED_IO) Buffer;
 
@@ -215,12 +215,12 @@ NTSTATUS GetModuleSize(HANDLE hModule, PDWORD pFileSize) {
 #define InfiniteMessage "\nPress any key to continue ..."
 
 // Wait for a key press, simulating standard console behavior
-FORCEINLINE VOID WaitForKeyPress(HANDLE hStdout, BOOL bConsole) {
+FORCEINLINE VOID WaitForKeyPress(HANDLE hStdout, BOOL fConsole) {
     // Display prompt
     WriteHandle(hStdout, (PCVOID) InfiniteMessage,
-        strlen(InfiniteMessage), FALSE, bConsole);
+        strlen(InfiniteMessage), FALSE, fConsole);
 
-    if (bConsole) SetConsoleDeviceMode(RtlStandardInput(), 0);
+    if (fConsole) SetConsoleDeviceMode(RtlStandardInput(), 0);
 
     BYTE Buffer;
     IO_STATUS_BLOCK IoStatus;
@@ -230,5 +230,5 @@ FORCEINLINE VOID WaitForKeyPress(HANDLE hStdout, BOOL bConsole) {
         &IoStatus, &Buffer, sizeof(Buffer), NULL, NULL);
 
     // Mimic input echo
-    WriteHandle(hStdout, (PCVOID) InfiniteMessage, 1, FALSE, bConsole);
+    WriteHandle(hStdout, (PCVOID) InfiniteMessage, 1, FALSE, fConsole);
 }
