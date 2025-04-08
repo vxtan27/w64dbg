@@ -30,7 +30,7 @@ DWORD FormatDebugModule(HANDLE hModule, PCSTR szDebugEventName, SIZE_T DebugEven
     SIZE_T Length;
     ULONG ActualByteCount;
     WCHAR Target[MAX_PATH];
-    WCHAR Drive[3] = L"A:";
+    WCHAR Drive[] = L"A:";
     CHAR Temp[sizeof(OBJECT_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR)];
     POBJECT_NAME_INFORMATION NameInfo = (POBJECT_NAME_INFORMATION) &Temp;
 
@@ -139,7 +139,7 @@ ULONGLONG FormatExceptionEvent(
         dwMessageId == STATUS_CLR_EXCEPTION ||
         NT_SUCCESS(LookupNtdllMessage(dwMessageId, dwLanguageId, &MessageEntry))) {
 
-        LPSTR lpBuffer = pBuffer;
+        PCH lpBuffer = pBuffer;
 
         if (fConsole) {
             memcpy(lpBuffer, CONSOLE_NRED_FORMAT, strlen(CONSOLE_NRED_FORMAT));
@@ -179,7 +179,7 @@ ULONGLONG FormatExceptionEvent(
 #pragma warning(pop)
 #endif
 
-PSTR FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG BufLength, PCH p, BOOL Console) {
+PCH FormatFileLine(PWCH FileName, DWORD LineNumber, ULONG FileLength, ULONG BufLength, PCH p, BOOL Console) {
     // Convert file name from Unicode to UTF-8
     p += ConvertUnicodeToUTF8(FileName, FileLength, p, BufLength);
 
@@ -201,24 +201,27 @@ PSTR FormatFileLine(PWSTR FileName, DWORD LineNumber, ULONG FileLength, ULONG Bu
 #define OBJECT_MANAGER_NAMESPACE_LEN 8
 #define OBJECT_MANAGER_NAMESPACE_WLEN 4
 
-PSTR FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, PCH p) {
+PCH FormatSourceCode(PWCH FileName, DWORD LineNumber, size_t FileLength, ULONG BufLength, PCH p) {
     // Prepend Object Manager namespace to the file name
-    memcpy(FileName - OBJECT_MANAGER_NAMESPACE_WLEN,
-        OBJECT_MANAGER_NAMESPACE, OBJECT_MANAGER_NAMESPACE_LEN);
+    PWCH pFileName = (PWCH) _alloca(FileLength + OBJECT_MANAGER_NAMESPACE_LEN);
+    memcpy(pFileName, OBJECT_MANAGER_NAMESPACE, OBJECT_MANAGER_NAMESPACE_LEN);
+    memcpy(pFileName + OBJECT_MANAGER_NAMESPACE_WLEN, FileName, FileLength);
 
     UNICODE_STRING String;
     String.Length = FileLength + OBJECT_MANAGER_NAMESPACE_LEN;
-    String.Buffer = FileName - OBJECT_MANAGER_NAMESPACE_WLEN;
+    String.Buffer = pFileName;
 
     HANDLE hFile;
     IO_STATUS_BLOCK IoStatus;
     OBJECT_ATTRIBUTES ObjectAttributes = {
         sizeof(OBJECT_ATTRIBUTES), NULL,
-        &String, OBJ_CASE_INSENSITIVE, NULL, NULL};
+        &String, OBJ_CASE_INSENSITIVE};
 
     // Open the file with necessary permissions
-    if (NT_SUCCESS(NtOpenFile(&hFile, FILE_READ_DATA | SYNCHRONIZE, &ObjectAttributes,
-        &IoStatus, 0, FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT))) {
+    NTSTATUS NtStatus = NtOpenFile(&hFile, FILE_READ_DATA | SYNCHRONIZE, &ObjectAttributes,
+        &IoStatus, 0, FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT);
+
+    if (NT_SUCCESS(NtStatus)) {
         char *ptr;
         char buffer[PAGESIZE];
         DWORD line = 1;
@@ -269,7 +272,7 @@ PSTR FormatSourceCode(PWSTR FileName, DWORD LineNumber, size_t FileLength, ULONG
         // The system cannot find the file specified
         PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
-        LookupSystemMessage(ERROR_FILE_NOT_FOUND, LANG_USER_DEFAULT, &MessageEntry);
+        LookupSystemMessage(RtlNtStatusToDosError(NtStatus), LANG_USER_DEFAULT, &MessageEntry);
         p += ConvertUnicodeToUTF8(GetMessageEntryText(MessageEntry),
             GetMessageEntryLength(MessageEntry), p, BufLength);
     }

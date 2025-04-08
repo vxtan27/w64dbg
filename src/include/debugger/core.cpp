@@ -12,6 +12,9 @@
 // Get thread's debug object handle
 #define DbgGetThreadDebugObject() (NtCurrentTeb()->DbgSsReserved[1])
 
+#define DbgConnectToDbg() NtCreateDebugObject(&DbgGetThreadDebugObject(), DEBUG_ALL_ACCESS, NULL, DebugObjectKillProcessOnExitInformation)
+#define DbgStopDebugging(hProcess) NtRemoveProcessDebug(hProcess, DbgGetThreadDebugObject())
+
 // =====================================================================================
 //  Data Structure
 // =====================================================================================
@@ -95,10 +98,9 @@ VOID DbgCloseAllProcessHandles(PDBGUI_WAIT_STATE_CHANGE pStateChange) {
 
 // Attach debugger to an active process
 NTSTATUS DbgDebugActiveProcess(
-    HANDLE hProcess,
-    ULONG uFlags
+    HANDLE hProcess
 ) {
-    NtCreateDebugObject(&DbgGetThreadDebugObject(), DEBUG_ALL_ACCESS, NULL, uFlags);
+    DbgConnectToDbg();
     return DbgUiDebugActiveProcess(hProcess);
 }
 
@@ -191,10 +193,10 @@ NTSTATUS DbgContinue(
 }
 
 // Stop debugging a process and clean up handles
-NTSTATUS DbgStopDebugging(
+NTSTATUS DbgDebugActiveProcessStop(
     HANDLE hProcess,
     PDBGUI_WAIT_STATE_CHANGE pStateChange
 ) {
     DbgCloseAllProcessHandles(pStateChange);
-    return NtRemoveProcessDebug(hProcess, DbgGetThreadDebugObject());
+    return DbgStopDebugging(hProcess);
 }

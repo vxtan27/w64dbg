@@ -7,15 +7,15 @@
 #include <conapi.h>
 
 ULONG ConvertUnicodeToUTF8(
-    _In_reads_bytes_(cchUnicodeString << 1) PCVOID pUnicodeString,
-    _In_ ULONG cchUnicodeString,
+    _In_reads_bytes_(cbUnicodeString) PCVOID pUnicodeString,
+    _In_ ULONG cbUnicodeString,
     _Out_ PVOID pUTF8String,
     _In_ ULONG cbUTF8String
 ) {
     ULONG cchUTF8String;
 
     RtlUnicodeToUTF8N((PCH) pUTF8String, cbUTF8String, &cchUTF8String,
-        (PCWCH) pUnicodeString, cchUnicodeString);
+        (PCWCH) pUnicodeString, cbUnicodeString);
     return cchUTF8String;
 }
 
@@ -99,55 +99,111 @@ NTSTATUS WriteInvalidArgument(
     }
 }
 
-BOOL DoesFileExists(
-    PCWCH pDosName,
-    PUNICODE_STRING pNtName,
-    PRTL_RELATIVE_NAME_U pRelativeName
+typedef HANDLE(NTAPI* _BaseGetConsoleReference)(void);
+
+NTSTATUS
+InitializeDebugProcess(
+    _Out_ PHANDLE hProcess,
+    _Out_ PHANDLE hThread,
+    _In_ PWCH pApplicationName,
+    _In_ USHORT szApplicationName,
+    _In_ PWCH pCommandLine,
+    _In_ USHORT szCommandLine
 ) {
-    NTSTATUS NtStatus;
+    UNICODE_STRING CapturedDosName;
+    CapturedDosName.Length = szApplicationName;
+    CapturedDosName.Buffer = pApplicationName;
 
-    // Get the NT Path
-    NtStatus = RtlDosPathNameToNtPathName_U_WithStatus(pDosName, pNtName, NULL, pRelativeName);
+    WCHAR Buffer[MAX_PATH + 4];
+    UNICODE_STRING ApplicationName;
+    ApplicationName.MaximumLength = sizeof(Buffer) - 8;
+    ApplicationName.Buffer = Buffer + 4;
+    memcpy(Buffer, "\\\0?\0?\0\\", 8); // NT prefix
 
-    if (!NT_SUCCESS(NtStatus)) return FALSE;
+    RTL_PATH_TYPE InputPathType;
+    RtlGetFullPathName_UstrEx(&CapturedDosName,
+                              &ApplicationName,
+                              NULL,
+                              NULL,
+                              NULL,
+                              NULL,
+                              &InputPathType,
+                              NULL);
 
-    // Save the buffer
-    PWCH pBuffer = pNtName->Buffer;
+    UNICODE_STRING CommandLine;
+    CommandLine.Length = szCommandLine;
+    CommandLine.MaximumLength = CommandLine.Length;
+    CommandLine.Buffer = pCommandLine;
 
-    // Check if we have a relative name
-    if (pRelativeName->RelativeName.Length) {
-        // Use it
-        *pNtName = pRelativeName->RelativeName;
-    } else {
-        // Otherwise ignore it
-        pRelativeName->ContainingDirectory = NULL;
+    PS_CREATE_INFO CreateInfo;
+    CreateInfo.State = PsCreateInitialState;
+    CreateInfo.Size = sizeof(CreateInfo);
+    CreateInfo.InitState.WriteOutputOnExit = TRUE;
+    CreateInfo.InitState.DetectManifest = TRUE;
+    CreateInfo.InitState.IFEOSkipDebugger = TRUE;
+    CreateInfo.InitState.IFEODoNotPropagateKeyState = TRUE;
+    CreateInfo.InitState.ProhibitedImageCharacteristics = IMAGE_FILE_DLL;
+    CreateInfo.InitState.AdditionalFileAccess = FILE_READ_ATTRIBUTES | FILE_READ_DATA;
+
+    BYTE _AttributeList[sizeof(PS_ATTRIBUTE_LIST) + sizeof(PS_ATTRIBUTE) * 4];
+    PPS_ATTRIBUTE_LIST AttributeList = (PPS_ATTRIBUTE_LIST) _AttributeList;
+    AttributeList->TotalLength = sizeof(_AttributeList);
+
+    AttributeList->Attributes[0].Attribute = PS_ATTRIBUTE_IMAGE_NAME;
+    AttributeList->Attributes[0].Size = ApplicationName.Length + 8;
+    AttributeList->Attributes[0].ValuePtr = Buffer; // ApplicationName.Buffer - 8
+    AttributeList->Attributes[0].ReturnLength = 0;
+
+    CLIENT_ID ClientId;
+    AttributeList->Attributes[1].Attribute = PS_ATTRIBUTE_CLIENT_ID;
+    AttributeList->Attributes[1].Size = sizeof(ClientId);
+    AttributeList->Attributes[1].ValuePtr = &ClientId;
+    AttributeList->Attributes[1].ReturnLength = 0;
+
+    SECTION_IMAGE_INFORMATION SectionImageInfomation;
+    AttributeList->Attributes[2].Attribute = PS_ATTRIBUTE_IMAGE_INFO;
+    AttributeList->Attributes[2].Size = sizeof(SectionImageInfomation);
+    AttributeList->Attributes[2].ValuePtr = &SectionImageInfomation;
+    AttributeList->Attributes[2].ReturnLength = 0;
+
+    DbgConnectToDbg();
+    AttributeList->Attributes[3].Attribute = PS_ATTRIBUTE_DEBUG_OBJECT;
+    AttributeList->Attributes[3].Size = sizeof(HANDLE);
+    AttributeList->Attributes[3].ValuePtr = DbgGetThreadDebugObject();
+    AttributeList->Attributes[3].ReturnLength = 0;
+
+    PS_STD_HANDLE_INFO StdHandle;
+    StdHandle.StdHandleState = PsRequestDuplicate;
+    StdHandle.PseudoHandleMask = 0;
+    StdHandle.StdHandleSubsystemType = IMAGE_SUBSYSTEM_WINDOWS_CUI;
+    AttributeList->Attributes[4].Attribute = PS_ATTRIBUTE_STD_HANDLE_INFO;
+    AttributeList->Attributes[4].Size = sizeof(PS_STD_HANDLE_INFO);
+    AttributeList->Attributes[4].ValuePtr = &StdHandle;
+    AttributeList->Attributes[4].ReturnLength = 0;
+
+    PRTL_USER_PROCESS_PARAMETERS ProcessParameters;
+    RtlCreateProcessParametersEx(&ProcessParameters, &ApplicationName, NULL, NULL,
+        &CommandLine, NULL, NULL, NULL, NULL, NULL, RTL_USER_PROC_PARAMS_NORMALIZED);
+    ProcessParameters->ProcessGroupId = NtCurrentPeb()->ProcessParameters->ProcessGroupId;
+    ProcessParameters->ConsoleHandle = (_BaseGetConsoleReference) GetProcAddress(GetModuleHandleW(L"KernelBase.dll"), "BaseGetConsoleReference")();
+
+    NTSTATUS NtStatus = NtCreateUserProcess(hProcess,
+        hThread, MAXIMUM_ALLOWED, MAXIMUM_ALLOWED, NULL, NULL,
+        PROCESS_CREATE_FLAGS_BREAKAWAY | PROCESS_CREATE_FLAGS_NO_DEBUG_INHERIT,
+        THREAD_CREATE_FLAGS_NONE, ProcessParameters, &CreateInfo, AttributeList);
+
+    RtlDestroyProcessParameters(ProcessParameters);
+
+    if (NT_SUCCESS(NtStatus)) {
+        NtClose(CreateInfo.SuccessState.FileHandle);
+        NtClose(CreateInfo.SuccessState.SectionHandle);
+        return STATUS_SUCCESS;
     }
 
-    OBJECT_ATTRIBUTES ObjectAttributes;
+    if (CreateInfo.State == PsCreateFailOnSectionCreate)
+        NtClose(CreateInfo.FailSection.FileHandle);
 
-    // Initialize the object attributes
-    InitializeObjectAttributes(&ObjectAttributes,
-                               pNtName,
-                               OBJ_CASE_INSENSITIVE,
-                               pRelativeName->ContainingDirectory,
-                               NULL);
-
-    FILE_BASIC_INFORMATION BasicInformation;
-
-    // Query the attributes and free the buffer now
-    NtStatus = NtQueryAttributesFile(&ObjectAttributes, &BasicInformation);
-    RtlReleaseRelativeName(pRelativeName);
-    RtlFreeHeap(RtlProcessHeap(), HEAP_NO_SERIALIZE, pBuffer);
-
-    // Check if we failed
-    if (!NT_SUCCESS(NtStatus)) {
-        // Check if we failed because the file is in use
-        if (NtStatus == STATUS_SHARING_VIOLATION ||
-            NtStatus == STATUS_ACCESS_DENIED) return TRUE;
-        else return FALSE;
-    }
-
-    return TRUE;
+    return NtStatus;
 }
 
 //

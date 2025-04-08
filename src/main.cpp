@@ -95,54 +95,32 @@ wmain(void) {
 
     wchar_t *ptr = wmemchr(pNext, ' ',
         pCmdLine + len + 1 - pNext);
-    *ptr = '\0';
-    *(pCmdLine + len) = '\0';
 
-    UNICODE_STRING NtPathName;
+    HANDLE hProcess, hThread;
+    NTSTATUS NtStatus = InitializeDebugProcess(&hProcess, &hThread,
+        pNext, (ptr - pNext) << 1, pNext, (pCmdLine + len - pNext) << 1);
 
-    // Get the NT Path
-    RtlDosPathNameToNtPathName_U_WithStatus(pNext,
-                                            &NtPathName,
-                                            NULL,
-                                            NULL);
-
-    if (pCmdLine + len != ptr) *ptr = ' ';
-
-    STARTUPINFOW startupInfo;
-    PROCESS_INFORMATION processInfo;
-    PUNICODE_STRING DosPath = RtlDosPath();
-
-    startupInfo.cb = sizeof(startupInfo);
-    startupInfo.lpReserved = NULL;
-    startupInfo.lpDesktop = NULL;
-    startupInfo.lpTitle = NULL;
-    startupInfo.dwFlags = 0;
-    startupInfo.cbReserved2 = 0;
-    startupInfo.lpReserved2 = NULL;
-
-    if (!CreateProcessW(NtPathName.Buffer, pNext, NULL,
-        NULL, FALSE, CREATIONFLAGS, RtlEnvironment(),
-        DosPath->Buffer, &startupInfo, &processInfo)) {
+    if (!NT_SUCCESS(NtStatus)) {
         PMESSAGE_RESOURCE_ENTRY MessageEntry;
-        LookupSystemMessage(GetLastError(), LANG_USER_DEFAULT, &MessageEntry);
+        LookupSystemMessage(RtlNtStatusToDosError(NtStatus),
+            LANG_USER_DEFAULT, &MessageEntry);
         WriteHandle(hStdout, GetMessageEntryText(MessageEntry),
             GetMessageEntryLength(MessageEntry), TRUE, fConsole);
-        return GetLastError();
+        return RtlNtStatusToDosError(NtStatus);
     }
 
     // Free the buffer
-    RtlFreeHeap(RtlProcessHeap(), HEAP_NO_SERIALIZE, NtPathName.Buffer);
+    NtClose(hThread);
 
-    HANDLE hProcess;
+    *(pCmdLine + len) = ' ';
+
     HANDLE hFile[MAX_DLL];
     PVOID BaseOfDll[MAX_DLL] = {};
     DBGUI_WAIT_STATE_CHANGE StateChange;
     DbgWaitStateChange(&StateChange, FALSE, NULL);
 
-    NtClose(processInfo.hThread);
     hFile[0] = StateChange.StateInfo.CreateProcessInfo.NewProcess.FileHandle;
     BaseOfDll[0] = StateChange.StateInfo.CreateProcessInfo.NewProcess.BaseOfImage;
-    hProcess = processInfo.hProcess;
 
     if (fVerbose >= 2) TraceDebugEvent(&StateChange, CREATE_PROCESS, strlen(CREATE_PROCESS), hStdout, fConsole);
 
@@ -156,7 +134,6 @@ wmain(void) {
     DWORD b64bit = Machines[0].Process; // Is 64-bit application
     if (!b64bit) --fBreakpointSignalled; // Wow64 breakpoint
 
-    NTSTATUS NtStatus;
     while (NT_SUCCESS(NtStatus = DbgWaitStateChange(&StateChange, FALSE, NULL))) {
         switch (StateChange.NewState) {
         case DbgLoadDllStateChange:
@@ -194,19 +171,19 @@ wmain(void) {
         case DbgExitProcessStateChange:
             if (fVerbose >= 2) TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout, fConsole);
 
-            if (fPauseExecution) WaitForKeyPress(hStdout, fConsole);
-
             NtClose(hProcess);
+            DbgContinue(&StateChange, DBG_CONTINUE);
 
             for (int i = 0; i < MAX_DLL; ++i)
                 if (BaseOfDll[i]) NtClose(hFile[i]);
 
-            DbgContinue(&StateChange, DBG_CONTINUE);
+            if (fPauseExecution) WaitForKeyPress(hStdout, fConsole);
+
             return EXIT_SUCCESS;
 
         case DbgExceptionStateChange:
         case DbgBreakpointStateChange:
-        case DbgSingleStepStateChange:
+        case DbgSingleStepStateChange: {
             PDBGKM_EXCEPTION pException = &StateChange.StateInfo.Exception;
             PEXCEPTION_RECORD pExceptionRecord = &pException->ExceptionRecord;
             if (pExceptionRecord->ExceptionCode == DBG_PRINTEXCEPTION_WIDE_C ||
@@ -291,7 +268,6 @@ wmain(void) {
 
             DWORD count;
             BOOL Success;
-            DWORD DirLen;
             DWORD Displacement;
             PSYMBOL_INFOW pSymInfo;
             IMAGEHLP_LINEW64 Line;
@@ -310,7 +286,6 @@ wmain(void) {
             UserContext.hProcess = hProcess;
             UserContext.b64bit = b64bit;
             UserContext.pEnd = buffer + BUFLEN;
-            DirLen = DosPath->Length;
 
             if (fConsole) {
                 SetConsoleDeviceOutputCP(hStdout, 65001);  // CP_UTF8
@@ -400,13 +375,9 @@ wmain(void) {
                         p += strlen(CONSOLE_GREEN_FORMAT);
                     }
 
-                    // Skip %dir%/
-                    if (temp > DirLen && !memcmp(Line.FileName,
-                            DosPath->Buffer, DirLen))
-                        p = FormatFileLine(Line.FileName + (DirLen >> 1),
-                            Line.LineNumber, temp - DirLen, buffer + BUFLEN - p, p, fConsole);
-                    else p = FormatFileLine(Line.FileName,
-                        Line.LineNumber, temp, buffer + BUFLEN - p, p, fConsole);
+                    p = FormatFileLine(Line.FileName, Line.LineNumber,
+                        temp, buffer + BUFLEN - p, p, fConsole);
+
                     if (fVerbose >= 1) p = FormatSourceCode(Line.FileName,
                         Line.LineNumber, temp, buffer + BUFLEN - p, p);
                 } else {
@@ -456,6 +427,10 @@ wmain(void) {
             NtTerminateProcess(hProcess,
                 dwExitCode != ERROR_MR_MID_NOT_FOUND ? dwExitCode : pExceptionRecord->ExceptionCode);
             break;
+        }
+
+        default:
+            std::unreachable();
         }
 
         DbgContinue(&StateChange, DBG_CONTINUE);

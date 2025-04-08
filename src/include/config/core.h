@@ -33,15 +33,6 @@
 #define BUFLEN      8192             // General buffer length
 #define WBUFLEN     4096             // Wide character buffer length
 
-// =====================================================================================
-//  Process Creation Flags
-// =====================================================================================
-
-#define CREATIONFLAGS  \
-    DEBUG_ONLY_THIS_PROCESS | CREATE_NEW_PROCESS_GROUP | \
-    CREATE_UNICODE_ENVIRONMENT | CREATE_BREAKAWAY_FROM_JOB | \
-    CREATE_PRESERVE_CODE_AUTHZ_LEVEL
-
 
 // =====================================================================================
 //  Symbol Loading Options
@@ -50,10 +41,9 @@
 #define SYMOPTIONS  \
     SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | \
     SYMOPT_OMAP_FIND_NEAREST | SYMOPT_NO_UNQUALIFIED_LOADS | \
-    SYMOPT_FAIL_CRITICAL_ERRORS | SYMOPT_EXACT_SYMBOLS | \
-    SYMOPT_INCLUDE_32BIT_MODULES | SYMOPT_AUTO_PUBLICS | \
-    SYMOPT_NO_IMAGE_SEARCH | SYMOPT_NO_PROMPTS | \
-    SYMOPT_DISABLE_SYMSRV_AUTODETECT | SYMOPT_SYMPATH_LAST
+    SYMOPT_FAIL_CRITICAL_ERRORS | SYMOPT_CASE_INSENSITIVE | \
+    SYMOPT_INCLUDE_32BIT_MODULES | SYMOPT_AUTO_PUBLICS | SYMOPT_NO_IMAGE_SEARCH | \
+    SYMOPT_NO_PROMPTS | SYMOPT_DISABLE_SYMSRV_AUTODETECT
 
 // =====================================================================================
 //  Help Message
@@ -85,12 +75,6 @@ Options:
 
 #define _INVALID_ARGUMENT   "ERROR: Invalid argument/option - '"
 #define INVALID_ARGUMENT_   "'.\nType \"W64DBG /?\" for usage.\n"
-
-// =====================================================================================
-//  File Extensions
-// =====================================================================================
-
-#define EXTENSION L".exe"  // Executable file extension
 
 // =====================================================================================
 //  Verbose Messages
