@@ -9,6 +9,9 @@
 // https://github.com/TrinityCoreLegacy/TrinityCore/blob/3.3.5/src/common/Debugging/WheatyExceptionReport.cpp#L1121
 DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext) {
     switch (pSymInfo->Register) {
+    case CV_ALLREG_VFRAME:
+        return pContext->Ebp;
+
     case CV_REG_AL:
     case CV_REG_CL:
     case CV_REG_DL:

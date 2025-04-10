@@ -6,3 +6,5 @@
 *.asm
 *.orig
 *.xml
+*.exp
+*.lib

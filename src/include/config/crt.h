@@ -3,21 +3,34 @@
 
 #pragma once
 
-// =====================================================================================
-//  VC Runtime Configuration
-// =====================================================================================
+//-------------------------------------------------------------------------------------
+// VC Runtime Configuration
+//-------------------------------------------------------------------------------------
 
-#if defined(_DLL)
-    #define VC_LIB "vcruntime"       // Dynamic VC runtime (shared)
+#ifdef _DEBUG
+    #define CRT_LIB "ucrtd.lib"   // Debug UCRT
+    #ifdef _DLL
+        #define VC_LIB "vcruntime.lib" // Dynamic VC runtime
+    #else
+        #define VC_LIB "libvcruntime.lib" // Static VC runtime
+    #endif
 #else
-    #define VC_LIB "libvcruntime"    // Static VC runtime (static)
+    #ifdef _DLL
+        #define CRT_LIB "ucrt.lib"     // Release UCRT (shared)
+        #define VC_LIB "vcruntime.lib" // Dynamic VC runtime
+    #else
+        #define CRT_LIB "libucrt.lib"  // Release UCRT (static)
+        #define VC_LIB "libvcruntime.lib" // Static VC runtime
+    #endif
 #endif
 
-// =====================================================================================
-//  Library Linking
-// =====================================================================================
+//-------------------------------------------------------------------------------------
+// Library Linking
+//-------------------------------------------------------------------------------------
 
-#pragma comment(lib, VC_LIB)       // Link Microsoft VC++ Runtime
-#pragma comment(lib, "ntdll")      // Link Windows Native API
-#pragma comment(lib, "kernel32")   // Link Windows Core API
-#pragma comment(lib, "dbghelp")    // Link Debugging Tools for Windows
+#pragma comment(lib, "ntdll.lib")      // Windows Native API
+#pragma comment(lib, "kernelbase.lib") // Windows Base API
+#pragma comment(lib, "kernel32.lib")   // Windows Kernel API
+#pragma comment(lib, CRT_LIB)          // Universal C Runtime
+#pragma comment(lib, VC_LIB)           // MSVC Runtime
+#pragma comment(lib, "dbghelp.lib")    // Debugging Helper

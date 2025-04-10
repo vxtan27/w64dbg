@@ -1,0 +1,6 @@
+LIBRARY KernelBase.dll
+
+EXPORTS
+    BaseGetConsoleReference
+    K32GetModuleFileNameExW
+    QueryDosDeviceW

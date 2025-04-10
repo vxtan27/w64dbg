@@ -15,9 +15,9 @@
 #define DbgConnectToDbg() NtCreateDebugObject(&DbgGetThreadDebugObject(), DEBUG_ALL_ACCESS, NULL, DebugObjectKillProcessOnExitInformation)
 #define DbgStopDebugging(hProcess) NtRemoveProcessDebug(hProcess, DbgGetThreadDebugObject())
 
-// =====================================================================================
-//  Data Structure
-// =====================================================================================
+//-------------------------------------------------------------------------------------
+// Data Structure
+//-------------------------------------------------------------------------------------
 
 // Debug thread data structure (single-process mode)
 typedef struct _DBGSS_THREAD_DATA {
@@ -28,9 +28,9 @@ typedef struct _DBGSS_THREAD_DATA {
 
 #include <utility>
 
-// =====================================================================================
-//  Handle Management
-// =====================================================================================
+//-------------------------------------------------------------------------------------
+// Handle Management
+//-------------------------------------------------------------------------------------
 
 // Save thread handle from debug event into thread-local storage
 VOID DbgSaveThreadHandle(PDBGUI_WAIT_STATE_CHANGE pStateChange) {

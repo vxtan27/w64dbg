@@ -30,12 +30,12 @@ wmain(void) {
 
     BOOL fConsole;
     HANDLE hStdout = RtlStandardOutput();
+    IsConsoleHandle(hStdout, &fConsole);
+
     PUNICODE_STRING pCommandLine = RtlCommandLine();
     size_t len = pCommandLine->Length >> 1;
     wchar_t *pCmdLine = wmemchr(pCommandLine->Buffer, ' ', len);
     wchar_t *pNext = pCmdLine + 1;
-
-    IsConsoleHandle(hStdout, &fConsole);
 
     if (pCmdLine) {
         len -= pCmdLine - pCommandLine->Buffer;
@@ -97,8 +97,14 @@ wmain(void) {
         pCmdLine + len + 1 - pNext);
 
     HANDLE hProcess, hThread;
-    NTSTATUS NtStatus = InitializeDebugProcess(&hProcess, &hThread,
-        pNext, (ptr - pNext) << 1, pNext, (pCmdLine + len - pNext) << 1);
+    SECTION_IMAGE_INFORMATION SectionImageInfomation;
+    NTSTATUS NtStatus = InitializeDebugProcess(&hProcess,
+                                               &hThread,
+                                                pNext,
+                                                (ptr - pNext) << 1,
+                                                pNext,
+                                                (pCmdLine + len - pNext) << 1,
+                                                &SectionImageInfomation);
 
     if (!NT_SUCCESS(NtStatus)) {
         PMESSAGE_RESOURCE_ENTRY MessageEntry;
@@ -109,7 +115,7 @@ wmain(void) {
         return RtlNtStatusToDosError(NtStatus);
     }
 
-    // Free the buffer
+    // Free the unused handle
     NtClose(hThread);
 
     *(pCmdLine + len) = ' ';
@@ -126,12 +132,9 @@ wmain(void) {
 
     DbgContinue(&StateChange, DBG_CONTINUE);
 
-    SYSTEM_SUPPORTED_PROCESSOR_ARCHITECTURES_INFORMATION Machines[3];
-    NtQuerySystemInformationEx(SystemSupportedProcessorArchitectures2,
-        &hProcess, sizeof(hProcess), Machines, sizeof(Machines), NULL);
-
+    // Is 64-bit application
+    DWORD b64bit = SectionImageInfomation.Machine == IMAGE_FILE_MACHINE_AMD64;
     BOOL fBreakpointSignalled = FALSE;
-    DWORD b64bit = Machines[0].Process; // Is 64-bit application
     if (!b64bit) --fBreakpointSignalled; // Wow64 breakpoint
 
     while (NT_SUCCESS(NtStatus = DbgWaitStateChange(&StateChange, FALSE, NULL))) {
@@ -240,20 +243,17 @@ wmain(void) {
                     (DWORD64) BaseOfDll[i], DllSize, NULL, 0);
             }
 
-            DWORD MachineType;
             STACKFRAME_EX StackFrame;
             BYTE Context[FIELD_OFFSET(CONTEXT, FltSave)]; // CONTEXT Context
             HANDLE hThread = DbgGetThreadHandle(&StateChange);
 
             if (b64bit) {
-                MachineType = IMAGE_FILE_MACHINE_AMD64;
                 ((PCONTEXT) &Context)->ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
                 NtGetContextThread(hThread, (PCONTEXT) &Context);
                 StackFrame.AddrPC.Offset = ((PCONTEXT) &Context)->Rip;
                 StackFrame.AddrFrame.Offset = ((PCONTEXT) &Context)->Rbp;
                 StackFrame.AddrStack.Offset = ((PCONTEXT) &Context)->Rsp;
             } else {
-                MachineType = IMAGE_FILE_MACHINE_I386;
                 ((PWOW64_CONTEXT) &Context)->ContextFlags = WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER;
                 NtQueryInformationThread(hThread, ThreadWow64Context, &Context, sizeof(WOW64_CONTEXT), NULL);
                 StackFrame.AddrPC.Offset = ((PWOW64_CONTEXT) &Context)->Eip;
@@ -296,8 +296,9 @@ wmain(void) {
             while (TRUE) {
                 StackFrame.InlineFrameContext = INLINE_FRAME_CONTEXT_IGNORE;
 
-                if (!StackWalk2(MachineType, hProcess, hThread, &StackFrame, &Context,
-                    NULL, NULL, NULL, NULL, NULL, SYM_STKWALK_DEFAULT)) break;
+                if (!StackWalk2(SectionImageInfomation.Machine,
+                    hProcess, hThread, &StackFrame, &Context, NULL,
+                    NULL, NULL, NULL, NULL, SYM_STKWALK_DEFAULT)) break;
 
                 *p++ = '#';
 

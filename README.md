@@ -1,6 +1,6 @@
 # w64dbg
 
-A native Windows debugging utility for x64 systems.
+A native x64 Windows debugging utility.
 
 ## 📥 Download
 
@@ -16,9 +16,9 @@ Description:
     A native debugging utility for x64 Windows.
 
 Entries:
-    options       Control debugging behavior.
+    options       Options control behavior.
     executable    Target executable file.
-    exec-args     Arguments passed to the target executable.
+    exec-args     Target executable arguments.
 
 Options:
     /B            Ignore breakpoints.
@@ -30,32 +30,32 @@ Options:
 
 ## 🔧 System Requirements
 
-Architecture: 64-bit
+Architecture: x64
 
-Supported OS: Windows 10 or later
+Operating System: Windows 10 or later
 
 ## ⚠️ Limitations
 
-- Supports debugging of executables with up to **32 DLLs**, covering most common debugging scenarios.
+- Supports debugging executables with a maximum of **32 loaded DLLs**. This covers the majority of typical debugging scenarios.
 
 ## ❓ Frequently Asked Questions
 
 <details>
 <summary><b>How do I configure MSVC for debugging?</b></summary>
 
-Use these options when compiling with MSVC:
+Recommended MSVC compiler and linker options for debugging:
 
 | Option          | Optimized | Debug Info Level     |
-| -------------- | --------- | -------------------- |
-| /DEBUG          | Yes       | Standard            |
-| /DEBUG:FULL     | Yes       | Maximum             |
-| /DEBUG:FASTLINK | Yes       | Reduced             |
-| /Z7             | Yes       | Basic               |
-| /Zi             | Yes       | Standard            |
-| /OPT:NOREF      | No        | Enhanced symbols    |
-| /OPT:NOICF      | No        | Enhanced symbols    |
+| --------------  | --------- | -------------------- |
+| /DEBUG          | Yes       | Standard             |
+| /DEBUG:FULL     | Yes       | Maximum              |
+| /DEBUG:FASTLINK | Yes       | Reduced              |
+| /Z7             | Yes       | Basic                |
+| /Zi             | Yes       | Standard             |
+| /OPT:NOREF      | No        | Enhanced symbols     |
+| /OPT:NOICF      | No        | Enhanced symbols     |
 
-For further details:
+**References**:
 
 - [Generate Debug Info](https://learn.microsoft.com/cpp/build/reference/debug-generate-debug-info)
 - [Debug Information Format](https://learn.microsoft.com/cpp/build/reference/z7-zi-zi-debug-information-format)
@@ -66,58 +66,58 @@ For further details:
 <details>
 <summary><b>Where should I place *.pdb files?</b></summary>
 
-Place `*.pdb` files alongside the executable or configure symbol paths using:
+Place `*.pdb`files alongside the target executable or configure symbol paths using environment variables:
 
 ```sh
-set _NT_ALT_SYMBOL_PATH=C:\Symbols
-set _NT_SYMBOL_PATH=SRV*C:\Symbols*https://msdl.microsoft.com/download/symbols
+set /M _NT_ALT_SYMBOL_PATH="%temp%/SymbolCache"
+set /M _NT_SYMBOL_PATH=SRV*"%temp%/SymbolCache"*https://msdl.microsoft.com/download/symbols
 ```
 
-Refer to [Microsoft Documentation](https://learn.microsoft.com/windows-hardware/drivers/debugger/general-environment-variables) for more details.
+**Reference**: [General Environment Variables](https://learn.microsoft.com/windows-hardware/drivers/debugger/general-environment-variables).
 
 </details>
 
 <details>
 <summary><b>How do I pause execution inside my code?</b></summary>
 
-Use either of the following break instructions:
+Use the following intrinsic or Windows API function to trigger a debugger break:
 
 ```cpp
-__debugbreak();  // MSVC intrinsic
-DebugBreak();    // Windows API
+__debugbreak(); // MSVC intrinsic for breakpoint
+DebugBreak();   // Windows API breakpoint
 ```
 
-More details: [Using Breakpoints](https://learn.microsoft.com/visualstudio/debugger/using-breakpoints)
+**Reference**: [Using Breakpoints](https://learn.microsoft.com/visualstudio/debugger/using-breakpoints)
 
 </details>
 
 <details>
 <summary><b>How can I access errno for a specific thread?</b></summary>
 
-`errno` is thread-local and should be accessed via `_errno()`, as shown:
+`errno` is thread-local. Accesse its value using the provided macro:
 
 ```cpp
 _ACRTIMP int* __cdecl _errno(void);
 #define errno (*_errno())
 ```
 
-Direct access to another thread's `errno` is not possible.
+Direct access to another thread's `errno` is not supported due to its thread-local nature.
 
 </details>
 
-## 📚 Additional Resources
+## 📚 Further Reading
 
-- [PDB Format](https://github.com/Microsoft/microsoft-pdb/blob/master/docs/ExternalResources.md)
-- [Debug Help Library](https://learn.microsoft.com/windows/win32/debug/debug-help-library)
-- [DbgHelp Experimentation](https://debuginfo.com/articles.html)
-- [Variable Display with Windows Debug API](https://accu.org/journals/overload/29/165/orr)
-- [Debugging Tools for Windows](https://learn.microsoft.com/windows-hardware/drivers/debugger/debugger-download-tools)
+- [PDB File Format](https://github.com/Microsoft/microsoft-pdb/blob/master/docs/ExternalResources.md)
+- [Debug Help Library (DbgHelp)](https://learn.microsoft.com/windows/win32/debug/debug-help-library)
+- [DbgHelp Experimentation and Articles](https://debuginfo.com/articles.html)
+- [Displaying Variables with Windows Debugging API](https://accu.org/journals/overload/29/165/orr)
+- [Debugging Tools for Windows (WinDbg)](https://learn.microsoft.com/windows-hardware/drivers/debugger/debugger-download-tools)
 
 ## 📜 License
 
-w64dbg is licensed under the **BSD-3-Clause**.
+This project is licensed under the **BSD-3-Clause**.
 
-See [LICENSE](LICENSE) for more details.
+See [LICENSE](LICENSE) for the full license text.
 
 ## ©️ Copyright
 

@@ -5,6 +5,7 @@
 
 #include <ntdll.h>
 #include <conapi.h>
+#include <kernelbase.h>
 
 ULONG ConvertUnicodeToUTF8(
     _In_reads_bytes_(cbUnicodeString) PCVOID pUnicodeString,
@@ -57,7 +58,7 @@ NTSTATUS WriteInvalidArgument(
 ) {
     if (fConsole) {
         BYTE Buffer[sizeof(CD_USER_DEFINED_IO) + sizeof(CD_IO_BUFFER) * 3];
-        PCD_USER_DEFINED_IO pIoBuffer = (PCD_USER_DEFINED_IO) Buffer;
+        PCD_USER_DEFINED_IO pIoBuffer = (PCD_USER_DEFINED_IO) &Buffer;
 
         pIoBuffer->InputCount = 4;
         pIoBuffer->OutputCount = 0;
@@ -99,8 +100,6 @@ NTSTATUS WriteInvalidArgument(
     }
 }
 
-typedef HANDLE(NTAPI* _BaseGetConsoleReference)(void);
-
 NTSTATUS
 InitializeDebugProcess(
     _Out_ PHANDLE hProcess,
@@ -108,7 +107,8 @@ InitializeDebugProcess(
     _In_ PWCH pApplicationName,
     _In_ USHORT szApplicationName,
     _In_ PWCH pCommandLine,
-    _In_ USHORT szCommandLine
+    _In_ USHORT szCommandLine,
+    PSECTION_IMAGE_INFORMATION SectionImageInfomation
 ) {
     UNICODE_STRING CapturedDosName;
     CapturedDosName.Length = szApplicationName;
@@ -145,8 +145,8 @@ InitializeDebugProcess(
     CreateInfo.InitState.ProhibitedImageCharacteristics = IMAGE_FILE_DLL;
     CreateInfo.InitState.AdditionalFileAccess = FILE_READ_ATTRIBUTES | FILE_READ_DATA;
 
-    BYTE _AttributeList[sizeof(PS_ATTRIBUTE_LIST) + sizeof(PS_ATTRIBUTE) * 4];
-    PPS_ATTRIBUTE_LIST AttributeList = (PPS_ATTRIBUTE_LIST) _AttributeList;
+    BYTE _AttributeList[sizeof(PS_ATTRIBUTE_LIST) + sizeof(PS_ATTRIBUTE) * 3];
+    PPS_ATTRIBUTE_LIST AttributeList = (PPS_ATTRIBUTE_LIST) &_AttributeList;
     AttributeList->TotalLength = sizeof(_AttributeList);
 
     AttributeList->Attributes[0].Attribute = PS_ATTRIBUTE_IMAGE_NAME;
@@ -154,38 +154,37 @@ InitializeDebugProcess(
     AttributeList->Attributes[0].ValuePtr = Buffer; // ApplicationName.Buffer - 8
     AttributeList->Attributes[0].ReturnLength = 0;
 
-    CLIENT_ID ClientId;
-    AttributeList->Attributes[1].Attribute = PS_ATTRIBUTE_CLIENT_ID;
-    AttributeList->Attributes[1].Size = sizeof(ClientId);
-    AttributeList->Attributes[1].ValuePtr = &ClientId;
+    // CLIENT_ID ClientId;
+    // AttributeList->Attributes[1].Attribute = PS_ATTRIBUTE_CLIENT_ID;
+    // AttributeList->Attributes[1].Size = sizeof(ClientId);
+    // AttributeList->Attributes[1].ValuePtr = &ClientId;
+    // AttributeList->Attributes[1].ReturnLength = 0;
+
+    AttributeList->Attributes[1].Attribute = PS_ATTRIBUTE_IMAGE_INFO;
+    AttributeList->Attributes[1].Size = sizeof(SECTION_IMAGE_INFORMATION);
+    AttributeList->Attributes[1].ValuePtr = SectionImageInfomation;
     AttributeList->Attributes[1].ReturnLength = 0;
 
-    SECTION_IMAGE_INFORMATION SectionImageInfomation;
-    AttributeList->Attributes[2].Attribute = PS_ATTRIBUTE_IMAGE_INFO;
-    AttributeList->Attributes[2].Size = sizeof(SectionImageInfomation);
-    AttributeList->Attributes[2].ValuePtr = &SectionImageInfomation;
-    AttributeList->Attributes[2].ReturnLength = 0;
-
     DbgConnectToDbg();
-    AttributeList->Attributes[3].Attribute = PS_ATTRIBUTE_DEBUG_OBJECT;
-    AttributeList->Attributes[3].Size = sizeof(HANDLE);
-    AttributeList->Attributes[3].ValuePtr = DbgGetThreadDebugObject();
-    AttributeList->Attributes[3].ReturnLength = 0;
+    AttributeList->Attributes[2].Attribute = PS_ATTRIBUTE_DEBUG_OBJECT;
+    AttributeList->Attributes[2].Size = sizeof(HANDLE);
+    AttributeList->Attributes[2].ValuePtr = DbgGetThreadDebugObject();
+    AttributeList->Attributes[2].ReturnLength = 0;
 
     PS_STD_HANDLE_INFO StdHandle;
     StdHandle.StdHandleState = PsRequestDuplicate;
     StdHandle.PseudoHandleMask = 0;
     StdHandle.StdHandleSubsystemType = IMAGE_SUBSYSTEM_WINDOWS_CUI;
-    AttributeList->Attributes[4].Attribute = PS_ATTRIBUTE_STD_HANDLE_INFO;
-    AttributeList->Attributes[4].Size = sizeof(PS_STD_HANDLE_INFO);
-    AttributeList->Attributes[4].ValuePtr = &StdHandle;
-    AttributeList->Attributes[4].ReturnLength = 0;
+    AttributeList->Attributes[3].Attribute = PS_ATTRIBUTE_STD_HANDLE_INFO;
+    AttributeList->Attributes[3].Size = sizeof(PS_STD_HANDLE_INFO);
+    AttributeList->Attributes[3].ValuePtr = &StdHandle;
+    AttributeList->Attributes[3].ReturnLength = 0;
 
     PRTL_USER_PROCESS_PARAMETERS ProcessParameters;
     RtlCreateProcessParametersEx(&ProcessParameters, &ApplicationName, NULL, NULL,
         &CommandLine, NULL, NULL, NULL, NULL, NULL, RTL_USER_PROC_PARAMS_NORMALIZED);
     ProcessParameters->ProcessGroupId = NtCurrentPeb()->ProcessParameters->ProcessGroupId;
-    ProcessParameters->ConsoleHandle = (_BaseGetConsoleReference) GetProcAddress(GetModuleHandleW(L"KernelBase.dll"), "BaseGetConsoleReference")();
+    ProcessParameters->ConsoleHandle = BaseGetConsoleReference();
 
     NTSTATUS NtStatus = NtCreateUserProcess(hProcess,
         hThread, MAXIMUM_ALLOWED, MAXIMUM_ALLOWED, NULL, NULL,

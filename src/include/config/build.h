@@ -3,53 +3,60 @@
 
 #pragma once
 
-// =====================================================================================
-//  Build Configuration
-// =====================================================================================
+//------------------------------------------------------------------------------------
+// Build Configuration
+//------------------------------------------------------------------------------------
+
 #ifndef _DEBUG
-    #define NDEBUG                   // Disable assertions in release builds
+    #define NDEBUG // Disable assertions (release)
 #endif
-#define NO_STRICT                    // Relax type checking
-#define _HAS_EXCEPTIONS 0            // Disable exceptions
-#define WIN32_LEAN_AND_MEAN          // Reduce Windows API inclusions
-#define _CRT_DECLARE_NONSTDC_NAMES 0 // Exclude non standard names
 
-// =====================================================================================
-//  Windows API Exclusions (Build Optimizations)
-// =====================================================================================
-// Exclude unused Windows components to reduce bloat and speed up compilation.
-#define NOWINSTYLES              // Exclude window styles (WS_*, CS_*, ES_*)
-#define NOSYSMETRICS             // Exclude system metrics (SM_*)
-#define NOICONS                  // Exclude icon definitions (IDI_*)
-#define NOKEYSTATES              // Exclude key state macros (MK_*)
-#define NOSYSCOMMANDS            // Exclude system commands (SC_*)
-#define NOSHOWWINDOW             // Exclude ShowWindow() and SW_* macros
-#define NOCLIPBOARD              // Exclude clipboard functions
-#define NOCOLOR                  // Exclude screen color definitions
-#define NOCTLMGR                 // Exclude control/dialog routines
-#define NODRAWTEXT               // Exclude DrawText() and DT_* macros
-#define NOGDI                    // Exclude GDI functions
-#define NONLS                    // Exclude National Language Support (NLS)
-#define NOMB                     // Exclude MessageBox() and MB_* macros
-#define NOSCROLL                 // Exclude scroll bar functions (SB_*)
-#define NOSERVICE                // Exclude Windows Service API
-#define NOWH                     // Exclude Windows hooks (WH_*)
-#define NOWINOFFSETS             // Exclude window offsets (GWL_*, GCL_*)
-#define NOHELP                   // Exclude Help API
-#define NOMCX                    // Exclude Modem Configuration Extensions
-#define NOIME                    // Exclude Input Method Editor (IME)
+#define NO_STRICT         // Disable strict type checking
+#define _HAS_EXCEPTIONS 0 // Disable exception handling
 
-// =====================================================================================
-//  Additional Windows API Exclusions (winuser.h)
-// =====================================================================================
-#define NODESKTOP                // Exclude Desktop APIs
-#define NOWINDOWSTATION          // Exclude Window Station APIs
-#define NOSECURITY               // Exclude Security APIs
-#define NONCMESSAGES             // Exclude non-client messages
-#define NOMDI                    // Exclude Multiple Document Interface (MDI)
-#define NO_STATE_FLAGS           // Exclude state flag definitions
+//------------------------------------------------------------------------------------
+// Feature Exclusions (Optimization)
+//------------------------------------------------------------------------------------
+// Exclude optional or unused components for smaller binaries and faster builds
 
-// =====================================================================================
-//  Windows Base Interlock Exclusions (interlockedapi.h)
-// =====================================================================================
-#define NOWINBASEINTERLOCK       // Exclude Windows base interlock functions
+#define WIN32_LEAN_AND_MEAN          // Minimize WinAPI headers
+#define _CRT_DECLARE_NONSTDC_NAMES 0 // Suppress non-standard CRT names
+
+// User Interface
+#define NOWINSTYLES   // Exclude window styles
+#define NOSYSMETRICS  // Exclude system metrics
+#define NOICONS       // Exclude icons
+#define NOKEYSTATES   // Exclude key state flags
+#define NOSYSCOMMANDS // Exclude system commands
+#define NOSHOWWINDOW  // Exclude ShowWindow API
+#define NOCLIPBOARD   // Exclude clipboard API
+#define NOCOLOR       // Exclude color definitions
+#define NOCTLMGR      // Exclude control management
+#define NODRAWTEXT    // Exclude text drawing
+#define NOGDI         // Exclude GDI
+
+// System Services & Internationalization
+#define NONLS     // Exclude NLS
+#define NOMB      // Exclude MessageBox API
+#define NOSCROLL  // Exclude scroll bar APIs
+#define NOSERVICE // Exclude Service APIs
+#define NOWH      // Exclude Windows Hooks
+
+// Windowing & Help
+#define NOWINOFFSETS  // Exclude window offsets
+#define NOHELP        // Exclude Help API
+
+// Miscellaneous
+#define NOMCX // Exclude Modem Configuration
+#define NOIME // Exclude IME
+
+// winuser.h Exclusions
+#define NODESKTOP       // Exclude Desktop API
+#define NOWINDOWSTATION // Exclude Window Station API
+#define NOSECURITY      // Exclude Security API
+#define NONCMESSAGES    // Exclude non-client messages
+#define NOMDI           // Exclude MDI
+#define NO_STATE_FLAGS  // Exclude window state flags
+
+// interlockedapi.h Exclusions
+#define NOWINBASEINTERLOCK // Exclude base interlock primitives

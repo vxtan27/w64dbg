@@ -107,7 +107,7 @@ NTSTATUS ReadConsoleDeviceInput(
     _In_ BOOL fUnicode
 ) {
     BYTE Buffer[sizeof(CD_USER_DEFINED_IO) + sizeof(CD_IO_BUFFER) * 2];
-    PCD_USER_DEFINED_IO pIoBuffer = (PCD_USER_DEFINED_IO) Buffer;
+    PCD_USER_DEFINED_IO pIoBuffer = (PCD_USER_DEFINED_IO) &Buffer;
 
     pIoBuffer->InputCount = 1;
     pIoBuffer->OutputCount = 2;
@@ -140,7 +140,7 @@ NTSTATUS WriteConsoleDevice(
     _In_ BOOL fUnicode
 ) {
     BYTE Buffer[sizeof(CD_USER_DEFINED_IO) + sizeof(CD_IO_BUFFER)];
-    PCD_USER_DEFINED_IO pIoBuffer = (PCD_USER_DEFINED_IO) Buffer;
+    PCD_USER_DEFINED_IO pIoBuffer = (PCD_USER_DEFINED_IO) &Buffer;
 
     pIoBuffer->InputCount = 2;
     pIoBuffer->OutputCount = 0;

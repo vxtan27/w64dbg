@@ -1,62 +1,46 @@
 # Building
 
-## 🔧 Prerequisites
+## 🛠️ Prerequisites
 
-Ensure the following dependencies are installed:
+Ensure the following dependencies are installed and correctly configured in your environment:
 
-- **Git** – Required for cloning the repository and submodules.
-- **A compatible C++ compiler** – Must support **C++20** and MSVC extensions while using MSVC headers.
-- **Windows SDK** – Latest version recommended for best compatibility.
+- **Git**: Version control system; essential for repository cloning and submodule management.
+- **C++ Compiler**: C++20 compliant, with support for MSVC extensions when using MSVC headers.
+- **Windows SDK**: Latest version recommended for optimal compatibility and access to necessary headers and libraries.
 
-## 📥 Cloning the Repository
+## 📥 Repository Setup
 
-This project depends on external submodules. Clone it using:
-
-```sh
-git clone --recursive https://github.com/vxtan27/w64dbg.git
-```
-
-If you already cloned the repository without submodules, initialize and update them separately:
+Clone the repository, including all necessary submodules:
 
 ```sh
-git submodule update --init --recursive
+git clone --recursive [https://github.com/vxtan27/w64dbg.git](https://github.com/vxtan27/w64dbg.git)
 ```
 
-Alternatively, if you prefer manual dependency management, clone the main repository and place the required dependencies in the `external` directory.
+## ⚙️ Compilation
 
-## ⚙️ Build Instructions
+Follow these steps to build the project:
 
-1. Open the **Microsoft Visual Studio Developer Command Prompt**.
-2. Navigate to the project root directory.
-3. Compile using the following command:
+1. Launch the **Microsoft Visual Studio Developer Command Prompt**.
+2. Navigate to the root directory of the cloned project.
+4. Generate the import library for `KernelBase.dll`:
 
     ```sh
-    cl /I "%VSINSTALLDIR%/DIA SDK/include" /I external/phnt /I external/dragonbox/include /I external/dragonbox/source /I src/include /std:c++latest src/main.cpp /link /SUBSYSTEM:CONSOLE /ENTRY:wmain
+    lib /DEF:lib/KernelBase.def /MACHINE:X64 /OUT:lib/KernelBase.lib
     ```
 
-## ⚡ Customization & Optimization
+4. Compile the project using the following command:
 
-### 🚀 Performance Optimization
-Enable compiler optimizations for speed:
+    ```sh
+    cl /I "%VSINSTALLDIR%/DIA SDK/include" /I external/phnt /I external/dragonbox/include /I external/dragonbox/source /I src/include /std:c++latest src/main.cpp /link /LIBPATH:lib /ENTRY:wmain
+    ```
 
-```sh
-/O2   # Optimize for speed
-/Ox   # Maximum optimizations (aggressive)
-```
+## ⚡ Build Configuration
 
-### 🐞 Debugging Support
-Use debugging flags for an improved debugging experience:
+Enhance performance by enabling compiler optimizations:
 
 ```sh
-/Zi    # Generate debugging information
-/DEBUG # Enable debug mode in the linker
+/O2 # Optimize for speed
+/Ox # Aggressive optimizations
 ```
 
-### 🔄 Compatibility Adjustments
-Modify subsystem settings or use a specific Windows SDK version:
-
-```sh
-/SUBSYSTEM:CONSOLE /ENTRY:wmain  # Console application entry point
-```
-
-For a complete list of compiler and linker options, refer to the [MSVC documentation](https://learn.microsoft.com/cpp/build/reference/compiler-options).
+Refer to the official [MSVC Compiler Options](https://learn.microsoft.com/cpp/build/reference/compiler-options) and [MSVC Linker Options](https://learn.microsoft.com/cpp/build/reference/linker-options) documentation for a comprehensive list of available flags and their descriptions.
