@@ -2,27 +2,25 @@
 // Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
 
 // Config
-#include <config/crt.h>
-#include <config/build.h>
+#include "config/crt.h"
+#include "config/build.h"
 
-#include <ntdll.h>
+#include "ntdll.h"
 #include <dbghelp.h>
 #include <psapi.h>
 
-#include <conversion/status.h>
-#include <conversion/address.h>
-#include <conversion/decimal.h>
+#include "conversion/status.h"
+#include "conversion/address.h"
+#include "conversion/decimal.h"
 
-#include <debugger/core.cpp>
-#include <config/core.h>
-#include <exception.h>
-#include <utils.h>
-#include <log.h>
-#include <symbols.h>
+#include "debug/core.cpp"
+#include "config/core.h"
+#include "exception.h"
+#include "utils.h"
+#include "log.h"
+#include "symbols.h"
 
-int
-WINAPI
-wmain(void) {
+int __stdcall wmain(void) {
     BOOL fVerbose = DEFAULT_VERBOSE,
     fPauseExecution = DEFAULT_PAUSE,
     fOutputDebugString = DEFAULT_OUTPUT,
@@ -130,17 +128,19 @@ wmain(void) {
 
     if (fVerbose >= 2) TraceDebugEvent(&StateChange, CREATE_PROCESS, strlen(CREATE_PROCESS), hStdout, fConsole);
 
-    DbgContinue(&StateChange, DBG_CONTINUE);
+    WDbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
 
     // Is 64-bit application
     DWORD b64bit = SectionImageInfomation.Machine == IMAGE_FILE_MACHINE_AMD64;
     BOOL fBreakpointSignalled = FALSE;
     if (!b64bit) --fBreakpointSignalled; // Wow64 breakpoint
 
-    while (NT_SUCCESS(NtStatus = DbgWaitStateChange(&StateChange, FALSE, NULL))) {
+    while (NT_SUCCESS(DbgWaitStateChange(&StateChange, FALSE, NULL))) {
         switch (StateChange.NewState) {
         case DbgLoadDllStateChange:
-            if (fVerbose >= 2) TraceDebugModule(StateChange.StateInfo.LoadDll.FileHandle, LOAD_DLL, strlen(LOAD_DLL), hStdout, fConsole);
+            if (fVerbose >= 2)
+                TraceDebugModule(StateChange.StateInfo.LoadDll.FileHandle,
+                    LOAD_DLL, strlen(LOAD_DLL), hStdout, fConsole);
 
             // Find storage position
             for (int i = 0; i < MAX_DLL; ++i) if (!BaseOfDll[i]) {
@@ -154,7 +154,8 @@ wmain(void) {
         case DbgUnloadDllStateChange:
             // Find specific DLL
             for (int i = 0; i < MAX_DLL; ++i) if (StateChange.StateInfo.UnloadDll.BaseAddress == BaseOfDll[i]) {
-                if (fVerbose >= 2) TraceDebugModule(hFile[i], UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout, fConsole);
+                if (fVerbose >= 2)
+                    TraceDebugModule(hFile[i], UNLOAD_DLL, strlen(UNLOAD_DLL), hStdout, fConsole);
 
                 NtClose(hFile[i]);
                 BaseOfDll[i] = 0;
@@ -164,18 +165,21 @@ wmain(void) {
             break;
 
         case DbgCreateThreadStateChange:
-            if (fVerbose >= 2) TraceDebugEvent(&StateChange, CREATE_THREAD, strlen(CREATE_THREAD), hStdout, fConsole);
+            if (fVerbose >= 2)
+                TraceDebugEvent(&StateChange, CREATE_THREAD, strlen(CREATE_THREAD), hStdout, fConsole);
             break;
 
         case DbgExitThreadStateChange:
-            if (fVerbose >= 2) TraceDebugEvent(&StateChange, EXIT_THREAD, strlen(EXIT_THREAD), hStdout, fConsole);
+            if (fVerbose >= 2)
+                TraceDebugEvent(&StateChange, EXIT_THREAD, strlen(EXIT_THREAD), hStdout, fConsole);
             break;
 
         case DbgExitProcessStateChange:
-            if (fVerbose >= 2) TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout, fConsole);
+            if (fVerbose >= 2)
+                TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout, fConsole);
 
             NtClose(hProcess);
-            DbgContinue(&StateChange, DBG_CONTINUE);
+            WDbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
 
             for (int i = 0; i < MAX_DLL; ++i)
                 if (BaseOfDll[i]) NtClose(hFile[i]);
@@ -191,11 +195,14 @@ wmain(void) {
             PEXCEPTION_RECORD pExceptionRecord = &pException->ExceptionRecord;
             if (pExceptionRecord->ExceptionCode == DBG_PRINTEXCEPTION_WIDE_C ||
                 pExceptionRecord->ExceptionCode == DBG_PRINTEXCEPTION_C) {
-                if (fVerbose >= 2) TraceDebugEvent(&StateChange, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout, fConsole);
-                if (fOutputDebugString == TRUE) ProcessOutputDebugStringEvent(&StateChange, hProcess, hStdout, fConsole);
+                if (fVerbose >= 2)
+                    TraceDebugEvent(&StateChange, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout, fConsole);
+                if (fOutputDebugString == TRUE) 
+                    ProcessOutputDebugStringEvent(&StateChange, hProcess, hStdout, fConsole);
                 break;
             } else if (pExceptionRecord->ExceptionCode == DBG_RIPEXCEPTION) {
-                if (fVerbose >= 2) TraceDebugEvent(&StateChange, RIP, strlen(RIP), hStdout, fConsole);
+                if (fVerbose >= 2)
+                    TraceDebugEvent(&StateChange, RIP, strlen(RIP), hStdout, fConsole);
                 ProcessRIPEvent(&StateChange, hStdout, fConsole);
                 break;
             }
@@ -213,7 +220,7 @@ wmain(void) {
 
             // Ignore other first change exceptions
             if (pException->FirstChance) {
-                DbgContinue(&StateChange, DBG_EXCEPTION_NOT_HANDLED);
+                WDbgContinueDebugEvent(&StateChange, DBG_EXCEPTION_NOT_HANDLED);
                 continue;
             }
 
@@ -232,20 +239,9 @@ wmain(void) {
             p += FormatExceptionEvent(pExceptionRecord->ExceptionCode,
                 LANG_USER_DEFAULT, p, buffer + BUFLEN - p, fConsole);
 
-            SymSetOptions(SYMOPTIONS);
-            SymInitializeW(hProcess, NULL, FALSE);
-
-            for (int i = 0; i < MAX_DLL; ++i) if (BaseOfDll[i]) {
-                DWORD DllSize;
-
-                GetModuleSize(hFile[i], &DllSize);
-                SymLoadModuleExW(hProcess, hFile[i], NULL, NULL,
-                    (DWORD64) BaseOfDll[i], DllSize, NULL, 0);
-            }
-
             STACKFRAME_EX StackFrame;
             BYTE Context[FIELD_OFFSET(CONTEXT, FltSave)]; // CONTEXT Context
-            HANDLE hThread = DbgGetThreadHandle(&StateChange);
+            HANDLE hThread = WDbgGetThreadHandle(&StateChange);
 
             if (b64bit) {
                 ((PCONTEXT) &Context)->ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
@@ -268,13 +264,11 @@ wmain(void) {
 
             DWORD count;
             BOOL Success;
-            DWORD Displacement;
-            PSYMBOL_INFOW pSymInfo;
             IMAGEHLP_LINEW64 Line;
             USERCONTEXT UserContext;
             char Symbol[sizeof(SYMBOL_INFO) + (MAX_SYM_NAME << 1)];
 
-            pSymInfo = (PSYMBOL_INFOW) Symbol;
+            PSYMBOL_INFOW pSymInfo = (PSYMBOL_INFOW) Symbol;
             Line.SizeOfStruct = sizeof(Line);
             pSymInfo->SizeOfStruct = sizeof(SYMBOL_INFO);
             pSymInfo->MaxNameLen = MAX_SYM_NAME;
@@ -291,6 +285,16 @@ wmain(void) {
                 SetConsoleDeviceOutputCP(hStdout, 65001);  // CP_UTF8
                 SetConsoleDeviceMode(hStdout, ENABLE_PROCESSED_OUTPUT |
                     ENABLE_WRAP_AT_EOL_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+            }
+
+            SymSetOptions(SYM_OPTIONS);
+            SymInitializeW(hProcess, NULL, FALSE);
+
+            for (int i = 0; i < MAX_DLL; ++i) if (BaseOfDll[i]) {
+                SIZE_T DllSize;
+                GetModuleSize(hProcess, BaseOfDll[i], &DllSize);
+                SymLoadModuleExW(hProcess, hFile[i], NULL, NULL,
+                    (DWORD64) BaseOfDll[i], DllSize, NULL, 0);
             }
 
             while (TRUE) {
@@ -330,12 +334,7 @@ wmain(void) {
                     p += 4;
                 }
 
-                //
-                //  StackFrame.AddrPC.Offset stores the return address rather than the caller's address.
-                //  Adjust StackFrame.AddrPC.Offset by 'count' to resolve the caller's address accurately.
-                //
-
-                if (SymFromInlineContextW(hProcess, StackFrame.AddrPC.Offset - count,
+                if (SymFromInlineContextW(hProcess, StackFrame.AddrPC.Offset,
                     INLINE_FRAME_CONTEXT_IGNORE, NULL, pSymInfo)) {
                     p += ConvertUnicodeToUTF8(pSymInfo->Name,
                         pSymInfo->NameLen << 1, p, buffer + BUFLEN - p);
@@ -353,20 +352,32 @@ wmain(void) {
                 *p++ = ' ';
                 *p++ = '(';
 
-                if (SymSetContext(hProcess, (PIMAGEHLP_STACK_FRAME) &StackFrame, &Context)) {
+                // IMAGEHLP_STACK_FRAME ImageHlpStackFrame = {
+                //     .InstructionOffset = StackFrame.AddrPC.Offset
+                // };
+
+                // if (SymSetContext(hProcess, &ImageHlpStackFrame, NULL)) {
+                if (SymSetContext(hProcess, (PIMAGEHLP_STACK_FRAME) &StackFrame, NULL)) {
                     Success = TRUE;
                     UserContext.p = p;
                     UserContext.DataIsParam = TRUE;
-                    SymEnumSymbolsExW(hProcess, 0, NULL, EnumSymbolsProcW, &UserContext, SYMENUM_OPTIONS_DEFAULT);
+                    SymEnumSymbolsExW(hProcess, 0, NULL, EnumSymbolsCallbackW,
+                        &UserContext, SYMENUM_OPTIONS_DEFAULT);
                     if (p != UserContext.p) p = UserContext.p - 2;
                 } else Success = FALSE;
 
                 *p++ = ')';
                 *p++ = ' ';
 
-                // Without &Displacement => undefined behavior
-                if (SymGetLineFromInlineContextW(hProcess, StackFrame.AddrPC.Offset - count,
-                    INLINE_FRAME_CONTEXT_IGNORE, NULL, &Displacement, &Line)) {
+                DWORD Displacement;
+
+                //
+                //  StackFrame.AddrPC.Offset stores the return address rather than the caller's address.
+                //  Adjust StackFrame.AddrPC.Offset by 'count' to resolve the caller's address accurately.
+                //
+
+                if (SymGetLineFromAddrW64(hProcess,
+                    StackFrame.AddrPC.Offset - count, &Displacement, &Line)) {
                     memcpy(p, EXCEPTION_AT, strlen(EXCEPTION_AT));
                     size_t temp = wcslen(Line.FileName) << 1;
                     p += strlen(EXCEPTION_AT);
@@ -407,7 +418,7 @@ wmain(void) {
                 if (Success && fVerbose >= 1) {
                     UserContext.p = p;
                     UserContext.DataIsParam = FALSE;
-                    SymEnumSymbolsExW(hProcess, 0, NULL, EnumSymbolsProcW, &UserContext, SYMENUM_OPTIONS_DEFAULT);
+                    SymEnumSymbolsExW(hProcess, 0, NULL, EnumSymbolsCallbackW, &UserContext, SYMENUM_OPTIONS_DEFAULT);
                     p = UserContext.p;
                 }
 
@@ -425,8 +436,8 @@ wmain(void) {
             SymCleanup(hProcess);
 
             DWORD dwExitCode = RtlNtStatusToDosError(pExceptionRecord->ExceptionCode);
-            NtTerminateProcess(hProcess,
-                dwExitCode != ERROR_MR_MID_NOT_FOUND ? dwExitCode : pExceptionRecord->ExceptionCode);
+            NtTerminateProcess(hProcess, dwExitCode != ERROR_MR_MID_NOT_FOUND
+                                       ? dwExitCode : pExceptionRecord->ExceptionCode);
             break;
         }
 
@@ -434,9 +445,8 @@ wmain(void) {
             std::unreachable();
         }
 
-        DbgContinue(&StateChange, DBG_CONTINUE);
+        WDbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
     }
 
-    DWORD dwExitCode = RtlNtStatusToDosError(NtStatus);
-    return dwExitCode != ERROR_MR_MID_NOT_FOUND ? dwExitCode : NtStatus;
+    std::unreachable();
 }

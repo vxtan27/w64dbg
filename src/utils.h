@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include <ntdll.h>
-#include <conapi.h>
-#include <kernelbase.h>
+#include "ntdll.h"
+#include "conapi.h"
+#include "kernelbase.h"
 
 ULONG ConvertUnicodeToUTF8(
     _In_reads_bytes_(cbUnicodeString) PCVOID pUnicodeString,
@@ -165,10 +165,10 @@ InitializeDebugProcess(
     AttributeList->Attributes[1].ValuePtr = SectionImageInfomation;
     AttributeList->Attributes[1].ReturnLength = 0;
 
-    DbgConnectToDbg();
+    DbgUiConnectToDbg();
     AttributeList->Attributes[2].Attribute = PS_ATTRIBUTE_DEBUG_OBJECT;
     AttributeList->Attributes[2].Size = sizeof(HANDLE);
-    AttributeList->Attributes[2].ValuePtr = DbgGetThreadDebugObject();
+    AttributeList->Attributes[2].ValuePtr = DbgUiGetThreadDebugObject();
     AttributeList->Attributes[2].ReturnLength = 0;
 
     PS_STD_HANDLE_INFO StdHandle;
@@ -210,7 +210,7 @@ InitializeDebugProcess(
 //  Leverage direct access to the second loaded module in the PEB loader data
 //
 
-NTSTATUS LookupNtdllMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *MessageEntry) {
+NTSTATUS LookupNtStatusMessage(DWORD dwMessageId, DWORD dwLanguageId, PMESSAGE_RESOURCE_ENTRY *MessageEntry) {
     return RtlFindMessage(((PLDR_DATA_TABLE_ENTRY) NtCurrentPeb()->Ldr->InLoadOrderModuleList.Flink->Flink)->DllBase,
         PtrToUlong(RT_MESSAGETABLE), dwLanguageId, dwMessageId, MessageEntry);
 }
@@ -255,14 +255,12 @@ NTSTATUS IsConsoleHandle(HANDLE hHandle, PBOOL pResult) {
 }
 
 // Retrieve the size of the specified module
-NTSTATUS GetModuleSize(HANDLE hModule, PDWORD pFileSize) {
-    IO_STATUS_BLOCK IoStatus;
-    FILE_STANDARD_INFORMATION FileInfo;
+NTSTATUS GetModuleSize(HANDLE hProcess, LPVOID pBaseOfDll, PSIZE_T pDllSize) {
+    MEMORY_IMAGE_INFORMATION ImageInfo;
+    NTSTATUS NtStatus = NtQueryVirtualMemory(hProcess, pBaseOfDll, MemoryImageInformation,
+        &ImageInfo, sizeof(ImageInfo), NULL);
+    *pDllSize = ImageInfo.SizeOfImage;
 
-    NTSTATUS NtStatus = NtQueryInformationFile(hModule, &IoStatus,
-        &FileInfo, sizeof(FileInfo), FileStandardInformation);
-
-    *pFileSize = FileInfo.EndOfFile.LowPart;
     return NtStatus;
 }
 

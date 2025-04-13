@@ -31,7 +31,7 @@ Follow these steps to build the project:
 4. Compile the project using the following command:
 
     ```sh
-    cl /I "%VSINSTALLDIR%/DIA SDK/include" /I external/phnt /I external/dragonbox/include /I external/dragonbox/source /I src/include /std:c++latest src/main.cpp /link /LIBPATH:lib /ENTRY:wmain
+    cl /I "%VSINSTALLDIR%/DIA SDK/include" /I external/phnt /I external/dragonbox/include /I external/dragonbox/source /std:c++latest src/w64dbg.cpp /link /LIBPATH:lib /ENTRY:wmain
     ```
 
 ## ⚡ Build Configuration

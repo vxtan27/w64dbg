@@ -212,8 +212,11 @@ typedef union {
 
 // https://accu.org/journals/overload/29/165/orr
 // https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code#showing-variables-using-the-windows-debugging-api
-
-BOOL CALLBACK EnumSymbolsProcW(PSYMBOL_INFOW pSymInfo, ULONG SymbolSize, PVOID UserContext) {
+BOOL CALLBACK EnumSymbolsCallbackW(
+    _In_     PSYMBOL_INFOW pSymInfo,
+    _In_     ULONG SymbolSize,
+    _In_opt_ PVOID UserContext
+) {
     (void) SymbolSize;
     PUSERCONTEXT User = (PUSERCONTEXT) UserContext;
 

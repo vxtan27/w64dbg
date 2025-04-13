@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <ntdll.h>
+#include "ntdll.h"
 
 //
 //  Format a debug event message into a buffer
@@ -125,7 +125,7 @@ An exception was raised by the Common Language Runtime (CLR).
 //
 
 ULONGLONG FormatExceptionEvent(
-    DWORD dwMessageId,
+    NTSTATUS NtStatus,
     DWORD dwLanguageId,
     PCH pBuffer,
     DWORD dwSize,
@@ -134,10 +134,10 @@ ULONGLONG FormatExceptionEvent(
     PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
     // Handle special known statuses or fallback to NTDLL lookup
-    if (dwMessageId == STATUS_APPLICATION_HANG ||
-        dwMessageId == STATUS_CPP_EH_EXCEPTION ||
-        dwMessageId == STATUS_CLR_EXCEPTION ||
-        NT_SUCCESS(LookupNtdllMessage(dwMessageId, dwLanguageId, &MessageEntry))) {
+    if (NtStatus == STATUS_APPLICATION_HANG ||
+        NtStatus == STATUS_CPP_EH_EXCEPTION ||
+        NtStatus == STATUS_CLR_EXCEPTION ||
+        NT_SUCCESS(LookupSystemMessage(RtlNtStatusToDosError(NtStatus), dwLanguageId, &MessageEntry))) {
 
         PCH lpBuffer = pBuffer;
 
@@ -147,15 +147,15 @@ ULONGLONG FormatExceptionEvent(
         }
 
         // Write corresponding message
-        if (dwMessageId == STATUS_APPLICATION_HANG) {
+        if (NtStatus == STATUS_APPLICATION_HANG) {
             memcpy(lpBuffer, STATUS_APPLICATION_HANG_TEXT,
                 strlen(STATUS_APPLICATION_HANG_TEXT));
             lpBuffer += strlen(STATUS_APPLICATION_HANG_TEXT);
-        } else if (dwMessageId == STATUS_CPP_EH_EXCEPTION) {
+        } else if (NtStatus == STATUS_CPP_EH_EXCEPTION) {
             memcpy(lpBuffer, STATUS_CPP_EH_EXCEPTION_TEXT,
                 strlen(STATUS_CPP_EH_EXCEPTION_TEXT));
             lpBuffer += strlen(STATUS_CPP_EH_EXCEPTION_TEXT);
-        } else if (dwMessageId == STATUS_CLR_EXCEPTION) {
+        } else if (NtStatus == STATUS_CLR_EXCEPTION) {
             memcpy(lpBuffer, STATUS_CLR_EXCEPTION_TEXT,
                 strlen(STATUS_CLR_EXCEPTION_TEXT));
             lpBuffer += strlen(STATUS_CLR_EXCEPTION_TEXT);
@@ -223,7 +223,7 @@ PCH FormatSourceCode(PWCH FileName, DWORD LineNumber, size_t FileLength, ULONG B
 
     if (NT_SUCCESS(NtStatus)) {
         char *ptr;
-        char buffer[PAGESIZE];
+        char buffer[PAGE_SIZE];
         DWORD line = 1;
 
         while (TRUE) { // Read file content in chunks

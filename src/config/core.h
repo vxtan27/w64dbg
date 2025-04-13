@@ -7,42 +7,47 @@
 // Debugger Configuration
 //------------------------------------------------------------------------------------
 
-#define DEFAULT_BREAKPOINT   true  // Enable breakpoints by default
-#define DEFAULT_VERBOSE      false // Disable verbose output by default
-#define DEFAULT_OUTPUT       true  // Enable standard output by default
-#define DEFAULT_PAUSE        false // Don't auto-pause on exit by default
+#define DEFAULT_BREAKPOINT   TRUE  // Enable breakpoints by default
+#define DEFAULT_VERBOSE      FALSE // Disable verbose output by default
+#define DEFAULT_OUTPUT       TRUE  // Enable standard output by default
+#define DEFAULT_PAUSE        FALSE // Don't auto-pause on exit by default
 
 //------------------------------------------------------------------------------------
 // Timeout Limits
 //------------------------------------------------------------------------------------
 
-#define VALID_TIMEOUT   99999  // Maximum valid timeout (milliseconds)
-#define INVALID_TIMEOUT 100000 // Value indicating an invalid timeout
+#define VALID_TIMEOUT   99999  // Max valid timeout (ms)
+#define INVALID_TIMEOUT 100000 // Invalid timeout threshold (ms)
 
 //------------------------------------------------------------------------------------
 // Debugging Limits
 //------------------------------------------------------------------------------------
 
-#define MAX_DLL 32 // Maximum DLLs allowed to be loaded
+#define MAX_DLL 32 // Max DLLs allowed for loading
 
 //------------------------------------------------------------------------------------
-// Buffer Sizes (Bytes)
+// Buffer Sizes
 //------------------------------------------------------------------------------------
 
-#define PAGESIZE  4096 // System memory page size
-#define BUFLEN    8192 // General-purpose buffer length
-#define WBUFLEN   4096 // Wide character buffer length
+#define BUFLEN    PAGE_SIZE        // General buffer size
+#define WBUFLEN   (PAGE_SIZE >> 1) // Wide char buffer size
 
 //------------------------------------------------------------------------------------
-// Symbol Loading Options (dbghelp.h)
+// Symbol Options
 //------------------------------------------------------------------------------------
 
-#define SYMOPTIONS \
-    (SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | \
-     SYMOPT_OMAP_FIND_NEAREST | SYMOPT_NO_UNQUALIFIED_LOADS | \
-     SYMOPT_FAIL_CRITICAL_ERRORS | SYMOPT_CASE_INSENSITIVE | \
-     SYMOPT_INCLUDE_32BIT_MODULES | SYMOPT_AUTO_PUBLICS | SYMOPT_NO_IMAGE_SEARCH | \
-     SYMOPT_NO_PROMPTS | SYMOPT_DISABLE_SYMSRV_AUTODETECT)
+#define SYM_OPTIONS (SYMOPT_DEFERRED_LOADS        | \
+                     SYMOPT_LOAD_LINES            | \
+                     SYMOPT_UNDNAME               | \
+                     SYMOPT_AUTO_PUBLICS          | \
+                     SYMOPT_FAVOR_COMPRESSED      | \
+                     SYMOPT_OMAP_FIND_NEAREST     | \
+                     SYMOPT_INCLUDE_32BIT_MODULES | \
+                     SYMOPT_NO_UNQUALIFIED_LOADS  | \
+                     SYMOPT_NO_IMAGE_SEARCH       | \
+                     SYMOPT_NO_PROMPTS            | \
+                     SYMOPT_FAIL_CRITICAL_ERRORS  | \
+                     SYMOPT_READONLY_CACHE        )
 
 //------------------------------------------------------------------------------------
 // Help Message
@@ -79,14 +84,14 @@ Options:
 // Verbose Output Prefixes
 //------------------------------------------------------------------------------------
 
-#define CREATE_THREAD   "Thread Created: "
-#define CREATE_PROCESS  "Process Created: "
-#define LOAD_DLL        "DLL Loaded: "
-#define UNLOAD_DLL      "DLL Unloaded: "
-#define EXIT_THREAD     "Thread Exited: "
-#define EXIT_PROCESS    "Process Exited: "
-#define OUTPUT_DEBUG    "Output: "
-#define RIP             "RIP Error: "
+#define CREATE_THREAD   "CreateThread "
+#define CREATE_PROCESS  "CreateProcess "
+#define LOAD_DLL        "LoadDll "
+#define UNLOAD_DLL      "UnloadDll "
+#define EXIT_THREAD     "ExitThread "
+#define EXIT_PROCESS    "ExitProcess "
+#define OUTPUT_DEBUG    "OutputDebugString "
+#define RIP             "Rip "
 
 //------------------------------------------------------------------------------------
 // Console Formatting (ANSI Escape Codes)

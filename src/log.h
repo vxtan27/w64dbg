@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <fmt.h>
+#include "fmt.h"
 
 #define DEBUG_EVENT_NAME_MAX_LEN 18
 #define TRACE_DEBUG_EVENT_BUFFER_SIZE (DEBUG_EVENT_NAME_MAX_LEN + 22)
@@ -44,53 +44,79 @@ NTSTATUS TraceDebugModule(
         szDebugEventName, DebugEventNameLength, Buffer), FALSE, fConsole);
 }
 
-// Process OutputDebugString events and writes the debug string to standard output
+#pragma push_macro("PAGE_MASK")
+#pragma push_macro("pExceptionRecord")
+#pragma push_macro("ExceptionCode")
+#pragma push_macro("RemainingSize")
+#pragma push_macro("BaseAddress")
+
+#define PAGE_MASK (PAGE_SIZE - 1)
+#define ExceptionRecord pStateChange->StateInfo.Exception.ExceptionRecord
+#define ExceptionCode ExceptionRecord.ExceptionCode
+#define RemainingSize ExceptionRecord.ExceptionInformation[0]
+#define BaseAddress ExceptionRecord.ExceptionInformation[1]
+
+// Process OutputDebugString events
 VOID ProcessOutputDebugStringEvent(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     HANDLE hProcess,
     HANDLE hStdout,
     BOOL fConsole
 ) {
-    PEXCEPTION_RECORD pExceptionRecord = &pStateChange->StateInfo.Exception.ExceptionRecord;
-
     // Exclude trailing null character
-    --pExceptionRecord->ExceptionInformation[0];
+    --RemainingSize;
 
-    if (pExceptionRecord->ExceptionCode == DBG_PRINTEXCEPTION_WIDE_C) {
-        pExceptionRecord->ExceptionInformation[0] <<= 1;
+    BYTE Buffer[PAGE_SIZE];
+    SIZE_T BytesToRead;
 
-        while (pExceptionRecord->ExceptionInformation[0] > 0) {
-            char Buffer[BUFLEN];
-            ULONG ActualByteCount;
-            wchar_t Temp[sizeof(Buffer) / 3];
-            SIZE_T BytesToRead = pExceptionRecord->ExceptionInformation[0] < sizeof(Temp)
-                                ? pExceptionRecord->ExceptionInformation[0] : sizeof(Temp);
+    if (ExceptionCode == DBG_PRINTEXCEPTION_WIDE_C) {
+        RemainingSize <<= 1;
 
-            NtReadVirtualMemory(hProcess,
-                (PVOID) pExceptionRecord->ExceptionInformation[1], Temp, BytesToRead, NULL);
-            RtlUnicodeToUTF8N(Buffer, sizeof(Buffer), &ActualByteCount, Temp, BytesToRead);
-            WriteHandle(hStdout, Buffer, ActualByteCount, FALSE, fConsole);
+        BYTE Temp[(PAGE_SIZE >> 1) * 3];
+        while (RemainingSize) {
+            BytesToRead = PAGE_SIZE - (BaseAddress & PAGE_MASK);
 
-            pExceptionRecord->ExceptionInformation[1] += BytesToRead;
-            pExceptionRecord->ExceptionInformation[0] -= BytesToRead;
+            if (RemainingSize < BytesToRead)
+                BytesToRead = RemainingSize;
+
+            if (!NT_SUCCESS(NtReadVirtualMemory(hProcess,
+                (PVOID) BaseAddress, Temp, BytesToRead, NULL))) return;
+            WriteHandle(hStdout, Buffer, ConvertUnicodeToUTF8(Temp,
+                BytesToRead, Buffer, sizeof(Buffer)), FALSE, fConsole);
+
+            BaseAddress += BytesToRead;
+            RemainingSize -= BytesToRead;
         }
 
         return;
     }
 
-    while (pExceptionRecord->ExceptionInformation[0] > 0) {
-        char Buffer[BUFLEN];
-        SIZE_T BytesToRead = pExceptionRecord->ExceptionInformation[0] < sizeof(Buffer)
-                            ? pExceptionRecord->ExceptionInformation[0] : sizeof(Buffer);
+    while (RemainingSize) {
+        BytesToRead = PAGE_SIZE - (BaseAddress & PAGE_MASK);
 
-        NtReadVirtualMemory(hProcess,
-            (PVOID) pExceptionRecord->ExceptionInformation[1], Buffer, BytesToRead, NULL);
+        if (RemainingSize < BytesToRead)
+            BytesToRead = RemainingSize;
+
+        if (!NT_SUCCESS(NtReadVirtualMemory(hProcess,
+            (PVOID) BaseAddress, Buffer, BytesToRead, NULL))) return;
         WriteHandle(hStdout, Buffer, BytesToRead, FALSE, fConsole);
 
-        pExceptionRecord->ExceptionInformation[1] += BytesToRead;
-        pExceptionRecord->ExceptionInformation[0] -= BytesToRead;
+        BaseAddress += BytesToRead;
+        RemainingSize -= BytesToRead;
     }
 }
+
+#undef PAGE_MASK
+#undef ExceptionRecord
+#undef ExceptionCode
+#undef RemainingSize
+#undef BaseAddress
+
+#pragma pop_macro("PAGE_MASK")
+#pragma pop_macro("ExceptionRecord")
+#pragma pop_macro("ExceptionCode")
+#pragma pop_macro("RemainingSize")
+#pragma pop_macro("BaseAddress")
 
 #define DEBUG_EVENT_RIP_SLE_MAX_LEN 102
 #define DEBUG_EVENT_RIP_BUFFER_SIZE (DEBUG_EVENT_RIP_SLE_MAX_LEN + 900)
