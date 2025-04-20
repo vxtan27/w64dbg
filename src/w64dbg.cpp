@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2024-2025 Xuan Tan. All rights reserved.
 
-// Config
+// Configuration
 #include "config/crt.h"
 #include "config/build.h"
+
+// Conversion
+#include "conversion/status.h"
+#include "conversion/address.h"
+#include "conversion/decimal.h"
 
 #include "ntdll.h"
 #include <dbghelp.h>
 #include <psapi.h>
 
-#include "conversion/status.h"
-#include "conversion/address.h"
-#include "conversion/decimal.h"
-
 #include "debug/core.cpp"
 #include "config/core.h"
-#include "exception.h"
+#include "debugger.h"
 #include "utils.h"
 #include "log.h"
 #include "symbols.h"
@@ -104,13 +105,13 @@ int __stdcall wmain(void) {
                                                 (pCmdLine + len - pNext) << 1,
                                                 &SectionImageInfomation);
 
-    if (!NT_SUCCESS(NtStatus)) {
+    if (NtStatus != STATUS_SUCCESS) {
         PMESSAGE_RESOURCE_ENTRY MessageEntry;
-        LookupSystemMessage(RtlNtStatusToDosError(NtStatus),
-            LANG_USER_DEFAULT, &MessageEntry);
+        DWORD ErrorCode = RtlNtStatusToDosErrorNoTeb(NtStatus);
+        LookupSystemMessage(ErrorCode, LANG_USER_DEFAULT, &MessageEntry);
         WriteHandle(hStdout, GetMessageEntryText(MessageEntry),
             GetMessageEntryLength(MessageEntry), TRUE, fConsole);
-        return RtlNtStatusToDosError(NtStatus);
+        return ErrorCode;
     }
 
     // Free the unused handle
@@ -118,24 +119,26 @@ int __stdcall wmain(void) {
 
     *(pCmdLine + len) = ' ';
 
-    HANDLE hFile[MAX_DLL];
-    PVOID BaseOfDll[MAX_DLL] = {};
     DBGUI_WAIT_STATE_CHANGE StateChange;
     DbgWaitStateChange(&StateChange, FALSE, NULL);
 
+    if (StateChange.NewState != DbgCreateProcessStateChange) std::unreachable();
+
+    HANDLE hFile[MAX_DLL];
+    PVOID BaseOfDll[MAX_DLL] = {};
     hFile[0] = StateChange.StateInfo.CreateProcessInfo.NewProcess.FileHandle;
     BaseOfDll[0] = StateChange.StateInfo.CreateProcessInfo.NewProcess.BaseOfImage;
 
     if (fVerbose >= 2) TraceDebugEvent(&StateChange, CREATE_PROCESS, strlen(CREATE_PROCESS), hStdout, fConsole);
 
-    WDbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
+    WdbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
 
     // Is 64-bit application
     DWORD b64bit = SectionImageInfomation.Machine == IMAGE_FILE_MACHINE_AMD64;
     BOOL fBreakpointSignalled = FALSE;
     if (!b64bit) --fBreakpointSignalled; // Wow64 breakpoint
 
-    while (NT_SUCCESS(DbgWaitStateChange(&StateChange, FALSE, NULL))) {
+    while (DbgWaitStateChange(&StateChange, FALSE, NULL) == STATUS_SUCCESS) {
         switch (StateChange.NewState) {
         case DbgLoadDllStateChange:
             if (fVerbose >= 2)
@@ -179,7 +182,7 @@ int __stdcall wmain(void) {
                 TraceDebugEvent(&StateChange, EXIT_PROCESS, strlen(EXIT_PROCESS), hStdout, fConsole);
 
             NtClose(hProcess);
-            WDbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
+            WdbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
 
             for (int i = 0; i < MAX_DLL; ++i)
                 if (BaseOfDll[i]) NtClose(hFile[i]);
@@ -193,6 +196,7 @@ int __stdcall wmain(void) {
         case DbgSingleStepStateChange: {
             PDBGKM_EXCEPTION pException = &StateChange.StateInfo.Exception;
             PEXCEPTION_RECORD pExceptionRecord = &pException->ExceptionRecord;
+
             if (pExceptionRecord->ExceptionCode == DBG_PRINTEXCEPTION_WIDE_C ||
                 pExceptionRecord->ExceptionCode == DBG_PRINTEXCEPTION_C) {
                 if (fVerbose >= 2)
@@ -207,29 +211,61 @@ int __stdcall wmain(void) {
                 break;
             }
 
-            // Ignore thread naming exception
-            // https://learn.microsoft.com/en-us/visualstudio/debugger/tips-for-debugging-threads
-            if (pExceptionRecord->ExceptionCode == MS_VC_EXCEPTION)
-                break;
-
             // Ignore signal breakpoints
             if ((pExceptionRecord->ExceptionCode == STATUS_BREAKPOINT ||
                 pExceptionRecord->ExceptionCode == STATUS_WX86_BREAKPOINT) &&
-                ((fIgnoreBreakpoints == FALSE) || (fIgnoreBreakpoints == TRUE && ++fBreakpointSignalled <= 1)))
+                ((fIgnoreBreakpoints == FALSE) ||
+                    (fIgnoreBreakpoints == TRUE && ++fBreakpointSignalled <= 1)))
                 break;
+
+            // https://learn.microsoft.com/en-us/visualstudio/debugger/tips-for-debugging-threads
+            if (pExceptionRecord->ExceptionCode == MS_VC_EXCEPTION)
+            {
+                CHAR ThreadName[MAX_THREAD_NAME_SIZE];
+                THREADNAME_INFO *pInfo = (THREADNAME_INFO*) pExceptionRecord->ExceptionInformation;
+                if (NtReadVirtualMemory(hProcess, (PVOID) pInfo->szName,
+                    ThreadName, MAX_THREAD_NAME_SIZE, NULL) != STATUS_SUCCESS) break;
+                ThreadName[MAX_THREAD_NAME_SIZE - 1] = '\0';
+
+                THREAD_NAME_INFORMATION NameInfo;
+                RtlCreateUnicodeStringFromAsciiz(&NameInfo.ThreadName, ThreadName);
+                NtSetInformationThread(
+                    WdbgGetThreadHandle(pInfo->dwThreadID == -1 ?
+                        DbgGetThreadId(&StateChange) : pInfo->dwThreadID),
+                    ThreadNameInformation, &NameInfo, sizeof(NameInfo));
+                RtlFreeHeap(RtlProcessHeap(), HEAP_NO_SERIALIZE,
+                    NameInfo.ThreadName.Buffer);
+                break;
+            }
 
             // Ignore other first change exceptions
             if (pException->FirstChance) {
-                WDbgContinueDebugEvent(&StateChange, DBG_EXCEPTION_NOT_HANDLED);
+                WdbgContinueDebugEvent(&StateChange, DBG_EXCEPTION_NOT_HANDLED);
                 continue;
             }
 
             char buffer[BUFLEN];
             memcpy(buffer, THREAD_NUMBER, strlen(THREAD_NUMBER));
-            char *p = conversion::dec::from_int(buffer + strlen(THREAD_NUMBER),
-                DbgGetProcessId(&StateChange));
-            *p = 'x';
-            p = conversion::dec::from_int(p + 1, DbgGetThreadId(&StateChange));
+            char *p = buffer + strlen(THREAD_NUMBER);
+
+            ULONG ReturnLength;
+            HANDLE hThread = WdbgGetThreadHandle(DbgGetThreadId(&StateChange));
+            NtQueryInformationThread(hThread,
+                                     ThreadNameInformation,
+                                     buffer + 8,
+                                     sizeof(THREAD_NAME_INFORMATION),
+                                     &ReturnLength);
+
+            if (ReturnLength != sizeof(THREAD_NAME_INFORMATION)) {
+                PVOID Buffer = _alloca(ReturnLength + sizeof(WCHAR));
+                PTHREAD_NAME_INFORMATION Info = (PTHREAD_NAME_INFORMATION) Buffer;
+                NtQueryInformationThread(hThread, ThreadNameInformation,
+                    Info, ReturnLength, NULL);
+                p += ConvertUnicodeToUTF8(Info->ThreadName.Buffer,
+                    Info->ThreadName.Length, p, MAX_THREAD_NAME_SIZE);
+            } else {
+                p = conversion::dec::from_int(p, DbgGetThreadId(&StateChange));
+            }
 
             memcpy(p, THREAD_RAISED, strlen(THREAD_RAISED));
             p += strlen(THREAD_RAISED);
@@ -241,7 +277,6 @@ int __stdcall wmain(void) {
 
             STACKFRAME_EX StackFrame;
             BYTE Context[FIELD_OFFSET(CONTEXT, FltSave)]; // CONTEXT Context
-            HANDLE hThread = WDbgGetThreadHandle(&StateChange);
 
             if (b64bit) {
                 ((PCONTEXT) &Context)->ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
@@ -435,9 +470,9 @@ int __stdcall wmain(void) {
 
             SymCleanup(hProcess);
 
-            DWORD dwExitCode = RtlNtStatusToDosError(pExceptionRecord->ExceptionCode);
-            NtTerminateProcess(hProcess, dwExitCode != ERROR_MR_MID_NOT_FOUND
-                                       ? dwExitCode : pExceptionRecord->ExceptionCode);
+            DWORD ErrorCode = RtlNtStatusToDosErrorNoTeb(pExceptionRecord->ExceptionCode);
+            NtTerminateProcess(hProcess, ErrorCode != ERROR_MR_MID_NOT_FOUND
+                                       ? ErrorCode : pExceptionRecord->ExceptionCode);
             break;
         }
 
@@ -445,7 +480,7 @@ int __stdcall wmain(void) {
             std::unreachable();
         }
 
-        WDbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
+        WdbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
     }
 
     std::unreachable();

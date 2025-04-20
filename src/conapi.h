@@ -82,6 +82,7 @@ NTSTATUS SetConsoleDeviceMode(
     _In_ UINT dwMode
 ) {
     CD_USER_DEFINED_IO IoBuffer;
+    // IoBuffer.Client = NULL;
     IoBuffer.InputCount = 1;
     IoBuffer.OutputCount = 0;
 
@@ -108,7 +109,7 @@ NTSTATUS ReadConsoleDeviceInput(
 ) {
     BYTE Buffer[sizeof(CD_USER_DEFINED_IO) + sizeof(CD_IO_BUFFER) * 2];
     PCD_USER_DEFINED_IO pIoBuffer = (PCD_USER_DEFINED_IO) &Buffer;
-
+    // pIoBuffer->Client = NULL;
     pIoBuffer->InputCount = 1;
     pIoBuffer->OutputCount = 2;
 
@@ -141,7 +142,7 @@ NTSTATUS WriteConsoleDevice(
 ) {
     BYTE Buffer[sizeof(CD_USER_DEFINED_IO) + sizeof(CD_IO_BUFFER)];
     PCD_USER_DEFINED_IO pIoBuffer = (PCD_USER_DEFINED_IO) &Buffer;
-
+    // pIoBuffer->Client = NULL;
     pIoBuffer->InputCount = 2;
     pIoBuffer->OutputCount = 0;
 
@@ -205,7 +206,7 @@ NTSTATUS SetConsoleDeviceOutputCP(
     _In_ UINT wCodePageID
 ) {
     CD_USER_DEFINED_IO IoBuffer;
-
+    // IoBuffer.Client = NULL;
     IoBuffer.InputCount = 1;
     IoBuffer.OutputCount = 0;
 

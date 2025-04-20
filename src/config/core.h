@@ -84,14 +84,15 @@ Options:
 // Verbose Output Prefixes
 //------------------------------------------------------------------------------------
 
-#define CREATE_THREAD   "CreateThread "
-#define CREATE_PROCESS  "CreateProcess "
-#define LOAD_DLL        "LoadDll "
-#define UNLOAD_DLL      "UnloadDll "
-#define EXIT_THREAD     "ExitThread "
-#define EXIT_PROCESS    "ExitProcess "
-#define OUTPUT_DEBUG    "OutputDebugString "
-#define RIP             "Rip "
+#define EXCEPTION            "[Exception] "
+#define CREATE_THREAD        "[CreateThread] "
+#define CREATE_PROCESS       "[CreateProcess] "
+#define LOAD_DLL             "[LoadDll] "
+#define UNLOAD_DLL           "[UnloadDll] "
+#define EXIT_THREAD          "[ExitThread] "
+#define EXIT_PROCESS         "[ExitProcess] "
+#define OUTPUT_DEBUG         "[OutputDebugString] "
+#define RIP                  "[Rip] "
 
 //------------------------------------------------------------------------------------
 // Console Formatting (ANSI Escape Codes)

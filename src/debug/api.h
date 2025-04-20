@@ -25,7 +25,7 @@ typedef struct _WDBGSS_DATA {
 
 // Enable a debugger to attach to an active process and debug it
 NTSTATUS
-WDbgDebugActiveProcess(
+WdbgDebugActiveProcess(
     HANDLE hProcess
 );
 
@@ -53,26 +53,25 @@ DbgGetThreadId(
 
 // Continue a thread after handling a debug event
 NTSTATUS
-WDbgContinueDebugEvent(
+WdbgContinueDebugEvent(
     PDBGUI_WAIT_STATE_CHANGE pStateChange,
     NTSTATUS dwContinueStatus
 );
 
-// Get process handle from current debug event
+// Get process handle being debugged
 HANDLE
-WDbgGetProcessHandle(
-    PDBGUI_WAIT_STATE_CHANGE pStateChange
+WdbgGetProcessHandle(
+    VOID
 );
 
 // Get thread handle from current debug event
 HANDLE
-WDbgGetThreadHandle(
-    PDBGUI_WAIT_STATE_CHANGE pStateChange
+WdbgGetThreadHandle(
+    DWORD dwThreadId
 );
 
 // Stop the debugger from debugging the specified process
 NTSTATUS
-WDbgDebugActiveProcessStop(
-    PDBGUI_WAIT_STATE_CHANGE pStateChange,
+WdbgDebugActiveProcessStop(
     HANDLE hProcess
 );

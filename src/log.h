@@ -44,13 +44,11 @@ NTSTATUS TraceDebugModule(
         szDebugEventName, DebugEventNameLength, Buffer), FALSE, fConsole);
 }
 
-#pragma push_macro("PAGE_MASK")
-#pragma push_macro("pExceptionRecord")
+#pragma push_macro("ExceptionRecord")
 #pragma push_macro("ExceptionCode")
 #pragma push_macro("RemainingSize")
 #pragma push_macro("BaseAddress")
 
-#define PAGE_MASK (PAGE_SIZE - 1)
 #define ExceptionRecord pStateChange->StateInfo.Exception.ExceptionRecord
 #define ExceptionCode ExceptionRecord.ExceptionCode
 #define RemainingSize ExceptionRecord.ExceptionInformation[0]
@@ -79,8 +77,8 @@ VOID ProcessOutputDebugStringEvent(
             if (RemainingSize < BytesToRead)
                 BytesToRead = RemainingSize;
 
-            if (!NT_SUCCESS(NtReadVirtualMemory(hProcess,
-                (PVOID) BaseAddress, Temp, BytesToRead, NULL))) return;
+            if (NtReadVirtualMemory(hProcess, (PVOID) BaseAddress,
+                Temp, BytesToRead, NULL) != STATUS_SUCCESS) return;
             WriteHandle(hStdout, Buffer, ConvertUnicodeToUTF8(Temp,
                 BytesToRead, Buffer, sizeof(Buffer)), FALSE, fConsole);
 
@@ -97,8 +95,8 @@ VOID ProcessOutputDebugStringEvent(
         if (RemainingSize < BytesToRead)
             BytesToRead = RemainingSize;
 
-        if (!NT_SUCCESS(NtReadVirtualMemory(hProcess,
-            (PVOID) BaseAddress, Buffer, BytesToRead, NULL))) return;
+        if (NtReadVirtualMemory(hProcess, (PVOID) BaseAddress,
+            Buffer, BytesToRead, NULL) != STATUS_SUCCESS) return;
         WriteHandle(hStdout, Buffer, BytesToRead, FALSE, fConsole);
 
         BaseAddress += BytesToRead;
@@ -106,13 +104,11 @@ VOID ProcessOutputDebugStringEvent(
     }
 }
 
-#undef PAGE_MASK
 #undef ExceptionRecord
 #undef ExceptionCode
 #undef RemainingSize
 #undef BaseAddress
 
-#pragma pop_macro("PAGE_MASK")
 #pragma pop_macro("ExceptionRecord")
 #pragma pop_macro("ExceptionCode")
 #pragma pop_macro("RemainingSize")

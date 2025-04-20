@@ -193,7 +193,7 @@ InitializeDebugProcess(
 
     RtlDestroyProcessParameters(ProcessParameters);
 
-    if (NT_SUCCESS(NtStatus)) {
+    if (NtStatus == STATUS_SUCCESS) {
         NtClose(CreateInfo.SuccessState.FileHandle);
         NtClose(CreateInfo.SuccessState.SectionHandle);
         return STATUS_SUCCESS;

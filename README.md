@@ -32,7 +32,7 @@ Options:
 
 Architecture: x64
 
-Operating System: Windows 10 or later
+Operating System: Windows 10, version 1607 or later
 
 ## ⚠️ Limitations
 

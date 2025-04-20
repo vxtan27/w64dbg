@@ -21,40 +21,26 @@ DWORD FormatDebugEvent(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCSTR szDebugEvent
     return p - Buffer + 1;
 }
 
+#include "path.cpp"
+
 //
 //  Format a module-related debug event message into a buffer
 //  Output format: "<EventName><ModulePath>\n"
 //
 
-DWORD FormatDebugModule(HANDLE hModule, PCSTR szDebugEventName, SIZE_T DebugEventNameLength, PCH Buffer) {
-    SIZE_T Length;
-    ULONG ActualByteCount;
-    WCHAR Target[MAX_PATH];
-    WCHAR Drive[] = L"A:";
-    CHAR Temp[sizeof(OBJECT_NAME_INFORMATION) + MAX_PATH * sizeof(WCHAR)];
-    POBJECT_NAME_INFORMATION NameInfo = (POBJECT_NAME_INFORMATION) &Temp;
-
+DWORD FormatDebugModule(
+    HANDLE hFile,
+    PCSTR szDebugEventName,
+    SIZE_T DebugEventNameLength,
+    PCH Buffer
+) {
     memcpy(Buffer, szDebugEventName, DebugEventNameLength);
-    NtQueryObject(hModule, ObjectNameInformation, NameInfo, sizeof(Temp), NULL);
 
-    for (WCHAR Letter = L'A'; Letter <= L'L'; ++Letter) {
-        Drive[0] = Letter;
-        if (QueryDosDeviceW(Drive, Target, MAX_PATH)) {
-            Length = wcslen(Target);
-            if (memcmp(NameInfo->Name.Buffer, Target, Length << 1) == 0) {
-                Buffer[DebugEventNameLength] = Letter;
-                Buffer[DebugEventNameLength + 1] = ':';
-                RtlUnicodeToUTF8N(Buffer + DebugEventNameLength + 2,
-                    MAX_PATH, &ActualByteCount, NameInfo->Name.Buffer + Length,
-                    NameInfo->Name.Length - (Length << 1));
-                Buffer[ActualByteCount + DebugEventNameLength + 2] = '\n';
+    ULONG DosPathLength;
+    GetDosPathFromHandle(hFile, Buffer + DebugEventNameLength, -1, &DosPathLength);
+    Buffer[DebugEventNameLength + DosPathLength] = '\n';
 
-                return ActualByteCount + DebugEventNameLength + 2 + 1;
-            }
-        }
-    }
-
-    std::unreachable();
+    return DebugEventNameLength + DosPathLength + 1;
 }
 
 #define _SLE_ERROR       "Invalid data was passed to the function that failed. This caused the application to fail"
@@ -70,11 +56,9 @@ DWORD FormatRIPEvent(PEXCEPTION_RECORD pExceptionRecord, PCH Buffer, ULONG BufLe
     char *p;
     PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
-    if (NT_SUCCESS(LookupSystemMessage(
-        pExceptionRecord->ExceptionFlags, LANG_USER_DEFAULT, &MessageEntry)))
-        p = Buffer + ConvertUnicodeToUTF8(GetMessageEntryText(MessageEntry),
-            GetMessageEntryLength(MessageEntry), Buffer, BufLen);
-    else p = Buffer;
+    LookupSystemMessage(pExceptionRecord->ExceptionFlags, LANG_USER_DEFAULT, &MessageEntry);
+    p = Buffer + ConvertUnicodeToUTF8(GetMessageEntryText(MessageEntry),
+        GetMessageEntryLength(MessageEntry), Buffer, BufLen);
 
     if (PtrToUlong(pExceptionRecord->ExceptionRecord) == 1) {
         memcpy(p, _SLE_ERROR, strlen(_SLE_ERROR));
@@ -131,13 +115,14 @@ ULONGLONG FormatExceptionEvent(
     DWORD dwSize,
     BOOL fConsole
 ) {
+    DWORD ErrorCode;
     PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
     // Handle special known statuses or fallback to NTDLL lookup
     if (NtStatus == STATUS_APPLICATION_HANG ||
         NtStatus == STATUS_CPP_EH_EXCEPTION ||
         NtStatus == STATUS_CLR_EXCEPTION ||
-        NT_SUCCESS(LookupSystemMessage(RtlNtStatusToDosError(NtStatus), dwLanguageId, &MessageEntry))) {
+        (ErrorCode = RtlNtStatusToDosErrorNoTeb(NtStatus)) != ERROR_MR_MID_NOT_FOUND) {
 
         PCH lpBuffer = pBuffer;
 
@@ -160,6 +145,7 @@ ULONGLONG FormatExceptionEvent(
                 strlen(STATUS_CLR_EXCEPTION_TEXT));
             lpBuffer += strlen(STATUS_CLR_EXCEPTION_TEXT);
         } else { // Convert NTDLL message
+            LookupSystemMessage(ErrorCode, dwLanguageId, &MessageEntry);
             lpBuffer += ConvertUnicodeToUTF8(GetMessageEntryText(MessageEntry),
                 GetMessageEntryLength(MessageEntry), lpBuffer, dwSize);
         }
@@ -218,21 +204,23 @@ PCH FormatSourceCode(PWCH FileName, DWORD LineNumber, size_t FileLength, ULONG B
         &String, OBJ_CASE_INSENSITIVE};
 
     // Open the file with necessary permissions
-    NTSTATUS NtStatus = NtOpenFile(&hFile, FILE_READ_DATA | SYNCHRONIZE, &ObjectAttributes,
-        &IoStatus, 0, FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT);
+    NTSTATUS NtStatus = NtOpenFile(&hFile,
+        FILE_READ_DATA | SYNCHRONIZE, &ObjectAttributes, &IoStatus, 0,
+        FILE_NON_DIRECTORY_FILE | FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT);
 
-    if (NT_SUCCESS(NtStatus)) {
+    if (NtStatus == STATUS_SUCCESS) {
         char *ptr;
         char buffer[PAGE_SIZE];
         DWORD line = 1;
 
-        while (TRUE) { // Read file content in chunks
-            if (NtReadFile(hFile, NULL, NULL, NULL,
-                &IoStatus, buffer, sizeof(buffer), NULL, NULL)) break;
+        // Read file content in chunks
+        while (NtReadFile(hFile, NULL, NULL, NULL, &IoStatus,
+            buffer, sizeof(buffer), NULL, NULL) == STATUS_SUCCESS) {
 
             ptr = buffer;
 
-            while ((ptr = (char*) memchr(ptr, '\n', buffer + IoStatus.Information - ptr) + 1) > (char*) 1) { // Locate and process line breaks
+            // Locate and process line breaks
+            while ((ptr = (char*) memchr(ptr, '\n', buffer + IoStatus.Information - ptr) + 1) > (char*) 1) {
                 if (++line == LineNumber) {
                     char *_ptr;
                     size_t temp;
@@ -249,8 +237,8 @@ PCH FormatSourceCode(PWCH FileName, DWORD LineNumber, size_t FileLength, ULONG B
                         temp = buffer + IoStatus.Information - ptr;
                         memcpy(p, ptr, temp);
                         p += temp;
-                        if (NtReadFile(hFile, NULL, NULL, NULL, &IoStatus,
-                            buffer, sizeof(buffer), NULL, NULL)) break;
+                        if (NtReadFile(hFile, NULL, NULL, NULL, &IoStatus, buffer,
+                            sizeof(buffer), NULL, NULL) != STATUS_SUCCESS) break;
                         ptr = buffer;
                         _ptr = (char*) memchr(buffer, '\n', IoStatus.Information);
                         if (_ptr) temp = buffer + IoStatus.Information - _ptr;
@@ -272,7 +260,7 @@ PCH FormatSourceCode(PWCH FileName, DWORD LineNumber, size_t FileLength, ULONG B
         // The system cannot find the file specified
         PMESSAGE_RESOURCE_ENTRY MessageEntry;
 
-        LookupSystemMessage(RtlNtStatusToDosError(NtStatus), LANG_USER_DEFAULT, &MessageEntry);
+        LookupSystemMessage(RtlNtStatusToDosErrorNoTeb(NtStatus), LANG_USER_DEFAULT, &MessageEntry);
         p += ConvertUnicodeToUTF8(GetMessageEntryText(MessageEntry),
             GetMessageEntryLength(MessageEntry), p, BufLength);
     }
