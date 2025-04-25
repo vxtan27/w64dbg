@@ -201,7 +201,7 @@ int __stdcall wmain(void) {
                 pExceptionRecord->ExceptionCode == DBG_PRINTEXCEPTION_C) {
                 if (fVerbose >= 2)
                     TraceDebugEvent(&StateChange, OUTPUT_DEBUG, strlen(OUTPUT_DEBUG), hStdout, fConsole);
-                if (fOutputDebugString == TRUE) 
+                if (fOutputDebugString == TRUE)
                     ProcessOutputDebugStringEvent(&StateChange, hProcess, hStdout, fConsole);
                 break;
             } else if (pExceptionRecord->ExceptionCode == DBG_RIPEXCEPTION) {
@@ -436,10 +436,17 @@ int __stdcall wmain(void) {
                         p += strlen(CONSOLE_GREEN_FORMAT);
                     }
 
-                    wchar_t Tmp[WBUFLEN];
-                    len = GetModuleFileNameExW(hProcess,
-                        (HMODULE) SymGetModuleBase64(hProcess, StackFrame.AddrPC.Offset), Tmp, WBUFLEN);
-                    p += ConvertUnicodeToUTF8(Tmp, len << 1, p, buffer + BUFLEN - p);
+                    PVOID ModuleBase = (PVOID) SymGetModuleBase64(hProcess, StackFrame.AddrPC.Offset);
+
+                    for (int i = 0; i < MAX_DLL; ++i) if (BaseOfDll[i] == ModuleBase) {
+                        ULONG DosPathLength;
+                        GetDosPathFromHandle(hFile[i],
+                                             p,
+                                             buffer + BUFLEN - p,
+                                             &DosPathLength);
+                        p += DosPathLength;
+                        break;
+                    }
 
                     if (fConsole) {
                         memcpy(p, CONSOLE_DEFAULT_FORMAT,

@@ -206,7 +206,7 @@ PCH FormatSourceCode(PWCH FileName, DWORD LineNumber, size_t FileLength, ULONG B
     // Open the file with necessary permissions
     NTSTATUS NtStatus = NtOpenFile(&hFile,
         FILE_READ_DATA | SYNCHRONIZE, &ObjectAttributes, &IoStatus, 0,
-        FILE_NON_DIRECTORY_FILE | FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT);
+        FILE_SEQUENTIAL_ONLY | FILE_SYNCHRONOUS_IO_NONALERT);
 
     if (NtStatus == STATUS_SUCCESS) {
         char *ptr;

@@ -4,54 +4,67 @@
 #pragma once
 
 #include "ntdll.h"
-#include <utility>
 
 HANDLE GetMountMgrHandle() {
+    UNICODE_STRING MountMgrDevice;
+    MountMgrDevice.Length = wcslen(MOUNTMGR_DEVICE_NAME) * sizeof(WCHAR);
+    // MountMgrDevice.MaximumLength = MountMgrDevice.Length + sizeof(UNICODE_NULL);
+    MountMgrDevice.Buffer = (PWCH) &MOUNTMGR_DEVICE_NAME;
+
+    NTSTATUS NtStatus;
     HANDLE MountMgrHandle;
     IO_STATUS_BLOCK IoStatusBlock;
-    UNICODE_STRING MountMgrDevice = RTL_CONSTANT_STRING(MOUNTMGR_DEVICE_NAME);
     OBJECT_ATTRIBUTES ObjectAttributes = RTL_INIT_OBJECT_ATTRIBUTES(&MountMgrDevice, 0);
+    NtStatus = NtOpenFile(&MountMgrHandle,
+                          SYNCHRONIZE,
+                          &ObjectAttributes,
+                          &IoStatusBlock,
+                          FILE_SHARE_READ | FILE_SHARE_WRITE,
+                          FILE_SYNCHRONOUS_IO_NONALERT);
 
-    NTSTATUS NtStatus = NtOpenFile(&MountMgrHandle, SYNCHRONIZE, 
-        &ObjectAttributes, &IoStatusBlock, FILE_SHARE_READ | FILE_SHARE_WRITE,
-        FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT);
-
-    if (NtStatus != STATUS_SUCCESS) {
-        printf("NtOpenFile failed (0x%x)", NtStatus);
-        std::unreachable();
-    }
+    if (NtStatus != STATUS_SUCCESS)
+        TRACE("NtOpenFile failed (0x%x)", NtStatus);
 
     return MountMgrHandle;
 }
 
 NTSTATUS GetDosPathNameFromVolumeDeviceName(
-	PUNICODE_STRING VolumeDeviceName,
+	PMOUNTMGR_TARGET_NAME VolumeDeviceName,
 	PCH DosPathName,
     ULONG DosPathNameMaxLength,
     PULONG DosPathNameLength
 ) {
     PMOUNTMGR_VOLUME_PATHS VolumePath;
-    BYTE VolumePathBuffer[MAX_PATH * sizeof(WCHAR) + sizeof(VolumePath->MultiSzLength)];
+    BYTE VolumePathBuffer[sizeof(VolumePath->MultiSzLength) + MAX_PATH * sizeof(WCHAR)];
     VolumePath = (PMOUNTMGR_VOLUME_PATHS) &VolumePathBuffer;
 
-    PMOUNTMGR_TARGET_NAME TargetName = (PMOUNTMGR_TARGET_NAME) &VolumeDeviceName->MaximumLength + 3;
-    TargetName->DeviceNameLength = VolumeDeviceName->Length;
-
+    NTSTATUS NtStatus;
     IO_STATUS_BLOCK IoStatusBlock;
     HANDLE MountMgrHandle = GetMountMgrHandle();
-    NTSTATUS NtStatus = NtDeviceIoControlFile(MountMgrHandle, NULL,
-    	NULL, NULL, &IoStatusBlock, IOCTL_MOUNTMGR_QUERY_DOS_VOLUME_PATH,
-    	TargetName, TargetName->DeviceNameLength + sizeof(TargetName->DeviceNameLength),
-        VolumePath, sizeof(VolumePathBuffer));
+    NtStatus = NtDeviceIoControlFile(MountMgrHandle,
+                                     NULL,
+                                     NULL,
+                                     NULL,
+                                     &IoStatusBlock,
+                                     IOCTL_MOUNTMGR_QUERY_DOS_VOLUME_PATH,
+                                     VolumeDeviceName,
+                                     VolumeDeviceName->DeviceNameLength + sizeof(VolumeDeviceName->DeviceNameLength),
+                                     VolumePath,
+                                     sizeof(VolumePathBuffer));
 
-    if (NtStatus != STATUS_SUCCESS) {
-        printf("NtDeviceIoControlFile failed (0x%x)", NtStatus);
-        std::unreachable();
-    }
+    if (NtStatus != STATUS_SUCCESS)
+        TRACE("NtDeviceIoControlFile failed (0x%x)", NtStatus);
 
     NtClose(MountMgrHandle);
-    RtlUnicodeToUTF8N(DosPathName, DosPathNameMaxLength, DosPathNameLength,
-        VolumePath->MultiSz, VolumePath->MultiSzLength - 4);
+
+    NtStatus = RtlUnicodeToUTF8N(DosPathName,
+                                 DosPathNameMaxLength,
+                                 DosPathNameLength,
+                                 VolumePath->MultiSz,
+                                 VolumePath->MultiSzLength / sizeof(WCHAR));
+
+    if (NtStatus != STATUS_SUCCESS)
+        TRACE("RtlUnicodeToUTF8N failed (0x%x)", NtStatus);
 
     return NtStatus;
 }
@@ -62,27 +75,49 @@ NTSTATUS GetDosPathFromHandle(
     ULONG DosPathMaxLength,
     PULONG DosPathLength
 ) {
-    BYTE NameInfoBuffer[sizeof(OBJECT_NAME_INFORMATION) + UNICODE_STRING_MAX_BYTES];
-    POBJECT_NAME_INFORMATION NameInfo = (POBJECT_NAME_INFORMATION) &NameInfoBuffer;
-    NtQueryObject(hFile, ObjectNameInformation, NameInfo, sizeof(NameInfoBuffer), NULL);
+    BYTE ObjectNameInfoBuffer[sizeof(OBJECT_NAME_INFORMATION) + UNICODE_STRING_MAX_BYTES];
+    POBJECT_NAME_INFORMATION ObjectNameInfo = (POBJECT_NAME_INFORMATION) &ObjectNameInfoBuffer;
+
+    NTSTATUS NtStatus;
+    NtStatus = NtQueryObject(hFile,
+                             ObjectNameInformation,
+                             ObjectNameInfo,
+                             sizeof(ObjectNameInfoBuffer),
+                             NULL);
+
+    if (NtStatus != STATUS_SUCCESS)
+        TRACE("NtQueryObject failed (0x%x)", NtStatus);
 
     IO_STATUS_BLOCK IoStatusBlock;
     FILE_NAME_INFORMATION FileNameInfo;
-    NtQueryInformationFile(hFile, &IoStatusBlock, &FileNameInfo,
-        sizeof(FileNameInfo), FileNameInformation);
-    NameInfo->Name.Length -= FileNameInfo.FileNameLength;
+    NtStatus = NtQueryInformationFile(hFile,
+                                      &IoStatusBlock,
+                                      &FileNameInfo,
+                                      sizeof(FileNameInfo),
+                                      FileNameInformation);
+
+    if (NtStatus != STATUS_BUFFER_OVERFLOW)
+        TRACE("NtQueryInformationFile failed (0x%x)", NtStatus);
+
+    PMOUNTMGR_TARGET_NAME VolumeDeviceName = (PMOUNTMGR_TARGET_NAME) (&ObjectNameInfo->Name.Length + 7);
+    VolumeDeviceName->DeviceNameLength = ObjectNameInfo->Name.Length - FileNameInfo.FileNameLength;
 
     ULONG DosPathNameLength;
-    NTSTATUS NtStatus = GetDosPathNameFromVolumeDeviceName(&NameInfo->Name,
-                                                       DosPath,
-                                                       DosPathMaxLength,
-                                                       &DosPathNameLength);
+    NtStatus = GetDosPathNameFromVolumeDeviceName(VolumeDeviceName,
+                                                  DosPath,
+                                                  DosPathMaxLength,
+                                                  &DosPathNameLength);
 
-    RtlUnicodeToUTF8N(DosPath + DosPathNameLength,
-                      DosPathMaxLength - DosPathNameLength,
-                      DosPathLength,
-                      (PWCH) &NameInfo->Name.Length + 8 + (NameInfo->Name.Length >> 1),
-                      FileNameInfo.FileNameLength);
+    NTSTATUS NtStatus2;
+    NtStatus2 = RtlUnicodeToUTF8N(DosPath + DosPathNameLength,
+                                  DosPathMaxLength - DosPathNameLength,
+                                  DosPathLength,
+                                  (PWCH) &ObjectNameInfo->Name.Length + 8 + (VolumeDeviceName->DeviceNameLength / sizeof(WCHAR)),
+                                  FileNameInfo.FileNameLength);
+
+    if (NtStatus2 != STATUS_SUCCESS)
+        TRACE("RtlUnicodeToUTF8N failed (0x%x)", NtStatus2);
+
     *DosPathLength += DosPathNameLength;
 
     return NtStatus;

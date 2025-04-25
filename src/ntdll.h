@@ -3,6 +3,18 @@
 
 #pragma once
 
+#include <utility>
+
+#ifdef _DEBUG
+    #define TRACE(...) \
+    do { \
+        printf(__VA_ARGS__); \
+        std::unreachable(); \
+    } while (0)
+#else
+    #define TRACE(...) std::unreachable()
+#endif
+
 #ifdef _MSC_VER
 #pragma warning(push, 0)
 #endif
@@ -38,7 +50,7 @@ NtCurrentPeb(
 #elif defined(_M_PPC)
     return *(PPEB*)(__gregister_get(13) + FIELD_OFFSET(TEB, ProcessEnvironmentBlock));
 #else
-#error "Unsupported architecture"
+    #error "Unsupported architecture"
 #endif
 }
 
