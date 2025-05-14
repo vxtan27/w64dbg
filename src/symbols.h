@@ -56,7 +56,7 @@ DWORD64 GetRegisterBase32(PSYMBOL_INFOW pSymInfo, PWOW64_CONTEXT pContext) {
         return pContext->Eip;
 
     default:
-        std::unreachable();
+        DEBUG("Unknown CV_HREG_e (%u)\n", pSymInfo->Register);
     }
 }
 
@@ -163,7 +163,7 @@ DWORD64 GetRegisterBase64(PSYMBOL_INFOW pSymInfo, PCONTEXT pContext) {
         return (&pContext->R8)[pSymInfo->Register - CV_AMD64_R8];
 
     default:
-        std::unreachable();
+        DEBUG("Unknown CV_HREG_e (%u)\n", pSymInfo->Register);
     }
 }
 
@@ -250,7 +250,7 @@ BOOL CALLBACK EnumSymbolsCallbackW(
         Base = GetRegisterBase(pSymInfo, User->pContext, User->b64bit);
     else if (pSymInfo->Flags & SYMFLAG_FRAMEREL)
         Base = *User->pBase;
-    else std::unreachable();
+    else DEBUG("Unknown SYMBOL_INFO.Flags (0x%x)\n", pSymInfo->Flags);
 
     *User->p++ = '=';
 

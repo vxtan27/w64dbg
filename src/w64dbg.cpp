@@ -138,7 +138,7 @@ int __stdcall wmain(void) {
     BOOL fBreakpointSignalled = FALSE;
     if (!b64bit) --fBreakpointSignalled; // Wow64 breakpoint
 
-    while (DbgWaitStateChange(&StateChange, FALSE, NULL) == STATUS_SUCCESS) {
+    while ((NtStatus = DbgWaitStateChange(&StateChange, FALSE, NULL)) == STATUS_SUCCESS) {
         switch (StateChange.NewState) {
         case DbgLoadDllStateChange:
             if (fVerbose >= 2)
@@ -484,11 +484,11 @@ int __stdcall wmain(void) {
         }
 
         default:
-            std::unreachable();
+            DEBUG("Unknown DBG_STATE (%u)\n", StateChange.NewState);
         }
 
         WdbgContinueDebugEvent(&StateChange, DBG_CONTINUE);
     }
 
-    std::unreachable();
+    DEBUG("DbgWaitStateChange failed (0x%x)\n", NtStatus);
 }

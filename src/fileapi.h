@@ -23,7 +23,7 @@ HANDLE GetMountMgrHandle() {
                           FILE_SYNCHRONOUS_IO_NONALERT);
 
     if (NtStatus != STATUS_SUCCESS)
-        TRACE("NtOpenFile failed (0x%x)", NtStatus);
+        DEBUG("NtOpenFile failed (0x%x)\n", NtStatus);
 
     return MountMgrHandle;
 }
@@ -53,7 +53,7 @@ NTSTATUS GetDosPathNameFromVolumeDeviceName(
                                      sizeof(VolumePathBuffer));
 
     if (NtStatus != STATUS_SUCCESS)
-        TRACE("NtDeviceIoControlFile failed (0x%x)", NtStatus);
+        DEBUG("NtDeviceIoControlFile failed (0x%x)\n", NtStatus);
 
     NtClose(MountMgrHandle);
 
@@ -64,7 +64,7 @@ NTSTATUS GetDosPathNameFromVolumeDeviceName(
                                  VolumePath->MultiSzLength / sizeof(WCHAR));
 
     if (NtStatus != STATUS_SUCCESS)
-        TRACE("RtlUnicodeToUTF8N failed (0x%x)", NtStatus);
+        DEBUG("RtlUnicodeToUTF8N failed (0x%x)\n", NtStatus);
 
     return NtStatus;
 }
@@ -86,7 +86,7 @@ NTSTATUS GetDosPathFromHandle(
                              NULL);
 
     if (NtStatus != STATUS_SUCCESS)
-        TRACE("NtQueryObject failed (0x%x)", NtStatus);
+        DEBUG("NtQueryObject failed (0x%x)\n", NtStatus);
 
     IO_STATUS_BLOCK IoStatusBlock;
     FILE_NAME_INFORMATION FileNameInfo;
@@ -97,7 +97,7 @@ NTSTATUS GetDosPathFromHandle(
                                       FileNameInformation);
 
     if (NtStatus != STATUS_BUFFER_OVERFLOW)
-        TRACE("NtQueryInformationFile failed (0x%x)", NtStatus);
+        DEBUG("NtQueryInformationFile failed (0x%x)\n", NtStatus);
 
     PMOUNTMGR_TARGET_NAME VolumeDeviceName = (PMOUNTMGR_TARGET_NAME) (&ObjectNameInfo->Name.Length + 7);
     VolumeDeviceName->DeviceNameLength = ObjectNameInfo->Name.Length - FileNameInfo.FileNameLength;
@@ -116,7 +116,7 @@ NTSTATUS GetDosPathFromHandle(
                                   FileNameInfo.FileNameLength);
 
     if (NtStatus2 != STATUS_SUCCESS)
-        TRACE("RtlUnicodeToUTF8N failed (0x%x)", NtStatus2);
+        DEBUG("RtlUnicodeToUTF8N failed (0x%x)\n", NtStatus2);
 
     *DosPathLength += DosPathNameLength;
 

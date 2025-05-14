@@ -45,7 +45,7 @@ VOID SaveThreadHandle(PDBGUI_WAIT_STATE_CHANGE pStateChange) {
     // Allocate a thread structure
     PWDBGSS_DATA ThreadData = (PWDBGSS_DATA) RtlAllocateHeap(
         RtlProcessHeap(), HEAP_NO_SERIALIZE, sizeof(WDBGSS_DATA));
-    if (!ThreadData) std::unreachable();
+    if (!ThreadData) DEBUG("RtlAllocateHeap failed\n");
 
     // Fill it out
     ThreadData->Handle = pStateChange->StateInfo.CreateThread.HandleToThread;
@@ -61,7 +61,7 @@ VOID SaveProcessHandles(PDBGUI_WAIT_STATE_CHANGE pStateChange) {
     // Allocate a process structure
     PWDBGSS_DATA ProcessData = (PWDBGSS_DATA) RtlAllocateHeap(
         RtlProcessHeap(), HEAP_NO_SERIALIZE, sizeof(WDBGSS_DATA));
-    if (!ProcessData) std::unreachable();
+    if (!ProcessData) DEBUG("RtlAllocateHeap failed\n");
 
     // Fill it out
     ProcessData->Handle = pStateChange->StateInfo.CreateProcessInfo.HandleToProcess;
@@ -71,7 +71,7 @@ VOID SaveProcessHandles(PDBGUI_WAIT_STATE_CHANGE pStateChange) {
     // Allocate a thread structure
     PWDBGSS_DATA ThreadData = (PWDBGSS_DATA) RtlAllocateHeap(
         RtlProcessHeap(), HEAP_NO_SERIALIZE, sizeof(WDBGSS_DATA));
-    if (!ThreadData) std::unreachable();
+    if (!ThreadData) DEBUG("RtlAllocateHeap failed\n");
 
     // Fill it out
     ThreadData->Handle = pStateChange->StateInfo.CreateProcessInfo.HandleToThread;
@@ -100,7 +100,7 @@ VOID FreeThreadHandle(DWORD dwThreadId) {
         ThisData = *ThreadData;
     }
 
-    std::unreachable();
+    DEBUG("FreeThreadHandle failed\n");
 }
 
 // Free process and initial thread handles
@@ -168,7 +168,7 @@ NTSTATUS WdbgContinueDebugEvent(
         break;
 
     default: // Fail anything else
-        std::unreachable();
+        DEBUG("Unknown DBG_STATE (%u)\n", pStateChange->NewState);
     }
 
     return NtStatus;
@@ -182,7 +182,7 @@ HANDLE WdbgGetProcessHandle() {
             return ThreadData->Handle;
     }
 
-    std::unreachable();
+    DEBUG("WdbgGetProcessHandle failed\n");
 }
 
 // Get thread handle from current debug event
@@ -193,7 +193,7 @@ HANDLE WdbgGetThreadHandle(DWORD dwThreadId) {
             return ThreadData->Handle;
     }
 
-    std::unreachable();
+    DEBUG("WdbgGetThreadHandle failed\n");
 }
 
 // Stop the debugger from debugging the specified process

@@ -3,16 +3,14 @@
 
 #pragma once
 
-#include <utility>
-
 #ifdef _DEBUG
-    #define TRACE(...) \
+    #define DEBUG(...) \
     do { \
         printf(__VA_ARGS__); \
         std::unreachable(); \
     } while (0)
 #else
-    #define TRACE(...) std::unreachable()
+    #define DEBUG(...) std::unreachable()
 #endif
 
 #ifdef _MSC_VER

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "ntdll.h"
 #include "conapi.h"
 #include "kernelbase.h"

@@ -94,9 +94,15 @@ NTSTATUS SetConsoleDeviceMode(
     IoBuffer.Buffers[0].Size = sizeof(Msg);
     IoBuffer.Buffers[0].Buffer = &Msg;
 
+    NTSTATUS NtStatus;
     IO_STATUS_BLOCK IoStatus;
-    return NtDeviceIoControlFile(hConsole, NULL, NULL, NULL, &IoStatus,
+    NtStatus = NtDeviceIoControlFile(hConsole, NULL, NULL, NULL, &IoStatus,
         IOCTL_CONDRV_ISSUE_USER_IO, &IoBuffer, sizeof(IoBuffer), NULL, 0);
+
+    if (NtStatus != STATUS_SUCCESS)
+        DEBUG("NtDeviceIoControlFile failed (0x%x)\n", NtStatus);
+
+    return NtStatus;
 }
 
 // Read console device input
@@ -128,9 +134,15 @@ NTSTATUS ReadConsoleDeviceInput(
     pIoBuffer->Buffers[2].Size = nLength * sizeof(INPUT_RECORD);
     pIoBuffer->Buffers[2].Buffer = pBuffer;
 
+    NTSTATUS NtStatus;
     IO_STATUS_BLOCK IoStatus;
-    return NtDeviceIoControlFile(hConsole, NULL, NULL, NULL,
-        &IoStatus, IOCTL_CONDRV_ISSUE_USER_IO, pIoBuffer, sizeof(Buffer), NULL, 0);
+    NtStatus = NtDeviceIoControlFile(hConsole, NULL, NULL, NULL, &IoStatus,
+        IOCTL_CONDRV_ISSUE_USER_IO, pIoBuffer, sizeof(Buffer), NULL, 0);
+
+    if (NtStatus != STATUS_SUCCESS)
+        DEBUG("NtDeviceIoControlFile failed (0x%x)\n", NtStatus);
+
+    return NtStatus;
 }
 
 // Write console device output
@@ -157,9 +169,15 @@ NTSTATUS WriteConsoleDevice(
     pIoBuffer->Buffers[1].Size = uLength;
     pIoBuffer->Buffers[1].Buffer = (PVOID) pBuffer;
 
+    NTSTATUS NtStatus;
     IO_STATUS_BLOCK IoStatus;
-    return NtDeviceIoControlFile(hConsole, NULL, NULL, NULL,
-        &IoStatus, IOCTL_CONDRV_ISSUE_USER_IO, pIoBuffer, sizeof(Buffer), NULL, 0);
+    NtStatus = NtDeviceIoControlFile(hConsole, NULL, NULL, NULL, &IoStatus,
+        IOCTL_CONDRV_ISSUE_USER_IO, pIoBuffer, sizeof(Buffer), NULL, 0);
+
+    if (NtStatus != STATUS_SUCCESS)
+        DEBUG("NtDeviceIoControlFile failed (0x%x)\n", NtStatus);
+
+    return NtStatus;
 }
 
 // Console API Message Definitions (Layer 2)
@@ -219,7 +237,13 @@ NTSTATUS SetConsoleDeviceOutputCP(
     IoBuffer.Buffers[0].Size = sizeof(Msg);
     IoBuffer.Buffers[0].Buffer = &Msg;
 
+    NTSTATUS NtStatus;
     IO_STATUS_BLOCK IoStatus;
-    return NtDeviceIoControlFile(hConsole, NULL, NULL, NULL, &IoStatus,
+    NtStatus = NtDeviceIoControlFile(hConsole, NULL, NULL, NULL, &IoStatus,
         IOCTL_CONDRV_ISSUE_USER_IO, &IoBuffer, sizeof(IoBuffer), NULL, 0);
+
+    if (NtStatus != STATUS_SUCCESS)
+        DEBUG("NtDeviceIoControlFile failed (0x%x)\n", NtStatus);
+
+    return NtStatus;
 }

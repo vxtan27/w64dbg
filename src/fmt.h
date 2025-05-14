@@ -21,7 +21,7 @@ DWORD FormatDebugEvent(PDBGUI_WAIT_STATE_CHANGE pStateChange, PCSTR szDebugEvent
     return p - Buffer + 1;
 }
 
-#include "path.cpp"
+#include "fileapi.h"
 
 //
 //  Format a module-related debug event message into a buffer
